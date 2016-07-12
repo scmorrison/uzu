@@ -13,7 +13,7 @@ our $layout;
 our sub config(:$base, :$layout) {
   $supplier = Supplier.new;
   $log = $supplier.Supply;
-  watch_dir($base);
+  watch-dir($base);
   $layout = $layout;
 }
 
@@ -36,18 +36,18 @@ sub watch-it($p) {
     }
 }
 
-our sub watch-recursive(@dirs) {
-  supply {
-      watch-it(~$_) for |@dirs.map: { find-dirs($_) };
-  }
-}
+#our sub watch-recursive(@dirs) {
+#  supply {
+#      watch-it(~$_) for |@dirs.map: { find-dirs($_) };
+#  }
+#}
 
 sub find-dirs (Str:D $p) {
   state $seen = {};
   return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
 }
 
-sub watch_dir($dir) {
+sub watch-dir($dir) {
     my $last;
     IO::Notification.watch-path($dir)\
         .unique(:as(*.path), :expires(1))\
@@ -58,12 +58,12 @@ sub watch_dir($dir) {
           # in a few seconds
           if (!$last.defined or now - $last > 6) {
             $last = now;
-            $!supplier.emit($modified);
+            $supplier.emit($modified);
           }
 
           CATCH {
               default {
-                  $!supplier.emit("ERROR: incorrect file format: $_");
+                  $supplier.emit("ERROR: incorrect file format: $_");
               }
           }
         });
@@ -91,7 +91,7 @@ our sub render() {
 
     my $stache = Template::Mustache.new: :from<./partials>;
     my $layout_dir = 'layouts';
-    my $template = slurp "$layout_dir/$!layout.mustache";
+    my $template = slurp "$layout_dir/$layout.mustache";
     my @partial_templates = partials();
     my %context;
     my %partials;
