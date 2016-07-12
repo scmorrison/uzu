@@ -1,0 +1,11 @@
+{
+    "name" : "UZU",
+    "version"  : "0.0.1",
+    "description" : "Simple static site generator with built-in web server and file-modification change detector.",
+    "provides" : {
+      "UZU" : "lib/UZU.pm6"
+    },
+    "author" : "Sam Morrison <sam@linux.com>",
+    "depends" : [ "Config::INI", "JSON::Tiny", "Terminal::ANSIColor", "Template::Mustache", "IO::Notification::Recursive" ],
+    "source-url" : "git@gitlab.com:samcns/uzu.git"
+}
