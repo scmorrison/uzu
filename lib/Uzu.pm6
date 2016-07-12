@@ -157,7 +157,6 @@ our sub watch() {
     whenever watch-dirs(@template_dirs.grep: *.IO.e) -> $e {
       if $e.path().grep: / '.' @template_extensions $/ and (!$last.defined or now - $last > 8) {
         $last = now;
-        say $last.WHAT;
         say "Change detected [$e.path(), $e.event()].";
         render();
       }
