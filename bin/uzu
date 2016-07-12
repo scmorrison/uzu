@@ -1,7 +1,7 @@
 #!/usr/bin/env perl6
 
 use v6;
-use UZU;
+use Uzu;
 
 # Static site generator
 
@@ -48,8 +48,8 @@ multi MAIN('init') {
 }
 
 multi MAIN('build', Str $layout) {
-  UZU::config(base => './partials', layout => $layout);
-  UZU::render();
+  Uzu::config(base => './partials', layout => $layout);
+  Uzu::render();
 }
 
 multi MAIN('serve', Str $layout) {
@@ -63,20 +63,20 @@ multi MAIN('serve', Str $layout) {
 
   say "Attempting to start server";
   #my $sitegen = SiteGen.new(base => './partials', layout => $layout);
-  UZU::config(base => './partials', layout => $layout);
+  Uzu::config(base => './partials', layout => $layout);
   my $last;
 
   # Start server
-  my $app = UZU::serve(build_dir => 'build');
+  my $app = Uzu::serve(build_dir => 'build');
 	
 	react {
-		whenever UZU::watch-recursive(@watchlist.grep: *.IO.e) -> $e {
+		whenever Uzu::watch-recursive(@watchlist.grep: *.IO.e) -> $e {
 			if $e.path().grep: /.mustache$/ and (!$last.defined or now - $last > 8) {
 				$last = now;
 				say "Change detected [$e.path(), $e.event()]. Restarting server.";
-				UZU::render();
+				Uzu::render();
         $app.kill;
-        $app = UZU::serve(build_dir => 'build');
+        $app = Uzu::serve(build_dir => 'build');
 			}
 		}
 	}
