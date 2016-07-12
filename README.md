@@ -58,19 +58,7 @@ Install `Perl 6` using the following process:
 
     cd uzu/
     panda -force --notests install .
-    ```
-
-Troubleshooting
-===============
-
-* `uzu` command not found
-
-    This might happen if the current `perl6` site bin is not available on $PATH.
-
-    Add the following to your `.bashrc`, `.zshrc`, etc.:
-
-    ```
-    export PATH="$(printf ":%s" ~/.rakudobrew/*/install/share/perl6/site/bin):$PATH";
+    rakudobrew rehash
     ```
 
 Todo
