@@ -6,12 +6,12 @@ Simple static site generator with built-in web server and file-modification chan
 Usage
 =====
 
-    ```
-    Usage:
-      uzu webserver <build_dir> 
-      uzu build <layout> 
-      uzu serve <layout>
-    ```
+```
+Usage:
+  uzu webserver <build_dir> 
+  uzu build <layout> 
+  uzu serve <layout>
+```
 
 Installation
 ============
