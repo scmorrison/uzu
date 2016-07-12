@@ -4,7 +4,7 @@ use v6;
 use Uzu;
 
 multi MAIN('webserver', Str $build_dir) {
-  Uzu::server(src_dir => $build_dir);
+  Uzu::web-server(src_dir => $build_dir);
 }
 
 multi MAIN('build', Str $layout) {
@@ -12,39 +12,26 @@ multi MAIN('build', Str $layout) {
   Uzu::render();
 }
 
-multi MAIN('serve', Str $layout) {
+multi MAIN('watch', Str $layout) {
 
   unless 'partials'.IO.e {
-    note "No partials .mustache files available";
+    note "No partials files available";
     exit(1);
   }
 
-  my @watchlist = ['layouts/', 'partials/'];
 
-  say "Attempting to start server";
   Uzu::config(base => './partials', layout => $layout);
-  my $last;
+  Uzu::watch();
 
-  # Start server
-  my $app = Uzu::serve(build_dir => 'build');
-  
-  react {
-    whenever Uzu::watch-dirs(@watchlist.grep: *.IO.e) -> $e {
-      if $e.path().grep: /.mustache$/ and (!$last.defined or now - $last > 8) {
-        $last = now;
-        say "Change detected [$e.path(), $e.event()]. Restarting server.";
-        Uzu::render();
-      }
-    }
-  }
 }
 
 sub USAGE {
   say q:to/END/;
       Usage:
-        uzu webserver <build_dir> 
-        uzu build <layout> 
-        uzu serve <layout>
+        uzu webserver <build_dir> - Start local web server
+        uzu build <layout>        - Render all templates to ./build
+        uzu watch <layout>        - Start web server and re-render
+                                    build on template modification
       END
 }
 
