@@ -3,6 +3,16 @@ Uzu (渦)
 
 Simple static site generator with built-in web server and file-modification change detector.
 
+Usage
+=====
+
+    ```
+    Usage:
+      uzu webserver <build_dir> 
+      uzu build <layout> 
+      uzu serve <layout>
+    ```
+
 Installation
 ============
 
@@ -33,26 +43,34 @@ Install `Perl 6` using the following process:
     rakudobrew build panda
     ```
 
-4. Install Bailador
-
-    ```
-    cd src/
-    git clone https://github.com/ufobat/Bailador.git
-    cd Bailador/
-    panda --notests install .
-    ```
-
-6. Clone the repository locally 
+4. Clone the repository locally 
 
     ```
     git clone https://gitlab.com/samcns/uzu.git
     ```
 
-6. Install project requirements
+5. Install project requirements
 
     ```
+    # We are using Bailador for the static web server
+    # it currently fails. Please use `--notests` to 
+    # install.
+
     cd uzu/
-    panda -force install .
+    panda -force --notests install .
+    ```
+
+Troubleshooting
+===============
+
+* `uzu` command not found
+
+    This might happen if the current `perl6` site bin is not available on $PATH.
+
+    Add the following to your `.bashrc`, `.zshrc`, etc.:
+
+    ```
+    export PATH="$(printf ":%s" ~/.rakudobrew/*/install/share/perl6/site/bin):$PATH";
     ```
 
 Todo
