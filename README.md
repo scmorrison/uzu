@@ -8,9 +8,10 @@ Usage
 
 ```
 Usage:
-  uzu webserver <build_dir> 
-  uzu build <layout> 
-  uzu serve <layout>
+  uzu webserver <build_dir> - Start local web server
+  uzu build <layout>        - Render all templates to ./build
+  uzu watch <layout>        - Start web server and re-render
+                              build on template modification
 ```
 
 Installation
