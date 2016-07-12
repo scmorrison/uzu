@@ -1,0 +1,94 @@
+#!/usr/bin/env perl6
+
+use v6;
+use UZU;
+
+# Static site generator
+
+use Bailador;
+use Bailador::App;
+
+class StaticSite is Bailador::App {
+
+  submethod BUILD(Str :$src_dir) {
+    my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
+    my $root_dir = $*CWD;
+    my $build_dir = "$root_dir/$src_dir";
+    
+    self.get: '/' => sub {
+      my $path = IO::Path.new("$build_dir/index.html");
+      my $type = $content-types.detect-type($path);
+      header("Content-Type", $type);
+      say "$type: $path";
+      return slurp $path;
+    }
+
+    self.get: /(.+)/ => sub ($file) {
+      return "Invalid path" if $file.match('..');
+      my $path = IO::Path.new($build_dir ~ $file.split('?')[0]);
+      my $type = $content-types.detect-type($path);
+      header("Content-Type", $type);
+      say "$type: $path";
+      return $path.slurp if !$type.grep: / image|ttf|woff /;
+      return $path.slurp(:bin);
+    }    
+
+  }
+
+}
+
+multi MAIN('webserver', Str $build_dir) {
+  my $app = StaticSite.new(src_dir => $build_dir);
+  app $app;
+  baile;
+}
+
+multi MAIN('init') {
+
+}
+
+multi MAIN('build', Str $layout) {
+  UZU::config(base => './partials', layout => $layout);
+  UZU::render();
+}
+
+multi MAIN('serve', Str $layout) {
+
+  unless 'partials'.IO.e {
+    note "No partials .mustache files available";
+    exit(1);
+  }
+
+  my @watchlist = ['layouts/', 'partials/'];
+
+  say "Attempting to start server";
+  #my $sitegen = SiteGen.new(base => './partials', layout => $layout);
+  UZU::config(base => './partials', layout => $layout);
+  my $last;
+
+  # Start server
+  my $app = UZU::serve(build_dir => 'build');
+	
+	react {
+		whenever UZU::watch-recursive(@watchlist.grep: *.IO.e) -> $e {
+			if $e.path().grep: /.mustache$/ and (!$last.defined or now - $last > 8) {
+				$last = now;
+				say "Change detected [$e.path(), $e.event()]. Restarting server.";
+				UZU::render();
+        $app.kill;
+        $app = UZU::serve(build_dir => 'build');
+			}
+		}
+	}
+
+  #my $sitegen = SiteGen.new(base => './partials', layout => $layout);
+  #$sitegen.log.tap(-> $modified {
+  #    say "[{DateTime.now}] $modified modified";
+  #    $sitegen.render();
+  #});
+  #sleep;
+}
+
+multi MAIN('push', Str $target) {
+
+}
