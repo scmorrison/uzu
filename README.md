@@ -1,23 +1,10 @@
-=encoding utf8
-
-=head1 NAME
-
-Uzu - Simple static site generator with built-in web server and file-modification change detector.
-
-=head1 USAGE
-
-  uzu webserver <build_dir> 
-  uzu init 
-  uzu build <layout> 
-  uzu serve <layout> 
-  uzu push <target>
-
-=head1 DESCRIPTION
+Uzu (渦)
+===
 
 Simple static site generator with built-in web server and file-modification change detector.
 
-
-=head1 INSTALLATION
+Installation
+============
 
 Install `Perl 6` using the following process:
 
@@ -67,31 +54,21 @@ Install `Perl 6` using the following process:
     cd uzu/
     panda -force install .
     ```
-=head1 TODO
+
+Todo
+====
 
 * Add tests
 * Add build steps to build.pl6
 * Uglify JS / CSS
 * Build deploy process push to S3
 
-=head1 REPOSITORY
+Requirements
+============
 
-Fork this module on GitLab:
-L<https://gitlab.com/samcns/uzu.git>
+* [Perl 6](http://perl6.org/)
 
-=head1 BUGS
+AUTHORS
+=======
 
-To report bugs or request features, please use
-L<https://gitlab.com/samcns/uzu/issues>
-
-=head1 AUTHOR
-
-Sam Morrison L<https://gitlab.com/u/samcns>
-
-=head1 LICENSE
-
-You can use and distribute this module under the same terms as Perl 6
-itself. See the C<LICENSE> file included in this distribution for complete
-details.
-
-=cut
+* [Sam Morrison](@samcns)
