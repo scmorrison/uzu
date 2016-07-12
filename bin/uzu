@@ -27,14 +27,25 @@ multi MAIN('serve', Str $layout) {
 
   # Start server
   my $app = Uzu::serve(build_dir => 'build');
-	
-	react {
-		whenever Uzu::watch-dirs(@watchlist.grep: *.IO.e) -> $e {
-			if $e.path().grep: /.mustache$/ and (!$last.defined or now - $last > 8) {
-				$last = now;
-				say "Change detected [$e.path(), $e.event()]. Restarting server.";
-				Uzu::render();
-			}
-		}
-	}
+  
+  react {
+    whenever Uzu::watch-dirs(@watchlist.grep: *.IO.e) -> $e {
+      if $e.path().grep: /.mustache$/ and (!$last.defined or now - $last > 8) {
+        $last = now;
+        say "Change detected [$e.path(), $e.event()]. Restarting server.";
+        Uzu::render();
+      }
+    }
+  }
 }
+
+sub USAGE {
+  say q:to/END/;
+      Usage:
+        uzu webserver <build_dir> 
+        uzu build <layout> 
+        uzu serve <layout>
+      END
+}
+
+# vim: ft=perl6
