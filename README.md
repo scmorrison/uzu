@@ -8,10 +8,18 @@ Usage
 
 ```
 Usage:
-  uzu webserver <build_dir> - Start local web server
-  uzu build <layout>        - Render all templates to ./build
-  uzu watch <layout>        - Start web server and re-render
-                              build on template modification
+	uzu init                  - Initialize new project
+	uzu webserver <build_dir> - Start local web server
+	uzu build <layout>        - Render all templates to build
+	uzu watch <layout>        - Start web server and re-render
+															build on template modification
+
+Optional arguments:
+	
+	--config=                 - Specify a custom config file
+															Default is `config`
+
+	e.g. uzu --config=path/to/config init
 ```
 
 Installation
@@ -69,6 +77,9 @@ Todo
 * Add build steps to build.pl6
 * Uglify JS / CSS
 * Build deploy process push to S3
+* Features
+  * Pages, currently only single page
+  * Posts for blogs
 
 Requirements
 ============

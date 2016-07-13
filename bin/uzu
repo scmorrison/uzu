@@ -3,35 +3,56 @@
 use v6;
 use Uzu;
 
-multi MAIN('webserver', Str $build_dir) {
-  Uzu::web-server(src_dir => $build_dir);
+multi MAIN('webserver', Str :$config = 'config') {
+  Uzu::web-server(config_file => $config);
 }
 
-multi MAIN('build', Str $layout) {
-  Uzu::config(base => './partials', layout => $layout);
+multi MAIN('build', Str :$config = 'config') {
+  Uzu::config(config_file => $config);
   Uzu::render();
 }
 
-multi MAIN('watch', Str $layout) {
-
-  unless 'partials'.IO.e {
-    note "No partials files available";
-    exit(1);
-  }
-
-
-  Uzu::config(base => './partials', layout => $layout);
+multi MAIN('watch', Str :$config = 'config') {
+  Uzu::config(config_file => $config);
   Uzu::watch();
 
+}
+
+multi MAIN('init', Str :$config = 'config') {
+
+  # config file exists, exit
+  return say "Config [$config] already exists." if $config.IO ~~ :f;
+
+  say "Uzu project initialization";
+  my $project_name = prompt("Please enter project name: ");
+  my $url = prompt("Please enter project url (e.g http://example.com): ");
+  my $language = prompt("Please enter project language (e.g. en-US, ja-JP): ");
+  my $theme = prompt("Please enter project theme (e.g. default): ");
+
+  if Uzu::init( config_file  => $config,
+                 project_name => $project_name,
+                 url          => $url,
+                 language     => $language,
+                 theme        => $theme ) {
+    say "Config [$config] successfully created.";
+  }
 }
 
 sub USAGE {
   say q:to/END/;
       Usage:
+        uzu init                  - Initialize new project
         uzu webserver <build_dir> - Start local web server
-        uzu build <layout>        - Render all templates to ./build
+        uzu build <layout>        - Render all templates to build
         uzu watch <layout>        - Start web server and re-render
                                     build on template modification
+
+      Optional arguments:
+        
+        --config=                 - Specify a custom config file
+                                    Default is `config`
+
+        e.g. uzu --config=path/to/config init 
       END
 }
 
