@@ -22,6 +22,28 @@ Optional arguments:
 	e.g. uzu --config=path/to/config init
 ```
 
+Project folder structure
+========================
+
+```
+├── assets
+│   ├── fonts
+│   ├── img
+│   ├── js
+│   ├── favicon.ico
+├── config
+├── partials
+│   ├── content.mustache
+│   ├── footer.mustache
+│   ├── head.mustache
+│   ├── jumbotron.mustache
+│   └── navigation.mustache
+└── themes
+    └── default.mustache
+```
+
+See [uzu-starter](https://gitlab.com/samcns/uzu-starter) for a full example.
+
 Installation
 ============
 
