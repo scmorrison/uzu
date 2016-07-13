@@ -24,22 +24,28 @@ Optional arguments:
 
 Project folder structure
 ========================
-
 ```
-├── assets
-│   ├── fonts
-│   ├── img
-│   ├── js
-│   ├── favicon.ico
 ├── config
+├── pages
+│   ├── about.mustache
+│   └── index.mustache
 ├── partials
-│   ├── content.mustache
 │   ├── footer.mustache
 │   ├── head.mustache
+│   ├── home.mustache
 │   ├── jumbotron.mustache
-│   └── navigation.mustache
+│   ├── navigation.mustache
+│   └── profiles.mustache
 └── themes
-    └── default.mustache
+    └── default
+        ├── assets
+        │   ├── css
+        │   ├── favicon.ico
+        │   ├── fonts
+        │   ├── img
+        │   ├── js
+        └── layout
+            └── layout.mustache
 ```
 
 See [uzu-starter](https://gitlab.com/samcns/uzu-starter) for a full example.
@@ -91,7 +97,6 @@ Install `Perl 6` using the following process:
     panda -force --notests install .
     rakudobrew rehash
     ```
-
 Todo
 ====
 
@@ -100,7 +105,6 @@ Todo
 * Uglify JS / CSS
 * Build deploy process push to S3
 * Features
-  * Pages, currently only single page
   * Posts for blogs
 
 Requirements
@@ -111,4 +115,4 @@ Requirements
 AUTHORS
 =======
 
-* [Sam Morrison](@samcns)
+[Sam Morrison](@samcns)

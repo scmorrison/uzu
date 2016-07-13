@@ -1,6 +1,6 @@
 {
     "name" : "Uzu",
-    "version"  : "0.0.1",
+    "version"  : "0.0.2",
     "description" : "Simple static site generator with built-in web server and file-modification change detector.",
     "provides" : {
       "Uzu" : "lib/Uzu.pm6"

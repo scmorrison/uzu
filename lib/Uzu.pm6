@@ -1,6 +1,6 @@
 use v6;
 
-unit module Uzu;
+unit module Uzu:ver<0.0.2>:auth<gitlab:samcns>;
 
 use IO::Notification::Recursive;
 use File::Find;
@@ -32,25 +32,26 @@ sub file-with-extension(Str $path) returns Str {
   }
 }
 
+sub included-partials(Str :$content) {
+	my %partials;
+	my @include_partials = $content.match: / '{{> ' (\w+) ' }}'/, :g;
+	for @include_partials -> $partial {
+		my $partial_name = $partial[0].Str;
+		my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
+		my $partial_content = slurp($partial_path, :r);
+		%partials{$partial_name} = $partial_content;
+	}
+	return %partials;
+}
+
 our sub render() {
   use Template::Mustache;
-  use HTML::Entity;
 
-  my $stache = Template::Mustache.new: :from<./partials>;
   my $themes_dir = %config<themes_dir>;
   my $layout_dir = %config<layout_dir>;
   my $layout = slurp file-with-extension("$layout_dir/layout");
   my $assets_dir = %config<assets_dir>;
   my $build_dir = %config<build_dir>;
-  my %context;
-
-  # All available partials
-  my %partials;
-  my @partial_templates = templates(dir => %config<partials_dir>);
-  for @partial_templates -> $partial { 
-    my $partial_name = IO::Path.new($partial).basename.Str.split('.')[0]; 
-    %partials{$partial_name} = slurp($partial, :r);
-  }
 
   # All available pages
   my %pages;
@@ -71,12 +72,28 @@ our sub render() {
   say "Copying asset files";
   shell("cp -rf $assets_dir/* $build_dir/");
 
+  # Mustache template engine
+  my $stache = Template::Mustache.new;
+  my %context;
+
   # Write to build
   say "Compiling template to HTML";
   for %pages.kv -> $page_name, $content {
-    my $page_content = $stache.render($content, %context, :from([%partials]));
-    %context = content => $page_content;
-    spurt "$build_dir/$page_name.html", decode-entities $stache.render($layout, %context, :from([%partials]));
+
+    # Render the page content
+    my %page_partials = included-partials(content => $content);
+    my $page_content = $stache.render($content, %context, :from([%page_partials]));
+
+    # Embed the page content into the layout
+    my %layout_partials = included-partials(content => $layout);
+
+    # This is a mess, find a better way to quickly decode HTML entities
+    # The second $stache.render returns the %context<content> as encoded HTML
+    # decoding it with HTML::Entity is too slow
+    %context<content> = '{{ content }}';
+    my $layout_content = $stache.render($layout, %context, :from([%layout_partials]));
+    spurt "$build_dir/$page_name.html",
+          $layout_content.subst('{{ content }}', $page_content);
   }
   say "Compile complete";
 }
