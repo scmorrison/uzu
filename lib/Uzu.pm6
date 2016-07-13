@@ -11,9 +11,8 @@ use Config::INI::Writer;
 my %config;
 
 # Utils
-sub path-exists(Str $path, Str $type) returns Bool {
-  if $type ~~ 'f' { return $path.IO ~~ :f }
-  if $type ~~ 'd' { return $path.IO ~~ :d }
+sub path-exists(Str $path) returns Bool {
+  return $path.IO ~~ :f|:d;
 }
 
 sub find-dirs (Str:D $p) returns Slip {
@@ -27,10 +26,10 @@ sub partials() returns Seq {
 }
 
 sub file-with-extension(Str $path) returns Str {
-  my @files;
   my @exts = |%config<template_extensions>;
-  for @exts -> $ext { @files.push: "$path.$ext" }
-  return @files.first: *.IO.e;
+  for @exts -> $ext {
+    return "$path.$ext" if "$path.$ext".IO ~~ :e;
+  }
 }
 
 our sub render() {
@@ -51,7 +50,7 @@ our sub render() {
   }
 
   # Create build dir if missing
-  if !path-exists($build_dir, 'd') { say "Creating build directory"; mkdir $build_dir }
+  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
 
   # Clear out build
   say "Clear old files";
@@ -84,14 +83,21 @@ our sub web-server(Str :$config_file = 'config') {
   my $build_dir = %config<defaults><build_dir>;
  
   get /(.+)/ => sub ($file) {
+    # Trying to access files outside of build path
     return "Invalid path" if $file.match('..');
-    my $path;
+
     # Catch / => index.html
+    my $path;
     if $file ~~ '/' {
       $path = IO::Path.new(file-with-extension("$build_dir/index"));
     } else {
       $path = IO::Path.new($build_dir ~ $file.split('?')[0]);
     }
+
+    # Invalid path
+    return "Invalid path: file does not exists" if !$path.IO.e;
+
+    # Return any valid paths
     my $type = $content-types.detect-type($path);
     header("Content-Type", $type);
     say "$type: $path";
@@ -152,7 +158,7 @@ our sub watch() returns Tap {
 
 # Config
 sub load-config(Str $config_file) returns Hash {
-  if !path-exists($config_file, 'f') { return say "$config_file not found. See uzu init." }
+  if !path-exists($config_file) { return say "$config_file not found. See uzu init." }
   my %config = Config::INI::parse_file($config_file);
   # Additional config for private use
   %config<path>                   = $config_file;
@@ -184,3 +190,4 @@ our sub init( Str :$config_file  = "config",
   return Config::INI::Writer::dumpfile(%config, $config_file.subst('~', $*HOME));
 }
 
+# vim: ft=perl6
