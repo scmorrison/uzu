@@ -20,9 +20,9 @@ sub find-dirs (Str:D $p) returns Slip {
   return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
 }
 
-sub partials() returns Seq {
+sub templates(Str :$dir) returns Seq {
    my @exts = |%config<template_extensions>;
-   return "%config<defaults><partials_dir>".IO.dir(:test(/:i '.' @exts $/));
+   return $dir.IO.dir(:test(/:i '.' @exts $/));
 }
 
 sub file-with-extension(Str $path) returns Str {
@@ -34,19 +34,30 @@ sub file-with-extension(Str $path) returns Str {
 
 our sub render() {
   use Template::Mustache;
+  use HTML::Entity;
 
   my $stache = Template::Mustache.new: :from<./partials>;
-  my $themes_dir = %config<defaults><themes_dir>;
-  my $theme = slurp file-with-extension("$themes_dir/%config<defaults><theme>");
-  my $assets_dir = %config<defaults><assets_dir>;
-  my $build_dir = %config<defaults><build_dir>;
-  my @partial_templates = partials();
+  my $themes_dir = %config<themes_dir>;
+  my $layout_dir = %config<layout_dir>;
+  my $layout = slurp file-with-extension("$layout_dir/layout");
+  my $assets_dir = %config<assets_dir>;
+  my $build_dir = %config<build_dir>;
   my %context;
-  my %partials;
 
+  # All available partials
+  my %partials;
+  my @partial_templates = templates(dir => %config<partials_dir>);
   for @partial_templates -> $partial { 
     my $partial_name = IO::Path.new($partial).basename.Str.split('.')[0]; 
     %partials{$partial_name} = slurp($partial, :r);
+  }
+
+  # All available pages
+  my %pages;
+  my @page_templates = templates(dir => %config<pages_dir>);
+  for @page_templates -> $page { 
+    my $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
+    %pages{$page_name} = slurp($page, :r);
   }
 
   # Create build dir if missing
@@ -62,7 +73,11 @@ our sub render() {
 
   # Write to build
   say "Compiling template to HTML";
-  spurt "$build_dir/index.html", $stache.render($theme, %context, :from([%partials]));
+  for %pages.kv -> $page_name, $content {
+    my $page_content = $stache.render($content, %context, :from([%partials]));
+    %context = content => $page_content;
+    spurt "$build_dir/$page_name.html", decode-entities $stache.render($layout, %context, :from([%partials]));
+  }
   say "Compile complete";
 }
 
@@ -80,7 +95,7 @@ our sub web-server(Str :$config_file = 'config') {
 
   %config = load-config($config_file);
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
-  my $build_dir = %config<defaults><build_dir>;
+  my $build_dir = %config<build_dir>;
  
   get /(.+)/ => sub ($file) {
     # Trying to access files outside of build path
@@ -129,7 +144,7 @@ our sub watch-dirs(@dirs) returns Supply {
 our sub watch() returns Tap {
 
   unless 'partials'.IO.e {
-    note "No partials files available";
+    note "No project files available";
     exit(1);
   }
 
@@ -162,7 +177,13 @@ sub load-config(Str $config_file) returns Hash {
   my %config = Config::INI::parse_file($config_file);
   # Additional config for private use
   %config<path>                   = $config_file;
-  %config<template_dirs>          = [%config<defaults><themes_dir>, %config<defaults><partials_dir>];
+  %config<build_dir>              = 'build';
+  %config<themes_dir>             = 'themes';
+  %config<assets_dir>             = "themes/{%config<defaults><theme>}/assets";
+  %config<layout_dir>             = "themes/{%config<defaults><theme>}/layout";
+  %config<pages_dir>              = 'pages';
+  %config<partials_dir>           = 'partials';
+  %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>];
   %config<template_extensions>    = ['ms', 'mustache', 'html'];
   return %config;
 }
@@ -181,10 +202,6 @@ our sub init( Str :$config_file  = "config",
   %config<defaults><url>          = $url;
   %config<defaults><language>     = $language;
   %config<defaults><theme>        = $theme;
-  %config<defaults><build_dir>    = 'build';
-  %config<defaults><assets_dir>   = 'assets';
-  %config<defaults><themes_dir>   = 'themes';
-  %config<defaults><partials_dir> = 'partials';
 
   # Write config file
   return Config::INI::Writer::dumpfile(%config, $config_file.subst('~', $*HOME));
