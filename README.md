@@ -8,18 +8,18 @@ Usage
 
 ```
 Usage:
-	uzu init       - Initialize new project
-	uzu webserver  - Start local web server
-	uzu build      - Render all templates to build
-	uzu watch      - Start web server and re-render
+  uzu init       - Initialize new project
+  uzu webserver  - Start local web server
+  uzu build      - Render all templates to build
+  uzu watch      - Start web server and re-render
                    build on template modification
 
 Optional arguments:
-	
-	--config=      - Specify a custom config file
+  
+  --config=      - Specify a custom config file
                    Default: `config`
 
-	e.g. uzu --config=path/to/config init
+  e.g. uzu --config=path/to/config init
 ```
 
 Project folder structure
