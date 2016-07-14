@@ -218,7 +218,7 @@ sub load-config(Str $config_file) returns Hash {
   # Set project root
   my $project_root = '';
   if %config<defaults><project_root>.defined {
-    $project_root = %config<defaults><project_root>;
+    $project_root = "{%config<defaults><project_root>}/";
   }
 
   # Set configuration
