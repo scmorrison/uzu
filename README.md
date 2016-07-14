@@ -36,6 +36,10 @@ Project folder structure
 │   ├── jumbotron.mustache
 │   ├── navigation.mustache
 │   └── profiles.mustache
+├── i18n
+│   ├── en.yml
+│   ├── fr.yml
+│   ├── ja.yml
 └── themes
     └── default
         ├── assets
