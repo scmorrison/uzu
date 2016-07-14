@@ -213,14 +213,15 @@ sub load-config(Str $config_file) returns Hash {
   if !path-exists($config_file) { return say "$config_file not found. See uzu init." }
   my %config = Config::INI::parse_file($config_file);
   # Additional config for private use
+  %config<project_root>           = %config<defaults><project_root> // '';
   %config<path>                   = $config_file;
-  %config<build_dir>              = %config<defaults><build_dir> ?? %config<defaults><build_dir> !! 'build';
-  %config<themes_dir>             = 'themes';
-  %config<assets_dir>             = "themes/{%config<defaults><theme>}/assets";
-  %config<layout_dir>             = "themes/{%config<defaults><theme>}/layout";
-  %config<pages_dir>              = 'pages';
-  %config<partials_dir>           = 'partials';
-  %config<i18n_dir>               = 'i18n';
+  %config<build_dir>              = "%config<project_root>/build";
+  %config<themes_dir>             = "%config<project_root>/themes";
+  %config<assets_dir>             = "%config<project_root>/themes/{%config<defaults><theme>}/assets";
+  %config<layout_dir>             = "%config<project_root>/themes/{%config<defaults><theme>}/layout";
+  %config<pages_dir>              = "%config<project_root>/pages";
+  %config<partials_dir>           = "%config<project_root>/partials";
+  %config<i18n_dir>               = "%config<project_root>/i18n";
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
   %config<template_extensions>    = ['ms', 'mustache', 'html', 'yml'];
   return %config;
@@ -233,7 +234,7 @@ our sub config(Str :$config_file) returns Hash {
 our sub init( Str :$config_file  = "config", 
               Str :$project_name = "New Uzu Project",
               Str :$url          = "http://example.com",
-              Str :$language     = "en-US",
+              Str :$language     = "en",
               Str :$theme        = "default") returns Bool {
 
   %config<defaults><name>         = $project_name;
