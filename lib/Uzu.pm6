@@ -34,7 +34,7 @@ sub file-with-extension(Str $path) returns Str {
 
 sub included-partials(Str :$content) {
 	my %partials;
-	my @include_partials = $content.match: / '{{> ' (\w+) ' }}'/, :g;
+	my @include_partials = $content.match: / '{{>' \s? (\w+) \s? '}}' /, :g;
 	for @include_partials -> $partial {
 		my $partial_name = $partial[0].Str;
 		my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
@@ -61,20 +61,21 @@ our sub render() {
     %pages{$page_name} = slurp($page, :r);
   }
 
-  # Create build dir if missing
-  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
-
   # Clear out build
   say "Clear old files";
-  shell("rm -rf $build_dir/*");
+  run(«rm "-rf" "$build_dir"»);
+
+  # Create build dir
+  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
 
   # Copy assets
   say "Copying asset files";
-  shell("cp -rf $assets_dir/* $build_dir/");
+  run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
   # Mustache template engine
   my $stache = Template::Mustache.new;
   my %context;
+  %context<language> = %config<defaults><language>;
 
   # Write to build
   say "Compiling template to HTML";
