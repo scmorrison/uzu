@@ -3,6 +3,15 @@ Uzu (渦)
 
 Simple static site generator with built-in web server and file-modification change detector.
 
+Features
+========
+* **Easy to use**: Based on existing static site generator conventions
+* **Built-in development webserver**: Test your modifications (http://localhost:3000) as you work
+* **Auto Re-render**: `uzu watch` monitors the `theme/[your-theme]/layout/`, `pages`, `partials/`, and `i18n/` folders for modifications and auto-renders to build
+* **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
+* **Page / layout support**: Generate individual pages wrapped in the same theme layout
+* **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
+
 Usage
 =====
 
@@ -101,6 +110,7 @@ Install `Perl 6` using the following process:
     panda -force --notests install .
     rakudobrew rehash
     ```
+
 Todo
 ====
 
