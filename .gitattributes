@@ -1,0 +1,4 @@
+uzu gitlab-language=perl
+*.pl6 gitlab-language=perl
+*.pm6 gitlab-language=perl
+*.t gitlab-language=perl
