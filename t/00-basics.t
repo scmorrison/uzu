@@ -1,7 +1,7 @@
 use Test;
-use UZU;
+use Uzu;
 
 plan 1;
 
 # use
-use-ok('UZU');
+use-ok('Uzu');
