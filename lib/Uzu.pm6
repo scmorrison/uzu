@@ -28,7 +28,8 @@ sub templates(Str :$dir) returns Seq {
 sub file-with-extension(Str $path) returns Str {
   my @exts = |%config<template_extensions>;
   for @exts -> $ext {
-    return "$path.$ext" if "$path.$ext".IO ~~ :e;
+    my $file_name = "$path.$ext";
+    return $file_name if $file_name.IO ~~ :e and $file_name.IO ~~ :f;
   }
 }
 
@@ -213,15 +214,23 @@ sub load-config(Str $config_file) returns Hash {
   if !path-exists($config_file) { return say "$config_file not found. See uzu init." }
   my %config = Config::INI::parse_file($config_file);
   # Additional config for private use
-  %config<project_root>           = %config<defaults><project_root> // '';
+
+  # Set project root
+  my $project_root = '';
+  if %config<defaults><project_root>.defined {
+    $project_root = %config<defaults><project_root>;
+  }
+
+  # Set configuration
+  %config<project_root>           = $project_root;
   %config<path>                   = $config_file;
-  %config<build_dir>              = "%config<project_root>/build";
-  %config<themes_dir>             = "%config<project_root>/themes";
-  %config<assets_dir>             = "%config<project_root>/themes/{%config<defaults><theme>}/assets";
-  %config<layout_dir>             = "%config<project_root>/themes/{%config<defaults><theme>}/layout";
-  %config<pages_dir>              = "%config<project_root>/pages";
-  %config<partials_dir>           = "%config<project_root>/partials";
-  %config<i18n_dir>               = "%config<project_root>/i18n";
+  %config<build_dir>              = "{$project_root}build";
+  %config<themes_dir>             = "{$project_root}themes";
+  %config<assets_dir>             = "{$project_root}themes/{%config<defaults><theme>}/assets";
+  %config<layout_dir>             = "{$project_root}themes/{%config<defaults><theme>}/layout";
+  %config<pages_dir>              = "{$project_root}pages";
+  %config<partials_dir>           = "{$project_root}partials";
+  %config<i18n_dir>               = "{$project_root}i18n";
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
   %config<template_extensions>    = ['ms', 'mustache', 'html', 'yml'];
   return %config;
