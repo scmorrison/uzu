@@ -1,0 +1,11 @@
+image: rakudo-star:2016.04
+
+before_script:
+  - panda update
+  - panda --notests installdeps .
+  - panda --notests install .
+test:
+  script:
+    - prove -ve 'perl6 -Ilib'
+  only:
+    - master
