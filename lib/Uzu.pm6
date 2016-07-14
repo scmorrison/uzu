@@ -214,7 +214,7 @@ sub load-config(Str $config_file) returns Hash {
   my %config = Config::INI::parse_file($config_file);
   # Additional config for private use
   %config<path>                   = $config_file;
-  %config<build_dir>              = 'build';
+  %config<build_dir>              = %config<defaults><build_dir> ?? %config<defaults><build_dir> !! 'build';
   %config<themes_dir>             = 'themes';
   %config<assets_dir>             = "themes/{%config<defaults><theme>}/assets";
   %config<layout_dir>             = "themes/{%config<defaults><theme>}/layout";

@@ -1,0 +1,7 @@
+
+[defaults]
+name=uzu-tests
+language=en
+theme=default
+url=https://gitlab.com/samcns/uzu
+build_dir=t/build
