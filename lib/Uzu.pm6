@@ -49,18 +49,16 @@ sub build-context returns Hash {
   my $lang = %config<defaults><language>;
   %context<language> = $lang;
 
-  my $i18n_file = "i18n/$lang.yml";
+  my $i18n_file = "%config<i18n_dir>/$lang.yml";
   if path-exists($i18n_file) {
     use YAMLish;
     for $i18n_file.IO.lines -> $line {
-      if $line !~~ '---' {
-        for load-yaml($line).kv -> $key, $val {
-          %context{$key} = $val;
-        }
+      next if $line ~~ '---'|''|/^\#.+$/;
+      for load-yaml($line).kv -> $key, $val {
+        %context{$key} = $val if $key !~~ '';
       }
     }
   }
-  say %context;
   return %context;
 }
 
@@ -222,8 +220,9 @@ sub load-config(Str $config_file) returns Hash {
   %config<layout_dir>             = "themes/{%config<defaults><theme>}/layout";
   %config<pages_dir>              = 'pages';
   %config<partials_dir>           = 'partials';
-  %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>];
-  %config<template_extensions>    = ['ms', 'mustache', 'html'];
+  %config<i18n_dir>               = 'i18n';
+  %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
+  %config<template_extensions>    = ['ms', 'mustache', 'html', 'yml'];
   return %config;
 }
 
