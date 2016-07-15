@@ -1,7 +1,7 @@
 {
     "name" : "Uzu",
     "version"  : "0.0.2",
-    "description" : "Simple static site generator with built-in web server and file-modification change detector.",
+    "description" : "Uzu is a static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support",
     "provides" : {
       "Uzu" : "lib/Uzu.pm6"
     },

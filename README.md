@@ -1,7 +1,7 @@
 Uzu (渦) [![build status](https://gitlab.com/samcns/uzu/badges/master/build.svg)](https://gitlab.com/samcns/uzu/commits/master)
 ===
 
-Simple static site generator with built-in web server and file-modification change detector.
+Uzu is a static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support.
 
 Features
 ========
