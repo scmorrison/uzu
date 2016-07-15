@@ -12,6 +12,8 @@ Features
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
+**Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://gitlab.com/samcns/uzu/issues) you find.
+
 Usage
 =====
 
