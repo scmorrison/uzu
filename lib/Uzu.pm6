@@ -120,7 +120,7 @@ our sub render() {
 }
 
 our sub serve(Str :$config_file = 'config') returns Proc::Async {
-  my Proc::Async $p .= new: "uzu", "--config=$config_file", "webserver";
+  my Proc::Async $p .= new: "perl6", "bin/uzu", "--config=$config_file", "webserver";
   $p.stdout.tap: -> $v { $*OUT.print: $v };
   $p.stderr.tap: -> $v { $*ERR.print: $v };
   $p.start;
