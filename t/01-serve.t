@@ -1,6 +1,6 @@
 use Test;
 use Uzu;
-use HTTP::Client;
+use HTTP::Tinyish;
 
 plan 3;
 
@@ -20,7 +20,7 @@ my $html_test = q:to/END/;
 </html>
 END
 
-my $client = HTTP::Client.new;
-my $r2 = $client.get('http://0.0.0.0:3000/index.html');
-is $r2.success, True, 'serve 2/3';
-is $r2.content, $html_test, 'serve 3/3';
+my $client = HTTP::Tinyish.new(agent => "Mozilla/4.0");
+my %r2 = $client.get('http://0.0.0.0:3000/index.html');
+is %r2<status>, 200, 'serve 2/3';
+is %r2<content>, $html_test, 'serve 3/3';
