@@ -52,7 +52,7 @@ sub USAGE {
         --config=                 - Specify a custom config file
                                     Default is `config`
 
-        e.g. uzu --config=path/to/config init 
+        e.g. uzu --config=path/to/config.yml init 
       END
 }
 
