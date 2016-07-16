@@ -4,7 +4,6 @@ use v6;
 use Uzu;
 
 multi MAIN('webserver', Str :$config = 'config.yml') {
-  note "MAIN webserver: $config";
   Uzu::config(config_file => $config);
   Uzu::web-server();
 }

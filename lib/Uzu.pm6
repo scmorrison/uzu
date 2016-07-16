@@ -117,10 +117,9 @@ our sub render() {
   say "Compile complete";
 }
 
-our sub serve(Str :$config_file = 'config.yml') returns Proc::Async {
+our sub serve() returns Proc::Async {
   my Proc::Async $p;
-  my $config = %config<path>|$config_file;
-  my @args = ("--config=$config", "webserver");
+  my @args = ("--config={%config<path>}", "webserver");
   if path-exists("bin/uzu") {
     $p .= new: "perl6", "bin/uzu", @args;
   } else {
@@ -136,7 +135,6 @@ our sub web-server() {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
-  note "Web-Server: {%config}";
   my $build_dir = %config<build_dir>;
  
   get /(.+)/ => sub ($file) {
@@ -224,7 +222,7 @@ sub load-config(Str $config_file) returns Hash {
       }
     }
   } else {
-    return {error => 'Config file not found. Please run uzu init to generate.'};
+    return {error => "Config file [$config_file] not found. Please run uzu init to generate."};
   }
 
   # Set project root
