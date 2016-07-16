@@ -4,9 +4,7 @@ use HTTP::Tinyish;
 
 plan 3;
 
-Uzu::config(config_file => 't/config.yml');
-
-my $r1 = Uzu::serve();
+my $r1 = Uzu::serve(config_file => 't/config.yml');
 is $r1.WHAT, Proc::Async, 'serve 1/3';
 say "Waiting for web server to start serving";
 sleep 5;
