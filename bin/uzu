@@ -17,7 +17,6 @@ multi MAIN('build', Str :$config = 'config.yml') {
 multi MAIN('watch', Str :$config = 'config.yml') {
   Uzu::config(config_file => $config);
   Uzu::watch();
-
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {
