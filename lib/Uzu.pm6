@@ -119,7 +119,7 @@ our sub render() {
 
 our sub serve(Str :$config_file = 'config.yml') returns Proc::Async {
   my Proc::Async $p;
-  my $config = %config<path> ?? %config<path> !! $config_file;
+  my $config = %config<path>|$config_file;
   note "Serve: $config";
   my @args = ("--config=$config", "webserver");
   if path-exists("bin/uzu") {
