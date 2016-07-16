@@ -1,11 +1,10 @@
 use v6;
 
-unit module Uzu:ver<0.0.2>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.3>:auth<gitlab:samcns>;
 
 use IO::Notification::Recursive;
 use File::Find;
-use Config::INI;
-use Config::INI::Writer;
+use YAMLish;
 
 # Globals
 my %config;
@@ -52,7 +51,6 @@ sub build-context returns Hash {
 
   my $i18n_file = "%config<i18n_dir>/$lang.yml";
   if path-exists($i18n_file) {
-    use YAMLish;
     for $i18n_file.IO.lines -> $line {
       next if $line ~~ '---'|''|/^\#.+$/;
       for load-yaml($line).kv -> $key, $val {
@@ -119,19 +117,24 @@ our sub render() {
   say "Compile complete";
 }
 
-our sub serve(Str :$config_file = 'config') returns Proc::Async {
-  my Proc::Async $p .= new: "perl6", "bin/uzu", "--config=$config_file", "webserver";
+our sub serve(Str :$config_file = 'config.yml') returns Proc::Async {
+  my Proc::Async $p;
+  my $config = %config<path> // $config_file;
+  my @args = ("--config=$config", "webserver");
+  if path-exists("bin/uzu") {
+    $p .= new: "perl6", "bin/uzu", @args;
+  } else {
+    $p .= new: "uzu", @args;
+  }
   $p.stdout.tap: -> $v { $*OUT.print: $v };
   $p.stderr.tap: -> $v { $*ERR.print: $v };
   $p.start;
   return $p;
 }
 
-our sub web-server(Str :$config_file = 'config') {
+our sub web-server() {
   use Bailador;
   use Bailador::App;
-
-  %config = load-config($config_file);
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
   my $build_dir = %config<build_dir>;
  
@@ -173,7 +176,7 @@ sub watch-it($p) returns Tap {
     }
 }
 
-our sub watch-dirs(@dirs) returns Supply {
+sub watch-dirs(@dirs) returns Supply {
   supply {
     watch-it(~$_) for |@dirs.map: { find-dirs($_) };
   }
@@ -211,15 +214,25 @@ our sub watch() returns Tap {
 
 # Config
 sub load-config(Str $config_file) returns Hash {
-  if !path-exists($config_file) { return say "$config_file not found. See uzu init." }
-  my %config = Config::INI::parse_file($config_file);
-  # Additional config for private use
+  my %config;
+  if path-exists($config_file) {
+    for $config_file.IO.lines -> $line {
+      next if $line ~~ '---'|''|/^\#.+$/;
+      for load-yaml($line).kv -> $key, $val {
+        %config<defaults>{$key} = $val if $key !~~ '';
+      }
+    }
+  } else {
+    return {error => 'Config file not found. Please run uzu init to generate.'};
+  }
 
   # Set project root
   my $project_root = '';
   if %config<defaults><project_root>.defined {
     $project_root = "{%config<defaults><project_root>}/";
   }
+
+  ## Additional config for private use
 
   # Set configuration
   %config<project_root>           = $project_root;
@@ -240,19 +253,20 @@ our sub config(Str :$config_file) returns Hash {
   %config = load-config $config_file.subst('~', $*HOME);
 }
 
-our sub init( Str :$config_file  = "config", 
+our sub init( Str :$config_file  = "config.yml", 
               Str :$project_name = "New Uzu Project",
               Str :$url          = "http://example.com",
               Str :$language     = "en",
               Str :$theme        = "default") returns Bool {
 
-  %config<defaults><name>         = $project_name;
-  %config<defaults><url>          = $url;
-  %config<defaults><language>     = $language;
-  %config<defaults><theme>        = $theme;
+  %config<name>     = $project_name;
+  %config<url>      = $url;
+  %config<language> = $language;
+  %config<theme>    = $theme;
 
   # Write config file
-  return Config::INI::Writer::dumpfile(%config, $config_file.subst('~', $*HOME));
+  my $config_yaml = save-yaml(%config).subst('...', '');
+  return spurt $config_file.subst('~', $*HOME), $config_yaml;
 }
 
 # vim: ft=perl6

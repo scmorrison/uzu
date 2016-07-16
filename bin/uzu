@@ -3,22 +3,23 @@
 use v6;
 use Uzu;
 
-multi MAIN('webserver', Str :$config = 'config') {
-  Uzu::web-server(config_file => $config);
+multi MAIN('webserver', Str :$config = 'config.yml') {
+  Uzu::config(config_file => $config);
+  Uzu::web-server();
 }
 
-multi MAIN('build', Str :$config = 'config') {
+multi MAIN('build', Str :$config = 'config.yml') {
   Uzu::config(config_file => $config);
   Uzu::render();
 }
 
-multi MAIN('watch', Str :$config = 'config') {
+multi MAIN('watch', Str :$config = 'config.yml') {
   Uzu::config(config_file => $config);
   Uzu::watch();
 
 }
 
-multi MAIN('init', Str :$config = 'config') {
+multi MAIN('init', Str :$config = 'config.yml') {
 
   # config file exists, exit
   return say "Config [$config] already exists." if $config.IO ~~ :f;
@@ -26,10 +27,10 @@ multi MAIN('init', Str :$config = 'config') {
   say "Uzu project initialization";
   my $project_name = prompt("Please enter project name: ");
   my $url = prompt("Please enter project url (e.g http://example.com): ");
-  my $language = prompt("Please enter project language (e.g. en-US, ja-JP): ");
+  my $language = prompt("Please enter project language (e.g. en, ja): ");
   my $theme = prompt("Please enter project theme (e.g. default): ");
 
-  if Uzu::init( config_file  => $config,
+  if Uzu::init(  config_file  => $config,
                  project_name => $project_name,
                  url          => $url,
                  language     => $language,

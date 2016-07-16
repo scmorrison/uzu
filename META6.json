@@ -1,12 +1,12 @@
 {
     "name" : "Uzu",
-    "version"  : "0.0.2",
+    "version"  : "0.0.3",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support",
     "provides" : {
       "Uzu" : "lib/Uzu.pm6"
     },
     "author" : "Sam Morrison <sam@linux.com>",
-    "depends" : [ "Config::INI", "File::Find", "JSON::Tiny", "Terminal::ANSIColor", "Template::Mustache", "IO::Notification::Recursive", "Bailador", "YAMLish" ],
+    "depends" : [ "File::Find", "JSON::Tiny", "Terminal::ANSIColor", "Template::Mustache", "IO::Notification::Recursive", "Bailador", "YAMLish" ],
     "test-depends" : [ "HTTP::Tinyish" ],
     "source-url" : "https://gitlab.com/samcns/uzu.git"
 }
