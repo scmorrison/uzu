@@ -119,6 +119,7 @@ our sub render() {
 
 our sub serve(Str :$config_file = 'config.yml') returns Proc::Async {
   my Proc::Async $p;
+  note "Serve: $config_file";
   my $config = %config<path> // $config_file;
   my @args = ("--config=$config", "webserver");
   if path-exists("bin/uzu") {
@@ -136,6 +137,7 @@ our sub web-server() {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
+  note "Web-Server: {%config}";
   my $build_dir = %config<build_dir>;
  
   get /(.+)/ => sub ($file) {
