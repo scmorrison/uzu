@@ -7,7 +7,7 @@ use File::Find;
 use YAMLish;
 
 # Globals
-our %config;
+my %config;
 
 # Utils
 sub path-exists(Str $path) returns Bool {
