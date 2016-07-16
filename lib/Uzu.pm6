@@ -192,7 +192,7 @@ our sub watch() returns Tap {
   render();
 
   # Start server
-  my $app = serve(config_file => %config<path>);
+  my $app = serve();
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
