@@ -38,6 +38,10 @@ multi MAIN('init', Str :$config = 'config.yml') {
   }
 }
 
+multi MAIN('version') {
+  say "uzu {Uzu.^ver}";
+}
+
 sub USAGE {
   say q:to/END/;
       Usage:
@@ -46,11 +50,12 @@ sub USAGE {
         uzu build     - Render all templates to build
         uzu watch     - Start web server and re-render
                         build on template modification
+        uzu version   - Print uzu version and exit
 
       Optional arguments:
         
-        --config=                 - Specify a custom config file
-                                    Default is `config`
+        --config=     - Specify a custom config file
+                        Default is `config`
 
         e.g. uzu --config=path/to/config.yml init 
       END

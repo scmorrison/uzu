@@ -1,4 +1,5 @@
 {
+    "perl" : "6.*",
     "name" : "Uzu",
     "version"  : "0.0.4",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support",
