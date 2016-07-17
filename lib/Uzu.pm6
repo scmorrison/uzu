@@ -1,6 +1,6 @@
 use v6;
 
-unit module Uzu:ver<0.0.3>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.4>:auth<gitlab:samcns>;
 
 use IO::Notification::Recursive;
 use File::Find;
@@ -79,14 +79,14 @@ our sub render() {
   }
 
   # Clear out build
-  say "Clear old files";
+  note "Clear old files";
   run(«rm "-rf" "$build_dir"»);
 
   # Create build dir
-  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
+  if !path-exists($build_dir) { note "Creating build directory"; mkdir $build_dir }
 
   # Copy assets
-  say "Copying asset files";
+  note "Copying asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
   # Mustache template engine
@@ -96,7 +96,7 @@ our sub render() {
   my %context = build-context();
 
   # Write to build
-  say "Compiling template to HTML";
+  note "Compiling template to HTML";
   for %pages.kv -> $page_name, $content {
 
     # Render the page content
@@ -114,7 +114,7 @@ our sub render() {
     spurt "$build_dir/$page_name.html",
           $layout_content.subst('{{ content }}', $page_content);
   }
-  say "Compile complete";
+  note "Compile complete";
 }
 
 our sub serve() returns Proc::Async {
@@ -155,7 +155,6 @@ our sub web-server() {
     # Return any valid paths
     my $type = $content-types.detect-type($path);
     header("Content-Type", $type);
-    say "$type: $path";
     return $path.slurp if !$type.grep: / image|ttf|woff /;
     return $path.slurp(:bin);
   }    
@@ -166,7 +165,7 @@ our sub web-server() {
 
 # Watchers
 sub watch-it($p) returns Tap {
-    say "Starting watch on $p";
+    note "Starting watch on {$p.subst("{$*CWD}/", '')}";
     whenever IO::Notification.watch-path($p) -> $e {
         if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
             watch-it($_) for find-dirs($e.path);
@@ -204,7 +203,7 @@ our sub watch() returns Tap {
     whenever watch-dirs(@dirs.grep: *.IO.e) -> $e {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 8) {
         $last = now;
-        say "Change detected [$e.path(), $e.event()].";
+        note "Change detected [$e.path(), $e.event()].";
         render();
       }
     }
@@ -226,9 +225,9 @@ sub load-config(Str $config_file) returns Hash {
   }
 
   # Set project root
-  my $project_root = '';
+  my $project_root = $*CWD;
   if %config<defaults><project_root>.defined {
-    $project_root = "{%config<defaults><project_root>}/";
+    $project_root = %config<defaults><project_root>;
   }
 
   ## Additional config for private use
@@ -236,15 +235,28 @@ sub load-config(Str $config_file) returns Hash {
   # Set configuration
   %config<project_root>           = $project_root;
   %config<path>                   = $config_file;
-  %config<build_dir>              = "{$project_root}build";
-  %config<themes_dir>             = "{$project_root}themes";
-  %config<assets_dir>             = "{$project_root}themes/{%config<defaults><theme>}/assets";
-  %config<layout_dir>             = "{$project_root}themes/{%config<defaults><theme>}/layout";
-  %config<pages_dir>              = "{$project_root}pages";
-  %config<partials_dir>           = "{$project_root}partials";
-  %config<i18n_dir>               = "{$project_root}i18n";
+  %config<build_dir>              = "{$project_root}/build";
+  %config<themes_dir>             = "{$project_root}/themes";
+  %config<assets_dir>             = "{$project_root}/themes/{%config<defaults><theme>}/assets";
+  %config<layout_dir>             = "{$project_root}/themes/{%config<defaults><theme>}/layout";
+  %config<pages_dir>              = "{$project_root}/pages";
+  %config<partials_dir>           = "{$project_root}/partials";
+  %config<i18n_dir>               = "{$project_root}/i18n";
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
   %config<template_extensions>    = ['ms', 'mustache', 'html', 'yml'];
+
+  for %config.kv -> $k, $v {
+    # Replace ~ with full home path if applicable:
+    if %config{$k} ~~ Str {
+      %config{$k} = $v.subst('~', $*HOME);
+    }
+  }
+
+  # We want to stop everything if the project root ~~ $*HOME or
+  # the build dir ~~ project root. This would have bad side-effects
+  if %config<build_dir>.IO ~~ $*HOME.IO|%config<project_root>.IO {
+    return { error => "Build directory [{%config<build_dir>}] cannot be {$*HOME} or project root [{%config<project_root>}] "}
+  }
   return %config;
 }
 
