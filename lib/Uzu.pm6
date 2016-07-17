@@ -79,14 +79,14 @@ our sub render() {
   }
 
   # Clear out build
-  note "Clear old files";
+  say "Clear old files";
   run(«rm "-rf" "$build_dir"»);
 
   # Create build dir
-  if !path-exists($build_dir) { note "Creating build directory"; mkdir $build_dir }
+  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
 
   # Copy assets
-  note "Copying asset files";
+  say "Copying asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
   # Mustache template engine
@@ -96,7 +96,7 @@ our sub render() {
   my %context = build-context();
 
   # Write to build
-  note "Compiling template to HTML";
+  say "Compiling template to HTML";
   for %pages.kv -> $page_name, $content {
 
     # Render the page content
@@ -114,7 +114,7 @@ our sub render() {
     spurt "$build_dir/$page_name.html",
           $layout_content.subst('{{ content }}', $page_content);
   }
-  note "Compile complete";
+  say "Compile complete";
 }
 
 our sub serve() returns Proc::Async {
@@ -165,7 +165,7 @@ our sub web-server() {
 
 # Watchers
 sub watch-it($p) returns Tap {
-    note "Starting watch on {$p.subst("{$*CWD}/", '')}";
+    say "Starting watch on {$p.subst("{$*CWD}/", '')}";
     whenever IO::Notification.watch-path($p) -> $e {
         if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
             watch-it($_) for find-dirs($e.path);
@@ -203,7 +203,7 @@ our sub watch() returns Tap {
     whenever watch-dirs(@dirs.grep: *.IO.e) -> $e {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 8) {
         $last = now;
-        note "Change detected [$e.path(), $e.event()].";
+        say "Change detected [$e.path(), $e.event()].";
         render();
       }
     }
@@ -255,7 +255,7 @@ sub load-config(Str $config_file) returns Hash {
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
   if %config<build_dir>.IO ~~ $*HOME.IO|%config<project_root>.IO {
-    return { error => "Build directory [{%config<build_dir>}] cannot be {$*HOME} or project root [{%config<project_root>}] "}
+    return { error => "Build directory [{%config<build_dir>}] cannot be {$*HOME} or project root [{%config<project_root>}]."}
   }
   return %config;
 }
