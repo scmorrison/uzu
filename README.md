@@ -24,6 +24,7 @@ Usage:
   uzu build      - Render all templates to build
   uzu watch      - Start web server and re-render
                    build on template modification
+  uzu version    - Print uzu version and exit
 
 Optional arguments:
   
