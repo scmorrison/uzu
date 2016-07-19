@@ -67,7 +67,7 @@ project_root: path/to/project/folder
 Project folder structure
 ========================
 ```
-├── config
+├── config.yml
 ├── pages
 │   ├── about.mustache
 │   └── index.mustache
