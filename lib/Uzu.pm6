@@ -1,6 +1,6 @@
 use v6;
 
-unit module Uzu:ver<0.0.4>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.5>:auth<gitlab:samcns>;
 
 use IO::Notification::Recursive;
 use File::Find;
@@ -33,15 +33,15 @@ sub file-with-extension(Str $path) returns Str {
 }
 
 sub included-partials(Str :$content) returns Hash {
-	my %partials;
-	my @include_partials = $content.match: / '{{>' \s? (\w+) \s? '}}' /, :g;
-	for @include_partials -> $partial {
-		my $partial_name = $partial[0].Str;
-		my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
-		my $partial_content = slurp($partial_path, :r);
-		%partials{$partial_name} = $partial_content;
-	}
-	return %partials;
+  my %partials;
+  my @include_partials = $content.match: / '{{>' \s? (\w+) \s? '}}' /, :g;
+  for @include_partials -> $partial {
+    my $partial_name = $partial[0].Str;
+    my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
+    my $partial_content = slurp($partial_path, :r);
+    %partials{$partial_name} = $partial_content;
+  }
+  return %partials;
 }
 
 sub build-context returns Hash {
@@ -160,7 +160,7 @@ our sub web-server() {
   }    
 
   # Start bailador
-  baile;
+  baile(%config<defaults><port>||3000);
 }
 
 # Watchers
@@ -211,34 +211,35 @@ our sub watch() returns Tap {
 }
 
 # Config
-sub load-config(Str $config_file) returns Hash {
-  my %config;
+sub parse-config(Str $config_file) returns Hash {
   if path-exists($config_file) {
     for $config_file.IO.lines -> $line {
+      # Skip yaml header, comment, and blank lines
       next if $line ~~ '---'|''|/^\#.+$/;
       for load-yaml($line).kv -> $key, $val {
+        # Define only set key/value pairs in %config
         %config<defaults>{$key} = $val if $key !~~ '';
       }
     }
+    return %config;
   } else {
     return {error => "Config file [$config_file] not found. Please run uzu init to generate."};
   }
+}
 
-  # Set project root
-  my $project_root = $*CWD;
-  if %config<defaults><project_root>.defined {
-    $project_root = %config<defaults><project_root>;
-  }
+sub load-config(Str $config_file) returns Hash {
 
-  ## Additional config for private use
-
+  # Parse yaml config
+  my %config = parse-config($config_file);
+  
   # Set configuration
+  my $project_root                = %config<defaults><project_root>||$*CWD;
   %config<project_root>           = $project_root;
   %config<path>                   = $config_file;
   %config<build_dir>              = "{$project_root}/build";
   %config<themes_dir>             = "{$project_root}/themes";
-  %config<assets_dir>             = "{$project_root}/themes/{%config<defaults><theme>}/assets";
-  %config<layout_dir>             = "{$project_root}/themes/{%config<defaults><theme>}/layout";
+  %config<assets_dir>             = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
+  %config<layout_dir>             = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
   %config<pages_dir>              = "{$project_root}/pages";
   %config<partials_dir>           = "{$project_root}/partials";
   %config<i18n_dir>               = "{$project_root}/i18n";

@@ -34,6 +34,36 @@ Optional arguments:
   e.g. uzu --config=path/to/config init
 ```
 
+Config
+======
+
+Each project has its own `config.yml` which uses the following format:
+
+```yaml
+---
+# Name of the project
+name: uzu-starter
+
+# Language to use, determines which
+# i18n/*.yml file to use for string variables
+language: en
+
+# Themes are stored in themes/[theme-name]
+theme: default
+
+# Site URL
+url: https://gitlab.com/samcns/uzu-starter
+
+# Optional parameters (also, comments like this are ok)
+
+# Use a custom dev server port
+port: 4040
+
+# Specify a custom project root path
+# default is .
+project_root: path/to/project/folder
+```
+
 Project folder structure
 ========================
 ```
