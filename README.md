@@ -56,7 +56,7 @@ url: https://gitlab.com/samcns/uzu-starter
 
 # Optional parameters (also, comments like this are ok)
 
-# Use a custom dev server port
+# Use a custom dev server port, default is 3000
 port: 4040
 
 # Specify a custom project root path
