@@ -1,10 +1,10 @@
 use v6;
 
-unit module Uzu:ver<0.0.5>:auth<gitlab:samcns>;
-
 use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
+
+unit module Uzu:ver<0.0.5>:auth<gitlab:samcns>;
 
 # Globals
 my %config;
@@ -34,9 +34,10 @@ sub file-with-extension(Str $path) returns Str {
 
 sub included-partials(Str :$content) returns Hash {
   my %partials;
-  my @include_partials = $content.match: / '{{>' \s? (\w+) \s? '}}' /, :g;
+  # Find matching mustache partial include declarations
+  my @include_partials = $content.comb: / '{{>' ~ '}}' [\s*? <(\w+)> \s*?] /;
   for @include_partials -> $partial {
-    my $partial_name = $partial[0].Str;
+    my $partial_name = $partial;
     my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
     my $partial_content = slurp($partial_path, :r);
     %partials{$partial_name} = $partial_content;
@@ -280,5 +281,82 @@ our sub init( Str :$config_file  = "config.yml",
   my $config_yaml = save-yaml(%config).subst('...', '');
   return spurt $config_file.subst('~', $*HOME), $config_yaml;
 }
+
+=begin pod
+
+=head1 NAME
+
+Uzu - Static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support.
+
+=head1 SYNOPSIS
+
+        use Uzu;
+
+        # Start development web server
+				Uzu::config(config_file => $config);
+				Uzu::web-server();
+
+        # Render all templates to ./build/
+				Uzu::config(config_file => $config);
+				Uzu::render();
+
+        # Watch template files for modification
+        # and spawn development web server for testing
+				Uzu::config(config_file => $config);
+				Uzu::watch();
+
+        # Create a new project
+        Uzu::init(  config_file  => $config,
+                    project_name => $project_name,
+                    url          => $url,
+                    language     => $language,
+                    theme        => $theme );
+
+=head1 DESCRIPTION
+
+Uzu is a static site generator with built-in web server,
+file modification watcher, i18n, themes, and multi-page
+support.
+
+=head3 C<render>
+
+Render all template files to ./build. This is destructive and replaces
+all content in ./build with the new rendered content.
+
+=head3 C<web-server>
+
+Start a development web server on port 3000 that serves the contents
+of ./build. Web server port can be overriden in config.yml
+
+=head3 C<watch>
+
+Render all template files to ./build. This is destructive and replaces
+all content in ./build with the new rendered content. Then start
+a new development web server and watch template files for modification.
+On file modification, re-render template content to ./build for testing.
+
+=head2 C<config(Str :config_file = 'config.yml')>
+
+Loads and parses config file. If config_file is unspecified then
+the default, ./config.yml, will be used if exists.
+
+=head3 C<init(Str :config_file,
+              Str :project_name,
+              Str :url,
+              Str :language,
+              Str :theme)>
+
+Initialize a new project. This will create a new ./config.yml file
+and populate it with the values passed for each named argument. If
+:config_file is specified, init will create the config yml file 
+using that value as file name.
+
+=head2 C<License>
+
+This module is licensed under the same license as Perl6 itself. 
+Artistic License 2.0.
+Copyright 2016 Sam Morrison.
+
+=end pod
 
 # vim: ft=perl6
