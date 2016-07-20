@@ -293,17 +293,17 @@ Uzu - Static site generator with built-in web server, file modification watcher,
         use Uzu;
 
         # Start development web server
-				Uzu::config(config_file => $config);
-				Uzu::web-server();
+        Uzu::config(config_file => $config);
+        Uzu::web-server();
 
         # Render all templates to ./build/
-				Uzu::config(config_file => $config);
-				Uzu::render();
+        Uzu::config(config_file => $config);
+        Uzu::render();
 
         # Watch template files for modification
         # and spawn development web server for testing
-				Uzu::config(config_file => $config);
-				Uzu::watch();
+        Uzu::config(config_file => $config);
+        Uzu::watch();
 
         # Create a new project
         Uzu::init(  config_file  => $config,
