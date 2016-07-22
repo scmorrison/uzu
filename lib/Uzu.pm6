@@ -4,7 +4,7 @@ use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 
-unit module Uzu:ver<0.0.5>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.6>:auth<gitlab:samcns>;
 
 # Globals
 my %config;
@@ -63,11 +63,12 @@ sub build-context returns Hash {
 }
 
 our sub render() {
-  use Template::Mustache;
+  use Template6;
+  my $t6 = Template6.new;
+  for |%config<template_dirs> -> $dir { $t6.add-path: $dir }
 
   my $themes_dir = %config<themes_dir>;
   my $layout_dir = %config<layout_dir>;
-  my $layout = slurp file-with-extension("$layout_dir/layout");
   my $assets_dir = %config<assets_dir>;
   my $build_dir = %config<build_dir>;
 
@@ -90,9 +91,6 @@ our sub render() {
   say "Copying asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
-  # Mustache template engine
-  my $stache = Template::Mustache.new;
-
   # Build %context hash
   my %context = build-context();
 
@@ -100,20 +98,18 @@ our sub render() {
   say "Compiling template to HTML";
   for %pages.kv -> $page_name, $content {
 
-    # Render the page content
-    my %page_partials = included-partials(content => $content);
-    my $page_content = $stache.render($content, %context, :from([%page_partials]));
+		CATCH {
+				when X { .resume }
+		}
 
-    # Embed the page content into the layout
-    my %layout_partials = included-partials(content => $layout);
-
-    # This is a mess, find a better way to quickly decode HTML entities
-    # The second $stache.render returns the %context<content> as encoded HTML
-    # decoding it with HTML::Entity is too slow
-    %context<content> = '{{ content }}';
-    my $layout_content = $stache.render($layout, %context, :from([%layout_partials]));
-    spurt "$build_dir/$page_name.html",
-          $layout_content.subst('{{ content }}', $page_content);
+		# Render the page content
+		my $page_content = $t6.process($page_name, |%context);
+		
+		# Append page content to %context
+		%context<content> = $page_content;
+		
+		my $layout_content = $t6.process('layout', |%context );
+		spurt "$build_dir/$page_name.html", $layout_content;
   }
   say "Compile complete";
 }
@@ -245,7 +241,7 @@ sub load-config(Str $config_file) returns Hash {
   %config<partials_dir>           = "{$project_root}/partials";
   %config<i18n_dir>               = "{$project_root}/i18n";
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
-  %config<template_extensions>    = ['ms', 'mustache', 'html', 'yml'];
+  %config<template_extensions>    = ['tt', 'ms', 'mustache', 'html', 'yml'];
 
   for %config.kv -> $k, $v {
     # Replace ~ with full home path if applicable:
