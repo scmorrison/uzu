@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="{{ language }}">
-{{> head }}
+<html lang="[% language %]">
+[% INCLUDE "head %]
     <body>
-			{{> navigation }}
-			{{ content }}
-			{{> footer }}
+			[% INCLUDE "navigation %]
+			[% content %]
+			[% INCLUDE "footer %]
 			</div>
     </body>
 </html>

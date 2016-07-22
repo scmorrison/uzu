@@ -1,4 +1,4 @@
 <footer>
-	<p>{{ copyright }}</p>
+	<p>[% copyright %]</p>
 	<a class="navbar-brand" href="about.html">About Us</a>
 </footer>
