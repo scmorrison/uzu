@@ -118,7 +118,8 @@ our sub serve() returns Proc::Async {
   my Proc::Async $p;
   my @args = ("--config={%config<path>}", "webserver");
   if path-exists("bin/uzu") {
-    $p .= new: "perl6", "bin/uzu", @args;
+    my $lib_path = $?FILE.IO.parent;
+    $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
     $p .= new: "uzu", @args;
   }
