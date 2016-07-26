@@ -34,7 +34,7 @@ sub file-with-extension(Str $path) returns Str {
 
 sub included-partials(Str :$content) returns Hash {
   my %partials;
-  # Find matching mustache partial include declarations
+  # Find matching partial include declarations
   my @include_partials = $content.comb: / '{{>' ~ '}}' [\s*? <(\w+)> \s*?] /;
   for @include_partials -> $partial {
     my $partial_name = $partial;
@@ -51,13 +51,10 @@ sub build-context returns Hash {
   %context<language> = $lang;
 
   my $i18n_file = "%config<i18n_dir>/$lang.yml";
+  note $i18n_file;
   if path-exists($i18n_file) {
-    for $i18n_file.IO.lines -> $line {
-      next if $line ~~ '---'|''|/^\#.+$/;
-      for load-yaml($line).kv -> $key, $val {
-        %context{$key} = $val if $key !~~ '';
-      }
-    }
+    my %yaml = load-yaml slurp($i18n_file);
+    %context.append: %yaml;
   }
   return %context;
 }
@@ -98,18 +95,18 @@ our sub render() {
   say "Compiling template to HTML";
   for %pages.kv -> $page_name, $content {
 
-		CATCH {
-				when X { .resume }
-		}
+    CATCH {
+        when X { .resume }
+    }
 
-		# Render the page content
-		my $page_content = $t6.process($page_name, |%context);
-		
-		# Append page content to %context
-		%context<content> = $page_content;
-		
-		my $layout_content = $t6.process('layout', |%context );
-		spurt "$build_dir/$page_name.html", $layout_content;
+    # Render the page content
+    my $page_content = $t6.process($page_name, |%context);
+    
+    # Append page content to %context
+    %context<content> = $page_content;
+    
+    my $layout_content = $t6.process('layout', |%context );
+    spurt "$build_dir/$page_name.html", $layout_content;
   }
   say "Compile complete";
 }
@@ -242,7 +239,7 @@ sub load-config(Str $config_file) returns Hash {
   %config<partials_dir>           = "{$project_root}/partials";
   %config<i18n_dir>               = "{$project_root}/i18n";
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
-  %config<template_extensions>    = ['tt', 'ms', 'mustache', 'html', 'yml'];
+  %config<template_extensions>    = ['tt', 'html', 'yml'];
 
   for %config.kv -> $k, $v {
     # Replace ~ with full home path if applicable:
