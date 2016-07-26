@@ -96,6 +96,110 @@ Project folder structure
 
 See [uzu-starter](https://gitlab.com/samcns/uzu-starter) for a full example.
 
+i18n YAML and Templating
+=========
+
+You can separate out the content text to YAML files located in a project-root folder called `i18n`. Simply create a separate file for each language, like this:
+
+```
+─ i18n
+  ├── en.yml
+  ├── fr.yml
+  ├── ja.yml
+  └── ja.yml
+```
+
+An example YAML file might look like this:
+```yaml
+---
+- site_name: The Uzu Project Site
+- url: https://gitlab.com/samcns/uzu-starter
+- founders:
+  - name: Sam
+    title: Dish Washer 
+  - name: Elly
+    title: CEO
+  - name: Tomo
+    title: CFO
+```
+
+Template Features
+=================
+
+Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format for template files.
+
+## Features include:
+
+* GET and SET statements, including implicit versions
+
+     * [% get varname %]
+     * [% varname %]
+     * [% set varname = value %]
+     * [% varname = value %]
+
+* FOR statement
+
+     * [% for names as name %]
+     * [% for names -> name %]
+     * [% for name in names %]
+     * [% for name = names %]
+
+     If used with Hashes, you'll need to query the .key or .value accessors.
+
+* IF/ELSIF/ELSE/UNLESS statements.
+
+     * [% IF display_links %]
+         -- do this ---
+       [% ELSE %]
+         -- do that --
+       [% END %]
+     * [% UNLESS graphics %]
+         -- some html ---
+       [% END %]
+
+* Querying nested data structures using a simple dot operator syntax.
+* CALL and DEFAULT statements.
+* INSERT, INCLUDE and PROCESS statements.
+
+## Examples
+
+### Single variable
+
+```html
+<a class="navbar-brand" href="/">[% site_name %]</a>
+```
+
+### For loop
+```
+<h1>Company Founders</h1>
+<ul>
+[%  FOREACH founder IN founders %]
+  <li>[% founder.name %], [% founder.title %]</a>
+[%  END %]
+</ul>
+```
+
+### IF/ELSEIF/UNLESS
+```html
+[% IF graphics %]
+    <img src="[% images %]/logo.gif" align=right width=60 height=40>
+[% END %]
+```
+
+### Including partials
+```html
+<!doctype html>
+<html lang="[% language %]">
+[% INCLUDE "head %]
+    <body>
+			[% INCLUDE "navigation %]
+			[% content %]
+			[% INCLUDE "footer %]
+			</div>
+    </body>
+</html>
+```
+
 Installation
 ============
 
@@ -122,3 +226,8 @@ AUTHORS
 =======
 
 [Sam Morrison](@samcns)
+
+SEE ALSO
+========
+
+* Templating engine used in `uzu`: [Template6](https://github.com/supernovus/template6)
