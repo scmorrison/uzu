@@ -112,11 +112,11 @@ You can separate out the content text to YAML files located in a project-root fo
 An example YAML file might look like this:
 ```yaml
 ---
-- site_name: The Uzu Project Site
-- url: https://gitlab.com/samcns/uzu-starter
-- founders:
+site_name: The Uzu Project Site
+url: https://gitlab.com/samcns/uzu-starter
+founders:
   - name: Sam
-    title: Dish Washer 
+    title: "Dish Washer"
   - name: Elly
     title: CEO
   - name: Tomo
@@ -148,14 +148,14 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 
 * IF/ELSIF/ELSE/UNLESS statements.
 
-     * [% IF display_links %]
+     * [% if display_links %]
          -- do this ---
-       [% ELSE %]
+       [% else %]
          -- do that --
-       [% END %]
-     * [% UNLESS graphics %]
+       [% end %]
+     * [% unless graphics %]
          -- some html ---
-       [% END %]
+       [% end %]
 
 * Querying nested data structures using a simple dot operator syntax.
 * CALL and DEFAULT statements.
@@ -173,17 +173,17 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 ```html
 <h1>Company Founders</h1>
 <ul>
-[%  FOREACH founder IN founders %]
+[% for founder in founders %]
   <li>[% founder.name %], [% founder.title %]</a>
-[%  END %]
+[% end %]
 </ul>
 ```
 
 ### IF/ELSEIF/UNLESS
 ```html
-[% IF graphics %]
+[% if graphics %]
     <img src="[% images %]/logo.gif" align=right width=60 height=40>
-[% END %]
+[% end %]
 ```
 
 ### Including partials
