@@ -121,6 +121,12 @@ founders:
     title: CEO
   - name: Tomo
     title: CFO
+
+# Comments start with a #
+
+# Do not use blank values
+this_will_break_thins:
+do_this_instead: ""
 ```
 
 Template Features
