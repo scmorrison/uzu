@@ -157,10 +157,15 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
      * [% if display_links %]
          -- do this ---
        [% else %]
+
          -- do that --
+
        [% end %]
+
      * [% unless graphics %]
+
          -- some html ---
+
        [% end %]
 
 * Querying nested data structures using a simple dot operator syntax.
@@ -193,14 +198,17 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 ```
 
 ### Including partials
+
+Partials are stored in the `partials` directory. You can include these in layouts and pages.
+
 ```html
 <!doctype html>
 <html lang="[% language %]">
-[% INCLUDE "head %]
+[% INCLUDE "head" %]
     <body>
-			[% INCLUDE "navigation %]
+			[% INCLUDE "navigation" %]
 			[% content %]
-			[% INCLUDE "footer %]
+			[% INCLUDE "footer" %]
 			</div>
     </body>
 </html>

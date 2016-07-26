@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="[% language %]">
-[% INCLUDE "head %]
+[% INCLUDE "head" %]
     <body>
-			[% INCLUDE "navigation %]
+			[% INCLUDE "navigation" %]
 			[% content %]
-			[% INCLUDE "footer %]
+			[% INCLUDE "footer" %]
 			</div>
     </body>
 </html>
