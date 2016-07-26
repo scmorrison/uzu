@@ -170,7 +170,7 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 ```
 
 ### For loop
-```
+```html
 <h1>Company Founders</h1>
 <ul>
 [%  FOREACH founder IN founders %]
