@@ -51,10 +51,16 @@ sub build-context returns Hash {
   %context<language> = $lang;
 
   my $i18n_file = "%config<i18n_dir>/$lang.yml";
-  note $i18n_file;
   if path-exists($i18n_file) {
-    my %yaml = load-yaml slurp($i18n_file);
-    %context.append: %yaml;
+    try {
+      CATCH {
+        default {
+          note "Invalid i18n yaml file [$i18n_file]";
+        }
+      }
+      my %yaml = load-yaml slurp($i18n_file);
+      %context.append: %yaml;
+    }
   }
   return %context;
 }

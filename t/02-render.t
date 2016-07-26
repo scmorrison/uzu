@@ -2,10 +2,11 @@ use v6;
 use lib 'lib';
 
 use Test;
+use Test::Output;
 use Uzu;
 use File::Temp;
 
-plan 3;
+plan 4;
 
 # Source project files
 my $source_root = "t/example_project";
@@ -37,6 +38,19 @@ is "$tmp_build_path/img/logo.png".IO.e, True, 'render 2/3: assets folder content
 # Generated HTML looks good?
 my $sample_html = slurp "t/generated/index.html";
 my $generated_html = slurp "$tmp_build_path/index.html";
-is $generated_html ~~ $sample_html, True, 'render 3/3: rendered HTML matches test';
+is $generated_html ~~ $sample_html, True, 'render 3/4: rendered HTML matches test';
+
+# Expect a warning when i18n yaml is invalid
+my $test4 = q:heredoc/END/;
+---
+company: Sam Morrison
+site_name: Uzu Test Project
+copyright: 2016 Sam Morrison
+...
+END
+
+# Save to tmp_build_path i18n yaml file
+spurt "$tmp_root/i18n/en.yml", $test4;
+output-like &Uzu::render, / 'Invalid i18n yaml file' /, 'render 4/4: invalid i18n yaml warning to stdout';
 
 # vim: ft=perl6
