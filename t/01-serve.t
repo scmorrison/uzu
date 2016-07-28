@@ -12,7 +12,8 @@ Uzu::config(config_file => "t/config.yml");
 my $r1 = Uzu::serve();
 is $r1.WHAT, Proc::Async, 'serve 1/3: spawned server as proc async';
 say "Waiting for web server to start serving";
-sleep 5;
+
+Uzu::wait_port(3000);
 
 my $html_test = q:to/END/;
 <html>
