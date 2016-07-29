@@ -4,7 +4,7 @@ use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 
-unit module Uzu:ver<0.0.6>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.7>:auth<gitlab:samcns>;
 
 # Globals
 my %config;
@@ -65,7 +65,7 @@ sub build-context returns Hash {
   return %context;
 }
 
-our sub render() {
+our sub render(Bool :$no_reload = False) {
   use Template6;
   my $t6 = Template6.new;
   for |%config<template_dirs> -> $dir { $t6.add-path: $dir }
@@ -112,9 +112,14 @@ our sub render() {
     %context<content> = $page_content;
     
     my $layout_content = $t6.process('layout', |%context );
-    # Add livejs if live-reload enabled (default)
-    my $livejs = '<script src="uzu/js/live.js"></script>';
-    spurt "$build_dir/$page_name.html", $layout_content.subst('</body>', "{$livejs}\n</body>");
+
+    unless $no_reload {
+      # Add livejs if live-reload enabled (default)
+      my $livejs = '<script src="uzu/js/live.js"></script>';
+      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+    };
+
+    spurt "$build_dir/$page_name.html", $layout_content;
   }
   say "Compile complete";
 }
@@ -234,7 +239,7 @@ sub watch-dirs(@dirs) returns Supply {
   }
 }
 
-our sub watch() returns Tap {
+our sub watch(Bool :$no_reload = False) returns Tap {
   use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
@@ -243,7 +248,7 @@ our sub watch() returns Tap {
   }
 
   # Initialize build
-  render();
+  render(no_reload => $no_reload);
 
   # Start server
   my $app = serve();
@@ -259,7 +264,7 @@ our sub watch() returns Tap {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 8) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
-        render();
+        render(no_reload => $no_reload);
         HTTP::Tinyish.new(agent => "Mozilla/4.0").get('http://0.0.0.0:3000/reload');
       }
     }

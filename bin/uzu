@@ -13,9 +13,9 @@ multi MAIN('build', Str :$config = 'config.yml') {
   Uzu::render();
 }
 
-multi MAIN('watch', Str :$config = 'config.yml') {
+multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
   Uzu::config(config_file => $config);
-  Uzu::watch();
+  Uzu::watch(no_reload => ($no-livereload ?? True !! False));
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {
@@ -45,19 +45,22 @@ multi MAIN('version') {
 sub USAGE {
   say q:to/END/;
       Usage:
-        uzu init      - Initialize new project
-        uzu webserver - Start local web server
-        uzu build     - Render all templates to build
-        uzu watch     - Start web server and re-render
-                        build on template modification
-        uzu version   - Print uzu version and exit
+        uzu init          - Initialize new project
+        uzu webserver     - Start local web server
+        uzu build         - Render all templates to build
+        uzu watch         - Start web server and re-render
+                            build on template modification
+        uzu version       - Print uzu version and exit
 
       Optional arguments:
         
-        --config=     - Specify a custom config file
-                        Default is `config`
+        --config=         - Specify a custom config file
+                            Default is `config`
 
         e.g. uzu --config=path/to/config.yml init 
+
+        --no-livereload   - Disable livereload when
+                            running uzu watch.
       END
 }
 

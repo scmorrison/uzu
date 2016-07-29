@@ -1,13 +1,14 @@
 Uzu (渦) [![build status](https://gitlab.com/samcns/uzu/badges/master/build.svg)](https://gitlab.com/samcns/uzu/commits/master)
 ===
 
-Uzu is a static site generator with built-in web server, file modification watcher, i18n, themes, and multi-page support.
+Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
 
 Features
 ========
 * **Easy to use**: Based on existing static site generator conventions
 * **Built-in development webserver**: Test your modifications (http://localhost:3000) as you work
 * **Auto Re-render**: `uzu watch` monitors the `theme/[your-theme]/layout/`, `pages`, `partials/`, and `i18n/` folders for modifications and auto-renders to build
+* **Live reload**: `uzu watch` automatically reloads the browser when a re-render occurs
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
@@ -19,19 +20,22 @@ Usage
 
 ```
 Usage:
-  uzu init       - Initialize new project
-  uzu webserver  - Start local web server
-  uzu build      - Render all templates to build
-  uzu watch      - Start web server and re-render
-                   build on template modification
-  uzu version    - Print uzu version and exit
+  uzu init          - Initialize new project
+  uzu webserver     - Start local web server
+  uzu build         - Render all templates to build
+  uzu watch         - Start web server and re-render
+                      build on template modification
+  uzu version       - Print uzu version and exit
 
 Optional arguments:
   
-  --config=      - Specify a custom config file
-                   Default: `config`
+  --config=         - Specify a custom config file
+                      Default is `config`
 
-  e.g. uzu --config=path/to/config init
+  e.g. uzu --config=path/to/config.yml init 
+
+  --no-livereload   - Disable livereload when
+                      running uzu watch.
 ```
 
 Config
