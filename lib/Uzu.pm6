@@ -112,7 +112,9 @@ our sub render() {
     %context<content> = $page_content;
     
     my $layout_content = $t6.process('layout', |%context );
-    spurt "$build_dir/$page_name.html", $layout_content;
+    # Add livejs if live-reload enabled (default)
+    my $livejs = '<script src="uzu/js/live.js"></script>';
+    spurt "$build_dir/$page_name.html", $layout_content.subst('</body>', "{$livejs}\n</body>");
   }
   say "Compile complete";
 }
@@ -137,7 +139,58 @@ our sub web-server() {
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
   my $build_dir = %config<build_dir>;
- 
+
+  # Use for triggering reload staging when reload is triggered
+  my $reload = False;
+  
+  # When accessed, sets $reload to True
+  get '/reload' => sub () {
+    $reload = True;
+    header("Content-Type", "application/json");
+    return [ '{ "reload": "Staged" }' ];
+  }
+
+  # If $reload is True, return a JSON doc
+  # instructing uzu/js/live.js to reload the
+  # browser.
+  get '/live' => sub () {
+    my $response;
+    if $reload {
+      $reload = False;
+      $response = '{ "reload": "True" }';
+    } else {
+      $response = '{ "reload": "False" }';
+    }
+    header("Content-Type", "application/json");
+    return [ $response ];
+  }
+
+  # Include live.js that starts polling /live
+  # for reload instructions
+  get '/uzu/js/live.js' => sub () {
+    my $livejs = q:to/EOS/; 
+      // Uzu live-reload
+      function live() {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (xhttp.readyState == 4 && xhttp.status == 200) {
+            var resp = JSON.parse(xhttp.responseText);
+            if (resp.reload == 'True') {
+              document.location.reload();
+            };
+          };
+        };
+        xhttp.open("GET", "live", true);
+        xhttp.send();
+        setTimeout(live, 1000);
+      }
+      setTimeout(live, 1000);
+    EOS
+
+    header("Content-Type", "application/javascript");
+    return [ $livejs ];
+  }
+
   get /(.+)/ => sub ($file) {
     # Trying to access files outside of build path
     return "Invalid path" if $file.match('..');
@@ -182,6 +235,7 @@ sub watch-dirs(@dirs) returns Supply {
 }
 
 our sub watch() returns Tap {
+  use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
     note "No project files available";
@@ -206,12 +260,13 @@ our sub watch() returns Tap {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
         render();
+        HTTP::Tinyish.new(agent => "Mozilla/4.0").get('http://0.0.0.0:3000/reload');
       }
     }
   }
 }
 
-our sub wait_port(int $port, Str $host='127.0.0.1', :$sleep=0.1, int :$times=100) is export {
+our sub wait_port(int :$port, Str :$host='127.0.0.1', :$sleep=0.1, int :$times=100) is export {
     LOOP: for 1..$times {
         try {
             my $sock = IO::Socket::INET.new(host => $host, port => $port);
@@ -225,7 +280,7 @@ our sub wait_port(int $port, Str $host='127.0.0.1', :$sleep=0.1, int :$times=100
         return;
     }
 
-    die "$host:$port doesn't open in {$sleep*$times} sec.";
+    die "$host:$port did not open within {$sleep*$times} seconds.";
 }
 
 # Config
