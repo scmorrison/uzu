@@ -265,16 +265,16 @@ our sub watch(Bool :$no_reload = False) returns Tap {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
         render(no_reload => $no_reload);
-        HTTP::Tinyish.new(agent => "Mozilla/4.0").get('http://0.0.0.0:3000/reload');
+        HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
       }
     }
   }
 }
 
-our sub wait_port(int :$port, Str :$host='127.0.0.1', :$sleep=0.1, int :$times=100) is export {
+our sub wait_server(:$sleep=0.1, int :$times=100) is export {
     LOOP: for 1..$times {
         try {
-            my $sock = IO::Socket::INET.new(host => $host, port => $port);
+            my $sock = IO::Socket::INET.new(host => %config<host>, port => %config<port>);
             $sock.close;
 
             CATCH { default {
@@ -285,7 +285,7 @@ our sub wait_port(int :$port, Str :$host='127.0.0.1', :$sleep=0.1, int :$times=1
         return;
     }
 
-    die "$host:$port did not open within {$sleep*$times} seconds.";
+    die "{%config<host>}:{%config<port>} did not open within {$sleep*$times} seconds.";
 }
 
 # Config
@@ -311,6 +311,8 @@ sub load-config(Str $config_file) returns Hash {
   my %config = parse-config($config_file);
   
   # Set configuration
+  %config<host>                   = "{%config<defaults><host>||'0.0.0.0'}";
+  %config<port>                   = %config<defaults><port>||3000;
   my $project_root                = %config<defaults><project_root>||$*CWD;
   %config<project_root>           = $project_root;
   %config<path>                   = $config_file;
