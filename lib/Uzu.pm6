@@ -65,7 +65,7 @@ sub build-context returns Hash {
   return %context;
 }
 
-our sub render(Bool :$no_reload = False) {
+our sub render(Bool :$no_livereload = False) {
   use Template6;
   my $t6 = Template6.new;
   for |%config<template_dirs> -> $dir { $t6.add-path: $dir }
@@ -113,7 +113,7 @@ our sub render(Bool :$no_reload = False) {
     
     my $layout_content = $t6.process('layout', |%context );
 
-    unless $no_reload {
+    unless $no_livereload {
       # Add livejs if live-reload enabled (default)
       my $livejs = '<script src="uzu/js/live.js"></script>';
       $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
@@ -239,7 +239,7 @@ sub watch-dirs(@dirs) returns Supply {
   }
 }
 
-our sub watch(Bool :$no_reload = False) returns Tap {
+our sub watch(Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
@@ -248,7 +248,7 @@ our sub watch(Bool :$no_reload = False) returns Tap {
   }
 
   # Initialize build
-  render(no_reload => $no_reload);
+  render(no_livereload => $no_livereload);
 
   # Start server
   my $app = serve();
@@ -264,7 +264,7 @@ our sub watch(Bool :$no_reload = False) returns Tap {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 8) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
-        render(no_reload => $no_reload);
+        render(no_livereload => $no_livereload);
         HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
       }
     }
@@ -407,12 +407,22 @@ all content in ./build with the new rendered content.
 Start a development web server on port 3000 that serves the contents
 of ./build. Web server port can be overriden in config.yml
 
-=head3 C<watch>
+=head3 C<watch(Bool :no_livereload = False)>
 
 Render all template files to ./build. This is destructive and replaces
 all content in ./build with the new rendered content. Then start
 a new development web server and watch template files for modification.
 On file modification, re-render template content to ./build for testing.
+
+By default, `uzu watch` will inject a JavaScript block into the generated
+HTML build/ output. The JavaScript will make an XMLHttpRequest to the dev
+server every second (e.g. http://0.0.0.0/3000/live). When a new file
+modification is detected the build/ HTML will be regenerated and a reload
+flag will be set on the server. The next XMLHttpRequest from the client 
+will receive a JSON doc, { "reload" : "True"}, triggering a browser 
+reload (document.location.reload).
+
+Passing :no_livereload = True will disable livereload.
 
 =head2 C<config(Str :config_file = 'config.yml')>
 

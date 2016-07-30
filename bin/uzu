@@ -10,12 +10,12 @@ multi MAIN('webserver', Str :$config = 'config.yml') {
 
 multi MAIN('build', Str :$config = 'config.yml') {
   Uzu::config(config_file => $config);
-  Uzu::render();
+  Uzu::render(no_livereload => True);
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
   Uzu::config(config_file => $config);
-  Uzu::watch(no_reload => ($no-livereload ?? True !! False));
+  Uzu::watch(no_livereload => ($no-livereload ?? True !! False));
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {
