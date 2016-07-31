@@ -264,11 +264,13 @@ our sub watch(Bool :$no_livereload = False) returns Tap {
   my @dirs = |%config<template_dirs>;
   react {
     whenever watch-dirs(@dirs.grep: *.IO.e) -> $e {
-      if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 1) {
+      if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 2) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
         render(no_livereload => $no_livereload);
-        HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
+        unless $no_livereload {
+          HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
+        }
       }
     }
   }
