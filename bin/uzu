@@ -4,18 +4,18 @@ use v6;
 use Uzu;
 
 multi MAIN('webserver', Str :$config = 'config.yml') {
-  Uzu::config(config_file => $config);
-  Uzu::web-server();
+  Uzu::config config_file => $config;
+  Uzu::web-server;
 }
 
 multi MAIN('build', Str :$config = 'config.yml') {
-  Uzu::config(config_file => $config);
-  Uzu::render(no_livereload => True);
+  Uzu::config config_file => $config;
+  Uzu::render no_livereload => True;
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
-  Uzu::config(config_file => $config);
-  Uzu::watch(no_livereload => ($no-livereload ?? True !! False));
+  Uzu::config config_file => $config;
+  Uzu::watch no_livereload => ($no-livereload ?? True !! False);
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {
@@ -29,11 +29,11 @@ multi MAIN('init', Str :$config = 'config.yml') {
   my $language = prompt("Please enter project language (e.g. en, ja): ");
   my $theme = prompt("Please enter project theme (e.g. default): ");
 
-  if Uzu::init(  config_file  => $config,
-                 project_name => $project_name,
-                 url          => $url,
-                 language     => $language,
-                 theme        => $theme ) {
+  if Uzu::init config_file  => $config,
+               project_name => $project_name,
+               url          => $url,
+               language     => $language,
+               theme        => $theme {
     say "Config [$config] successfully created.";
   }
 }

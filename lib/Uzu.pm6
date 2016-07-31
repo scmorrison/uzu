@@ -133,8 +133,11 @@ our sub serve() returns Proc::Async {
   } else {
     $p .= new: "uzu", @args;
   }
-  $p.stdout.tap: -> $v { $*OUT.print: $v };
-  $p.stderr.tap: -> $v { $*ERR.print: $v };
+  $p.stdout.tap: -> $v { $*OUT.print: $v }
+  $p.stderr.tap: -> $v { 
+    # Filter out livereload requests
+    if !$v.contains('GET /live') { $*ERR.print: $v }
+  }
   $p.start;
   return $p;
 }
@@ -261,7 +264,7 @@ our sub watch(Bool :$no_livereload = False) returns Tap {
   my @dirs = |%config<template_dirs>;
   react {
     whenever watch-dirs(@dirs.grep: *.IO.e) -> $e {
-      if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 8) {
+      if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 1) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
         render(no_livereload => $no_livereload);
