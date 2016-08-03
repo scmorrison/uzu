@@ -1,5 +1,6 @@
 ---
 name: uzu-tests
-language: en
+language:
+  - en
 theme: default
 url: https://gitlab.com/samcns/uzu

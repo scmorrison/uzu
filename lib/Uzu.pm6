@@ -4,13 +4,10 @@ use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 
-unit module Uzu:ver<0.0.7>:auth<gitlab:samcns>;
-
-# Globals
-my %config;
+unit module Uzu:ver<0.0.8>:auth<gitlab:samcns>;
 
 # Utils
-sub path-exists(Str $path) returns Bool {
+sub path-exists(Str :$path) returns Bool {
   return $path.IO ~~ :f|:d;
 }
 
@@ -19,39 +16,23 @@ sub find-dirs (Str:D $p) returns Slip {
   return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
 }
 
-sub templates(Str :$dir) returns Seq {
-   my @exts = |%config<template_extensions>;
+sub templates(:@exts, Str :$dir) returns Seq {
    return $dir.IO.dir(:test(/:i '.' @exts $/));
 }
 
-sub file-with-extension(Str $path) returns Str {
-  my @exts = |%config<template_extensions>;
+sub file-with-extension(:@exts, Str :$path) returns Str {
   for @exts -> $ext {
     my $file_name = "$path.$ext";
     return $file_name if $file_name.IO ~~ :e and $file_name.IO ~~ :f;
   }
 }
 
-sub included-partials(Str :$content) returns Hash {
-  my %partials;
-  # Find matching partial include declarations
-  my @include_partials = $content.comb: / '{{>' ~ '}}' [\s*? <(\w+)> \s*?] /;
-  for @include_partials -> $partial {
-    my $partial_name = $partial;
-    my $partial_path = file-with-extension("{%config<partials_dir>}/{$partial_name}");
-    my $partial_content = slurp($partial_path, :r);
-    %partials{$partial_name} = $partial_content;
-  }
-  return %partials;
-}
-
-sub build-context returns Hash {
+sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
   my %context;
-  my $lang = %config<defaults><language>;
-  %context<language> = $lang;
+  %context<language> = $language;
 
-  my $i18n_file = "%config<i18n_dir>/$lang.yml";
-  if path-exists($i18n_file) {
+  my $i18n_file = "$i18n_dir/$language.yml";
+  if path-exists(path => $i18n_file) {
     try {
       CATCH {
         default {
@@ -65,7 +46,9 @@ sub build-context returns Hash {
   return %context;
 }
 
-our sub render(Bool :$no_livereload = False) {
+our sub render(:%config,
+               Bool :$no_livereload = False) {
+
   use Template6;
   my $t6 = Template6.new;
   for |%config<template_dirs> -> $dir { $t6.add-path: $dir }
@@ -73,11 +56,12 @@ our sub render(Bool :$no_livereload = False) {
   my $themes_dir = %config<themes_dir>;
   my $layout_dir = %config<layout_dir>;
   my $assets_dir = %config<assets_dir>;
-  my $build_dir = %config<build_dir>;
+  my $build_dir  = %config<build_dir>;
 
   # All available pages
   my %pages;
-  my @page_templates = templates(dir => %config<pages_dir>);
+  my @exts = |%config<template_extensions>;
+  my @page_templates = templates(exts => @exts, dir => %config<pages_dir>);
   for @page_templates -> $page { 
     my $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
     %pages{$page_name} = slurp($page, :r);
@@ -88,49 +72,55 @@ our sub render(Bool :$no_livereload = False) {
   run(«rm "-rf" "$build_dir"»);
 
   # Create build dir
-  if !path-exists($build_dir) { say "Creating build directory"; mkdir $build_dir }
+  if !path-exists(path => $build_dir) { say "Creating build directory"; mkdir $build_dir }
 
   # Copy assets
   say "Copying asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
-  # Build %context hash
-  my %context = build-context();
+  for |%config<language> -> $language {
+    # Build %context hash
+    my %context = build-context(i18n_dir => %config<i18n_dir>,
+                                language => $language);
 
-  # Write to build
-  say "Compiling template to HTML";
-  for %pages.kv -> $page_name, $content {
+    # Write to build
+    say "Compiling template to HTML";
+    for %pages.kv -> $page_name, $content {
 
-    CATCH {
-        when X { .resume }
+      # Render the page content
+      my $page_content = $t6.process($page_name, |%context);
+      
+      # Append page content to %context
+      %context<content> = $page_content;
+      
+      my $layout_content = $t6.process('layout', |%context );
+
+      unless $no_livereload {
+        # Add livejs if live-reload enabled (default)
+        my $livejs = '<script src="uzu/js/live.js"></script>';
+        $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+      };
+
+      my $file_name = $page_name;
+      if $language !~~ %config<language>[0] {
+        $file_name = "{$page_name}_{$language}";
+      }
+
+      spurt "$build_dir/$file_name.html", $layout_content;
     }
-
-    # Render the page content
-    my $page_content = $t6.process($page_name, |%context);
-    
-    # Append page content to %context
-    %context<content> = $page_content;
-    
-    my $layout_content = $t6.process('layout', |%context );
-
-    unless $no_livereload {
-      # Add livejs if live-reload enabled (default)
-      my $livejs = '<script src="uzu/js/live.js"></script>';
-      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
-    };
-
-    spurt "$build_dir/$page_name.html", $layout_content;
   }
   say "Compile complete";
 }
 
-our sub serve() returns Proc::Async {
+our sub serve(Str :$config_file) returns Proc::Async {
   my Proc::Async $p;
-  my @args = ("--config={%config<path>}", "webserver");
-  if path-exists("bin/uzu") {
+  my @args = ("--config={$config_file}", "webserver");
+  # Use the library path if running from test
+  if path-exists(path => "bin/uzu") {
     my $lib_path = $?FILE.IO.parent;
     $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
+    # Use uzu from PATH otherwise
     $p .= new: "uzu", @args;
   }
   $p.stdout.tap: -> $v { $*OUT.print: $v }
@@ -142,7 +132,7 @@ our sub serve() returns Proc::Async {
   return $p;
 }
 
-our sub web-server() {
+our sub web-server(:%config) {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
@@ -205,8 +195,9 @@ our sub web-server() {
 
     # Catch / => index.html
     my $path;
+    my @exts = |%config<template_extensions>;
     if $file ~~ '/' {
-      $path = IO::Path.new(file-with-extension("$build_dir/index"));
+      $path = IO::Path.new(file-with-extension(exts => @exts, path => "$build_dir/index"));
     } else {
       $path = IO::Path.new($build_dir ~ $file.split('?')[0]);
     }
@@ -222,7 +213,7 @@ our sub web-server() {
   }    
 
   # Start bailador
-  baile(%config<defaults><port>||3000);
+  baile(%config<port>||3000);
 }
 
 # Watchers
@@ -242,7 +233,7 @@ sub watch-dirs(@dirs) returns Supply {
   }
 }
 
-our sub watch(Bool :$no_livereload = False) returns Tap {
+our sub watch(:%config, Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
@@ -251,10 +242,10 @@ our sub watch(Bool :$no_livereload = False) returns Tap {
   }
 
   # Initialize build
-  render(no_livereload => $no_livereload);
+  render(config => %config, no_livereload => $no_livereload);
 
   # Start server
-  my $app = serve();
+  my $app = serve(config_file => %config<path>);
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
@@ -267,7 +258,7 @@ our sub watch(Bool :$no_livereload = False) returns Tap {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 2) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
-        render(no_livereload => $no_livereload);
+        render(config => %config, no_livereload => $no_livereload);
         unless $no_livereload {
           HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
         }
@@ -276,10 +267,11 @@ our sub watch(Bool :$no_livereload = False) returns Tap {
   }
 }
 
-our sub wait_server(:$sleep=0.1, int :$times=100) is export {
+our sub wait-server(Str :$host, int :$port, :$sleep=0.1, int :$times=100) is export {
     LOOP: for 1..$times {
         try {
-            my $sock = IO::Socket::INET.new(host => %config<host>, port => %config<port>);
+
+            my $sock = IO::Socket::INET.new(host => $host, port => $port);
             $sock.close;
 
             CATCH { default {
@@ -290,19 +282,16 @@ our sub wait_server(:$sleep=0.1, int :$times=100) is export {
         return;
     }
 
-    die "{%config<host>}:{%config<port>} did not open within {$sleep*$times} seconds.";
+    die "http://{$host}:{$port} did not open within {$sleep*$times} seconds.";
 }
 
 # Config
-sub parse-config(Str $config_file) returns Hash {
-  if path-exists($config_file) {
-    for $config_file.IO.lines -> $line {
-      # Skip yaml header, comment, and blank lines
-      next if $line ~~ '---'|''|/^\#.+$/;
-      for load-yaml($line).kv -> $key, $val {
-        # Define only set key/value pairs in %config
-        %config<defaults>{$key} = $val if $key !~~ '';
-      }
+sub parse-config(Str :$config_file) returns Hash {
+  if path-exists(path => $config_file) {
+    my %config = load-yaml slurp($config_file);
+    # Make sure language is always a list
+    if %config<language> ~~ Str {
+      %config<language> = [%config<language>];
     }
     return %config;
   } else {
@@ -310,15 +299,14 @@ sub parse-config(Str $config_file) returns Hash {
   }
 }
 
-sub load-config(Str $config_file) returns Hash {
+sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
 
   # Parse yaml config
-  my %config = parse-config($config_file);
-  
+  my %config = parse-config(config_file => $config_file);
   # Set configuration
-  %config<host>                   = "{%config<defaults><host>||'0.0.0.0'}";
-  %config<port>                   = %config<defaults><port>||3000;
-  my $project_root                = %config<defaults><project_root>||$*CWD;
+  %config<host>                   = "{%config<host>||'0.0.0.0'}";
+  %config<port>                   = %config<port>||3000;
+  my $project_root                = %config<project_root>||$*CWD;
   %config<project_root>           = $project_root;
   %config<path>                   = $config_file;
   %config<build_dir>              = "{$project_root}/build";
@@ -346,19 +334,16 @@ sub load-config(Str $config_file) returns Hash {
   return %config;
 }
 
-our sub config(Str :$config_file) returns Hash {
-  %config = load-config $config_file.subst('~', $*HOME);
-}
+our sub init( Str   :$config_file  = 'config.yml', 
+              Str   :$project_name = 'New Uzu Project',
+              Str   :$url          = 'http://example.com',
+              Str   :$language     = 'en',
+              Str   :$theme        = 'default') returns Bool {
 
-our sub init( Str :$config_file  = "config.yml", 
-              Str :$project_name = "New Uzu Project",
-              Str :$url          = "http://example.com",
-              Str :$language     = "en",
-              Str :$theme        = "default") returns Bool {
-
+  my %config;
   %config<name>     = $project_name;
   %config<url>      = $url;
-  %config<language> = $language;
+  %config<language> = [$language];
   %config<theme>    = $theme;
 
   # Write config file

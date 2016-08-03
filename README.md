@@ -48,9 +48,21 @@ Each project has its own `config.yml` which uses the following format:
 # Name of the project
 name: uzu-starter
 
-# Language to use, determines which
+# Languages to use, determines which
 # i18n/*.yml file to use for string variables
-language: en
+#
+# The first language in the list is considered
+# the default language. The defualt language
+# will render to non-suffixed files (e.g index.html).
+# All other languages will render with the
+# language as a file suffix (e.g index_fr.html,
+# index_ja.html). This will be overridable in
+# future releases.
+
+language:
+  - en
+  - ja
+  - fr
 
 # Themes are stored in themes/[theme-name]
 theme: default

@@ -3,19 +3,25 @@
 use v6;
 use Uzu;
 
+multi MAIN('config', Str :$config = 'config.yml') {
+  say uzu-config(config_file => $config);
+}
+
 multi MAIN('webserver', Str :$config = 'config.yml') {
-  Uzu::config config_file => $config;
-  Uzu::web-server;
+  my %config = uzu-config(config_file => $config);
+  Uzu::web-server(config => %config);
 }
 
 multi MAIN('build', Str :$config = 'config.yml') {
-  Uzu::config config_file => $config;
-  Uzu::render no_livereload => True;
+  my %config = uzu-config(config_file => $config);
+  Uzu::render(config => %config,
+              no_livereload => True);
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
-  Uzu::config config_file => $config;
-  Uzu::watch no_livereload => ($no-livereload ?? True !! False);
+  my %config = uzu-config(config_file => $config);
+  Uzu::watch(config => %config,
+             no_livereload => ($no-livereload ?? True !! False));
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {

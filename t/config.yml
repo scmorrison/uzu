@@ -1,6 +1,9 @@
 ---
 name: uzu-tests
-language: en
+language:
+  - en
 theme: default
 url: https://gitlab.com/samcns/uzu
 project_root: t
+host: "127.0.0.1"
+port: 3333
