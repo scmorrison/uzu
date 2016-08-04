@@ -103,7 +103,7 @@ our sub render(:%config,
 
       my $file_name = $page_name;
       if $language !~~ %config<language>[0] {
-        $file_name = "{$page_name}_{$language}";
+        $file_name = "{$page_name}-{$language}";
       }
 
       spurt "$build_dir/$file_name.html", $layout_content;

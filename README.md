@@ -55,8 +55,8 @@ name: uzu-starter
 # the default language. The defualt language
 # will render to non-suffixed files (e.g index.html).
 # All other languages will render with the
-# language as a file suffix (e.g index_fr.html,
-# index_ja.html). This will be overridable in
+# language as a file suffix (e.g index-fr.html,
+# index-ja.html). This will be overridable in
 # future releases.
 
 language:
