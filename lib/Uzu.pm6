@@ -114,6 +114,7 @@ our sub render(:%config,
 
 our sub serve(Str :$config_file) returns Proc::Async {
   my Proc::Async $p;
+  my $server-up = Promise.new;
   my @args = ("--config={$config_file}", "webserver");
   # Use the library path if running from test
   if path-exists(path => "bin/uzu") {
@@ -126,9 +127,13 @@ our sub serve(Str :$config_file) returns Proc::Async {
   $p.stdout.tap: -> $v { $*OUT.print: $v }
   $p.stderr.tap: -> $v { 
     # Filter out livereload requests
+    if $server-up.status ~~ Planned {
+        $server-up.keep if $v.contains('Started HTTP server');
+    }
     if !$v.contains('GET /live') { $*ERR.print: $v }
   }
   $p.start;
+  await $server-up;
   return $p;
 }
 

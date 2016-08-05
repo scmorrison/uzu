@@ -31,4 +31,8 @@ my %r2 = $client.get("http://$host:$port/index.html");
 is %r2<status>, 200, 'serve 2/3: HTTP 200 OK';
 is %r2<content>, $html_test, 'serve 3/3: served HTML match';
 
+# Clean up
+
+$r1.kill;
+
 # vim: ft=perl6
