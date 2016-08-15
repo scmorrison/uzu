@@ -148,7 +148,7 @@ our sub serve(Str :$config_file) returns Proc::Async {
 
   # Use the library path if running from test
   if path-exists(path => "bin/uzu") {
-    my Str $lib_path = $?FILE.IO.parent;
+    my IO::Path $lib_path = $?FILE.IO.parent;
     $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
     # Use uzu from PATH otherwise
