@@ -8,20 +8,18 @@ multi MAIN('config', Str :$config = 'config.yml') {
 }
 
 multi MAIN('webserver', Str :$config = 'config.yml') {
-  my %config = uzu-config(config_file => $config);
-  Uzu::web-server(config => %config);
+  uzu-config(config_file => $config)
+  ==> Uzu::web-server();
 }
 
 multi MAIN('build', Str :$config = 'config.yml') {
-  my %config = uzu-config(config_file => $config);
-  Uzu::render(config => %config,
-              no_livereload => True);
+  uzu-config(config_file => $config)
+  ==> Uzu::render(no_livereload => True);
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
-  my %config = uzu-config(config_file => $config);
-  Uzu::watch(config => %config,
-             no_livereload => ($no-livereload ?? True !! False));
+  uzu-config(config_file => $config)
+  ==> Uzu::watch(no_livereload => ($no-livereload ?? True !! False));
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {

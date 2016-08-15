@@ -13,7 +13,6 @@ say "Waiting for web server to start serving";
 
 my $host = '127.0.0.1';
 my $port = 3333;
-Uzu::wait-server(host => $host, port => $port);
 
 my $html_test = q:to/END/;
 <html>

@@ -17,14 +17,14 @@ sub find-dirs (Str:D $p) returns Slip {
 }
 
 sub templates(:@exts, Str :$dir) returns Seq {
-   return $dir.IO.dir(:test(/:i '.' @exts $/));
+  return $dir.IO.dir(:test(/:i '.' @exts $/));
 }
 
 sub file-with-extension(:@exts, Str :$path) returns Str {
-  for @exts -> $ext {
+  @exts.map( -> $ext {
     my $file_name = "$path.$ext";
     return $file_name if $file_name.IO ~~ :e and $file_name.IO ~~ :f;
-  }
+  });
 }
 
 sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
@@ -46,12 +46,50 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
   return %context;
 }
 
-our sub render(:%config,
-               Bool :$no_livereload = False) {
+sub write-generated-files(%content, :$build_dir) {
+  # IO write to disk
+  for %content.keys -> $path { spurt "$build_dir/$path.html", %content{$path} };
+}
 
-  use Template6;
-  my $t6 = Template6.new;
-  for |%config<template_dirs> -> $dir { $t6.add-path: $dir }
+sub prepare-html-output(%context,
+                       :$template6,
+                       :$default_language,
+                       :$language, 
+                       :%pages,
+                       :$no_livereload) {
+
+  my %generated_pages;
+
+  %pages.keys.map( -> $page_name {
+
+    # Render the page content
+    my $page_content = $template6.process($page_name, |%context);
+
+    # Append page content to %context
+    %context<content> = $page_content;
+
+    my $layout_content = $template6.process('layout', |%context );
+
+    unless $no_livereload {
+      # Add livejs if live-reload enabled (default)
+      my $livejs = '<script src="uzu/js/live.js"></script>';
+      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+    };
+
+    my $file_name = $page_name;
+    if $language !~~ $default_language {
+      $file_name = "{$page_name}-{$language}";
+    }
+
+    # Capture generated HTML
+    %generated_pages{$file_name} = $layout_content;
+  });
+
+  %generated_pages;
+};
+
+our sub render(%config,
+               Bool :$no_livereload = False) {
 
   my $themes_dir = %config<themes_dir>;
   my $layout_dir = %config<layout_dir>;
@@ -62,10 +100,10 @@ our sub render(:%config,
   my %pages;
   my @exts = |%config<template_extensions>;
   my @page_templates = templates(exts => @exts, dir => %config<pages_dir>);
-  for @page_templates -> $page { 
+  @page_templates.map( -> $page { 
     my $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
     %pages{$page_name} = slurp($page, :r);
-  }
+  });
 
   # Clear out build
   say "Clear old files";
@@ -75,40 +113,31 @@ our sub render(:%config,
   if !path-exists(path => $build_dir) { say "Creating build directory"; mkdir $build_dir }
 
   # Copy assets
-  say "Copying asset files";
+  say "Copy asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
-  for |%config<language> -> $language {
+  use Template6;
+  my $t6 = Template6.new;
+  %config<template_dirs>.map( -> $dir { $t6.add-path: $dir } );
+
+  my $default_language = %config<language>[0];
+  %config<language>.map( -> $language { 
+
     # Build %context hash
-    my %context = build-context(i18n_dir => %config<i18n_dir>,
-                                language => $language);
+    build-context(
+      i18n_dir         => %config<i18n_dir>,
+      language         => $language)
+    ==> prepare-html-output(
+      template6        => $t6, 
+      default_language => $default_language,
+      language         => $language,
+      pages            => %pages,
+      no_livereload    => $no_livereload)
+    ==> write-generated-files(
+      build_dir        => $build_dir);
+    
+  });
 
-    # Write to build
-    say "Compiling template to HTML";
-    for %pages.kv -> $page_name, $content {
-
-      # Render the page content
-      my $page_content = $t6.process($page_name, |%context);
-      
-      # Append page content to %context
-      %context<content> = $page_content;
-      
-      my $layout_content = $t6.process('layout', |%context );
-
-      unless $no_livereload {
-        # Add livejs if live-reload enabled (default)
-        my $livejs = '<script src="uzu/js/live.js"></script>';
-        $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
-      };
-
-      my $file_name = $page_name;
-      if $language !~~ %config<language>[0] {
-        $file_name = "{$page_name}-{$language}";
-      }
-
-      spurt "$build_dir/$file_name.html", $layout_content;
-    }
-  }
   say "Compile complete";
 }
 
@@ -137,7 +166,7 @@ our sub serve(Str :$config_file) returns Proc::Async {
   return $p;
 }
 
-our sub web-server(:%config) {
+our sub web-server(%config) {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
@@ -247,7 +276,7 @@ our sub watch(:%config, Bool :$no_livereload = False) returns Tap {
   }
 
   # Initialize build
-  render(config => %config, no_livereload => $no_livereload);
+  %config ==> render(no_livereload => $no_livereload);
 
   # Start server
   my $app = serve(config_file => %config<path>);
@@ -263,31 +292,13 @@ our sub watch(:%config, Bool :$no_livereload = False) returns Tap {
       if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 2) {
         $last = now;
         say "Change detected [$e.path(), $e.event()].";
-        render(config => %config, no_livereload => $no_livereload);
+        %config ==> render(no_livereload => $no_livereload);
         unless $no_livereload {
           HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
         }
       }
     }
   }
-}
-
-our sub wait-server(Str :$host, int :$port, :$sleep=0.1, int :$times=100) is export {
-    LOOP: for 1..$times {
-        try {
-
-            my $sock = IO::Socket::INET.new(host => $host, port => $port);
-            $sock.close;
-
-            CATCH { default {
-                sleep $sleep;
-                next LOOP;
-            } }
-        }
-        return;
-    }
-
-    die "http://{$host}:{$port} did not open within {$sleep*$times} seconds.";
 }
 
 # Config
@@ -324,12 +335,12 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
   %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
   %config<template_extensions>    = ['tt', 'html', 'yml'];
 
-  for %config.kv -> $k, $v {
+  %config.kv.map( -> $k, $v { 
     # Replace ~ with full home path if applicable:
     if %config{$k} ~~ Str {
       %config{$k} = $v.subst('~', $*HOME);
     }
-  }
+  });
 
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
@@ -367,17 +378,17 @@ Uzu - Static site generator with built-in web server, file modification watcher,
         use Uzu;
 
         # Start development web server
-        Uzu::config(config_file => $config);
-        Uzu::web-server();
+        uzu-config(config_file => $config);
+        ==> Uzu::web-server();
 
         # Render all templates to ./build/
-        Uzu::config(config_file => $config);
-        Uzu::render();
+        uzu-config(config_file => $config);
+        ==> Uzu::render();
 
         # Watch template files for modification
         # and spawn development web server for testing
-        Uzu::config(config_file => $config);
-        Uzu::watch();
+        uzu-config(config_file => $config);
+        ==> Uzu::watch();
 
         # Create a new project
         Uzu::init(  config_file  => $config,
@@ -392,17 +403,17 @@ Uzu is a static site generator with built-in web server,
 file modification watcher, i18n, themes, and multi-page
 support.
 
-=head3 C<render>
+=head3 C<render(Hash %config)>
 
 Render all template files to ./build. This is destructive and replaces
 all content in ./build with the new rendered content.
 
-=head3 C<web-server>
+=head3 C<web-server(Hash %config)>
 
 Start a development web server on port 3000 that serves the contents
 of ./build. Web server port can be overriden in config.yml
 
-=head3 C<watch(Bool :no_livereload = False)>
+=head3 C<watch(Hash %config, Bool :no_livereload = False)>
 
 Render all template files to ./build. This is destructive and replaces
 all content in ./build with the new rendered content. Then start
@@ -419,7 +430,7 @@ reload (document.location.reload).
 
 Passing :no_livereload = True will disable livereload.
 
-=head2 C<config(Str :config_file = 'config.yml')>
+=head2 C<uzu-config(Str :config_file = 'config.yml')>
 
 Loads and parses config file. If config_file is unspecified then
 the default, ./config.yml, will be used if exists.
