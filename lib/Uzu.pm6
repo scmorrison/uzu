@@ -267,7 +267,7 @@ sub watch-dirs(@dirs) returns Supply {
   }
 }
 
-our sub watch(:%config, Bool :$no_livereload = False) returns Tap {
+our sub watch(%config, Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
