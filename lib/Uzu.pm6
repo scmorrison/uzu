@@ -4,7 +4,7 @@ use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 
-unit module Uzu:ver<0.0.8>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.0.9>:auth<gitlab:samcns>;
 
 # Utils
 sub path-exists(Str :$path) returns Bool {
@@ -16,22 +16,15 @@ sub find-dirs (Str:D $p) returns Slip {
   return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
 }
 
-sub templates(:@exts, Str :$dir) returns Seq {
+sub templates(Str :@exts, Str :$dir) returns Seq {
   return $dir.IO.dir(:test(/:i '.' @exts $/));
 }
 
-sub file-with-extension(:@exts, Str :$path) returns Str {
-  @exts.map( -> $ext {
-    my $file_name = "$path.$ext";
-    return $file_name if $file_name.IO ~~ :e and $file_name.IO ~~ :f;
-  });
-}
-
 sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
-  my %context;
+  my Str %context;
   %context<language> = $language;
 
-  my $i18n_file = "$i18n_dir/$language.yml";
+  my Str $i18n_file = "$i18n_dir/$language.yml";
   if path-exists(path => $i18n_file) {
     try {
       CATCH {
@@ -39,69 +32,74 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
           note "Invalid i18n yaml file [$i18n_file]";
         }
       }
-      my %yaml = load-yaml slurp($i18n_file);
-      %context.append: %yaml;
+      %context.append: load-yaml slurp($i18n_file);
     }
   }
   return %context;
 }
 
-sub write-generated-files(%content, :$build_dir) {
+sub write-generated-files(Hash $content, Str :$build_dir) {
   # IO write to disk
-  for %content.keys -> $path { spurt "$build_dir/$path.html", %content{$path} };
+  for $content.keys -> $path { spurt "$build_dir/$path.html", $content{$path} };
 }
 
-sub prepare-html-output(%context,
-                       :$template6,
-                       :$default_language,
-                       :$language, 
-                       :%pages,
-                       :$no_livereload) {
+sub prepare-html-output(Hash  $context,
+                        Str   :@template_dirs,
+                        Str   :$default_language,
+                        Str   :$language, 
+                        Hash  :$pages,
+                        Bool  :$no_livereload) returns Hash {
+  use Template6;
+  my $t6 = Template6.new;
+  @template_dirs.map( -> $dir { $t6.add-path: $dir } );
 
-  my %generated_pages;
+  my %generated_pages = Hash;
 
-  %pages.keys.map( -> $page_name {
+  $pages.keys.map( -> $page_name {
 
     # Render the page content
-    my $page_content = $template6.process($page_name, |%context);
+    my Str $page_content = $t6.process($page_name, |$context);
 
-    # Append page content to %context
-    %context<content> = $page_content;
+    # Append page content to $context
+    $context<content> = $page_content;
 
-    my $layout_content = $template6.process('layout', |%context );
+    my Str $layout_content = $t6.process('layout', |$context );
 
     unless $no_livereload {
       # Add livejs if live-reload enabled (default)
-      my $livejs = '<script src="uzu/js/live.js"></script>';
+      my Str $livejs = '<script src="uzu/js/live.js"></script>';
       $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
     };
 
-    my $file_name = $page_name;
+    # Default file_name without prefix
+    my Str $file_name = $page_name;
     if $language !~~ $default_language {
       $file_name = "{$page_name}-{$language}";
     }
 
     # Capture generated HTML
     %generated_pages{$file_name} = $layout_content;
+
   });
 
-  %generated_pages;
+  return %generated_pages;
 };
 
-our sub render(%config,
+our sub render(Hash $config,
                Bool :$no_livereload = False) {
 
-  my $themes_dir = %config<themes_dir>;
-  my $layout_dir = %config<layout_dir>;
-  my $assets_dir = %config<assets_dir>;
-  my $build_dir  = %config<build_dir>;
+  my Str $themes_dir = $config<themes_dir>;
+  my Str $layout_dir = $config<layout_dir>;
+  my Str $assets_dir = $config<assets_dir>;
+  my Str $build_dir  = $config<build_dir>;
 
   # All available pages
-  my %pages;
-  my @exts = |%config<template_extensions>;
-  my @page_templates = templates(exts => @exts, dir => %config<pages_dir>);
+  my Str %pages;
+  my Str @exts = |$config<template_extensions>;
+  my IO::Path @page_templates = templates(exts => @exts,
+                                           dir => $config<pages_dir>);
   @page_templates.map( -> $page { 
-    my $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
+    my Str $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
     %pages{$page_name} = slurp($page, :r);
   });
 
@@ -116,23 +114,26 @@ our sub render(%config,
   say "Copy asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
-  use Template6;
-  my $t6 = Template6.new;
-  %config<template_dirs>.map( -> $dir { $t6.add-path: $dir } );
+  my Str $default_language = $config<language>[0];
 
-  my $default_language = %config<language>[0];
-  %config<language>.map( -> $language { 
+  say "Compile templates";
+
+  $config<language>.map( -> $language { 
+
+    my Str @template_dirs = |$config<template_dirs>;
 
     # Build %context hash
     build-context(
-      i18n_dir         => %config<i18n_dir>,
+      i18n_dir         => $config<i18n_dir>,
       language         => $language)
+    # Render HTML
     ==> prepare-html-output(
-      template6        => $t6, 
+      template_dirs    => @template_dirs, 
       default_language => $default_language,
       language         => $language,
       pages            => %pages,
       no_livereload    => $no_livereload)
+    # Write HTML to build/
     ==> write-generated-files(
       build_dir        => $build_dir);
     
@@ -143,37 +144,44 @@ our sub render(%config,
 
 our sub serve(Str :$config_file) returns Proc::Async {
   my Proc::Async $p;
-  my $server-up = Promise.new;
   my @args = ("--config={$config_file}", "webserver");
+
   # Use the library path if running from test
   if path-exists(path => "bin/uzu") {
-    my $lib_path = $?FILE.IO.parent;
+    my Str $lib_path = $?FILE.IO.parent;
     $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
     # Use uzu from PATH otherwise
     $p .= new: "uzu", @args;
   }
+
+  my Promise $server-up .= new;
   $p.stdout.tap: -> $v { $*OUT.print: $v }
   $p.stderr.tap: -> $v { 
-    # Filter out livereload requests
+    # Wait until server started
     if $server-up.status ~~ Planned {
-        $server-up.keep if $v.contains('Started HTTP server');
+      $server-up.keep if $v.contains('Started HTTP server');
     }
+    # Filter out livereload requests
     if !$v.contains('GET /live') { $*ERR.print: $v }
   }
+
+  # Start web server
   $p.start;
+
+  # Wait for server to come online
   await $server-up;
   return $p;
 }
 
-our sub web-server(%config) {
+our sub web-server(Hash $config) {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
-  my $build_dir = %config<build_dir>;
+  my $build_dir = $config<build_dir>;
 
   # Use for triggering reload staging when reload is triggered
-  my $reload = False;
+  my Bool $reload = False;
   
   # When accessed, sets $reload to True
   get '/reload' => sub () {
@@ -186,7 +194,7 @@ our sub web-server(%config) {
   # instructing uzu/js/live.js to reload the
   # browser.
   get '/live' => sub () {
-    my $response;
+    my Str $response;
     if $reload {
       $reload = False;
       $response = '{ "reload": "True" }';
@@ -200,7 +208,7 @@ our sub web-server(%config) {
   # Include live.js that starts polling /live
   # for reload instructions
   get '/uzu/js/live.js' => sub () {
-    my $livejs = q:to/EOS/; 
+    my Str $livejs = q:to/EOS/; 
       // Uzu live-reload
       function live() {
         var xhttp = new XMLHttpRequest();
@@ -227,47 +235,49 @@ our sub web-server(%config) {
     # Trying to access files outside of build path
     return "Invalid path" if $file.match('..');
 
-    # Catch / => index.html
-    my $path;
-    my @exts = |%config<template_extensions>;
+    my IO::Path $path;
     if $file ~~ '/' {
-      $path = IO::Path.new(file-with-extension(exts => @exts, path => "$build_dir/index"));
+      # Serve index.html on /
+      $path = IO::Path.new("{$build_dir}/index.html");
     } else {
-      $path = IO::Path.new($build_dir ~ $file.split('?')[0]);
+      # Strip query string for now
+      $path = IO::Path.new("{$build_dir}{$file.split('?')[0]}");
     }
 
     # Invalid path
     return "Invalid path: file does not exists" if !$path.IO.e;
 
     # Return any valid paths
-    my $type = $content-types.detect-type($path);
+    my Str $type = $content-types.detect-type($path);
     header("Content-Type", $type);
-    return $path.slurp if !$type.grep: / image|ttf|woff /;
-    return $path.slurp(:bin);
+    # UTF-8 text
+    return slurp $path if !$type.grep: / image|ttf|woff|octet\-stream /;
+    # Binary
+    return slurp $path, :bin;
   }    
 
   # Start bailador
-  baile(%config<port>||3000);
+  baile($config<port>||3000);
 }
 
 # Watchers
-sub watch-it($p) returns Tap {
-    say "Starting watch on {$p.subst("{$*CWD}/", '')}";
-    whenever IO::Notification.watch-path($p) -> $e {
-        if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
-            watch-it($_) for find-dirs($e.path);
-        }
-        emit($e);
+sub watch-it(Str $p) returns Tap {
+  say "Starting watch on {$p.subst("{$*CWD}/", '')}";
+  whenever IO::Notification.watch-path($p) -> $e {
+    if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
+      watch-it($_) for find-dirs($e.path);
     }
+    emit($e);
+  }
 }
 
-sub watch-dirs(@dirs) returns Supply {
+sub watch-dirs(Str @dirs) returns Supply {
   supply {
     watch-it(~$_) for |@dirs.map: { find-dirs($_) };
   }
 }
 
-our sub watch(%config, Bool :$no_livereload = False) returns Tap {
+our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
   unless 'partials'.IO.e {
@@ -276,25 +286,25 @@ our sub watch(%config, Bool :$no_livereload = False) returns Tap {
   }
 
   # Initialize build
-  %config ==> render(no_livereload => $no_livereload);
+  $config ==> render(no_livereload => $no_livereload);
 
   # Start server
-  my $app = serve(config_file => %config<path>);
+  my Proc::Async $app = serve(config_file => $config<path>);
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
   # edit. 
   my Instant $last;
-  my @exts = |%config<template_extensions>;
-  my @dirs = |%config<template_dirs>;
+  my Str @exts = |$config<template_extensions>;
+  my Str @dirs = |$config<template_dirs>.grep: *.IO.e;
   react {
-    whenever watch-dirs(@dirs.grep: *.IO.e) -> $e {
-      if $e.path().grep: / '.' @exts $/ and (!$last.defined or now - $last > 2) {
+    whenever watch-dirs(@dirs) -> $e {
+      if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 2) {
         $last = now;
-        say "Change detected [$e.path(), $e.event()].";
-        %config ==> render(no_livereload => $no_livereload);
+        say "Change detected [$e.path].";
+        $config ==> render(no_livereload => $no_livereload);
         unless $no_livereload {
-          HTTP::Tinyish.new(agent => "Mozilla/4.0").get("http://{%config<host>}:{%config<port>}/reload");
+          HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
         }
       }
     }
@@ -356,14 +366,14 @@ our sub init( Str   :$config_file  = 'config.yml',
               Str   :$language     = 'en',
               Str   :$theme        = 'default') returns Bool {
 
-  my %config;
+  my Hash %config;
   %config<name>     = $project_name;
   %config<url>      = $url;
   %config<language> = [$language];
   %config<theme>    = $theme;
 
   # Write config file
-  my $config_yaml = save-yaml(%config).subst('...', '');
+  my Str $config_yaml = save-yaml(%config).subst('...', '');
   return spurt $config_file.subst('~', $*HOME), $config_yaml;
 }
 
@@ -378,16 +388,16 @@ Uzu - Static site generator with built-in web server, file modification watcher,
         use Uzu;
 
         # Start development web server
-        uzu-config(config_file => $config);
+        uzu-config(config_file => $config)
         ==> Uzu::web-server();
 
         # Render all templates to ./build/
-        uzu-config(config_file => $config);
+        uzu-config(config_file => $config)
         ==> Uzu::render();
 
         # Watch template files for modification
         # and spawn development web server for testing
-        uzu-config(config_file => $config);
+        uzu-config(config_file => $config)
         ==> Uzu::watch();
 
         # Create a new project
