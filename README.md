@@ -11,6 +11,7 @@ Features
 * **Live reload**: `uzu watch` automatically reloads the browser when a re-render occurs
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
+* **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non .tt or .yml files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
 **Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://gitlab.com/samcns/uzu/issues) you find.
@@ -255,8 +256,8 @@ Requirements
 AUTHORS
 =======
 
-[Sam Morrison](@samcns)
-[ab5tract ](@ab5tract)
+* [Sam Morrison](@samcns)
+* [ab5tract ](@ab5tract)
 
 SEE ALSO
 ========

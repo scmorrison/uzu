@@ -4,7 +4,7 @@ use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 
-unit module Uzu:ver<0.0.9>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.0>:auth<gitlab:samcns>;
 
 # Utils
 sub path-exists(Str :$path) returns Bool {
@@ -156,8 +156,9 @@ our sub serve(Str :$config_file) returns Proc::Async {
   }
 
   my Promise $server-up .= new;
-  $p.stdout.tap: -> $v { $*OUT.print: $v }
+  $p.stdout.tap: -> $v { shell "stty sane"; $*OUT.print: $v; }
   $p.stderr.tap: -> $v { 
+    shell "stty sane";
     # Wait until server started
     if $server-up.status ~~ Planned {
       $server-up.keep if $v.contains('Started HTTP server');
@@ -262,6 +263,7 @@ our sub web-server(Hash $config) {
 
 # Watchers
 sub watch-it(Str $p) returns Tap {
+  shell "stty sane";
   say "Starting watch on {$p.subst("{$*CWD}/", '')}";
   whenever IO::Notification.watch-path($p) -> $e {
     if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
@@ -277,6 +279,30 @@ sub watch-dirs(Str @dirs) returns Supply {
   }
 }
 
+sub keybinding() {
+  use Term::termios;
+  my $fd = $*IN.native-descriptor();
+  # Save the previous attrs
+  my $saved_termios := Term::termios.new(fd => $fd ).getattr;
+  # Get the existing attrs in order to modify them
+  my $termios := Term::termios.new(fd => $fd ).getattr;
+  # Set the tty to raw mode
+  $termios.makeraw;
+  # Set the modified atributes, delayed until the buffer is emptied
+  $termios.setattr(:DRAIN);
+  # Loop on characters from STDIN
+  supply {
+    # Listen for keyboard input
+    loop {
+      my $c = $*IN.getc;
+      # Respond to `r+enter`: Rebuild
+      emit 'rebuild' if $c.ord == 114;
+    }
+    # Restore the saved, previous attributes before exit
+    $saved_termios.setattr(:DRAIN);
+  };
+}
+
 our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
@@ -287,9 +313,6 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
 
   # Initialize build
   $config ==> render(no_livereload => $no_livereload);
-
-  # Start server
-  my Proc::Async $app = serve(config_file => $config<path>);
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
@@ -297,18 +320,44 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   my Instant $last;
   my Str @exts = |$config<template_extensions>;
   my Str @dirs = |$config<template_dirs>.grep: *.IO.e;
-  react {
-    whenever watch-dirs(@dirs) -> $e {
-      if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 2) {
-        $last = now;
-        say "Change detected [$e.path].";
-        $config ==> render(no_livereload => $no_livereload);
-        unless $no_livereload {
-          HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
+
+  # Start server
+  my Proc::Async $app    = serve(config_file => $config<path>);
+  #my $web_server = Thread.start(web-server($config));
+
+  sub render-and-reload() {
+    $config ==> render(no_livereload => $no_livereload);
+    unless $no_livereload {
+      HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
+    }
+  }
+
+  # Spawn thread to watch directories for modifications
+  my $thread_watch_dirs = Thread.start({
+    my Supply $watch_dirs = watch-dirs(@dirs);
+    react {
+      whenever $watch_dirs -> $e {
+        shell "stty sane";
+        # Make sure the file change is a known extension; don't re-render too fast
+        if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 2) {
+          $last = now;
+          say "Change detected [{$e.path()}].";
+          render-and-reload()
         }
       }
     }
-  }
+  });
+
+  # Listen for keyboard input
+  say "Press `r enter` to [rebuild]";
+  my Supply $keybinding = keybinding();
+  $keybinding.tap( -> $c { 
+    if $c ~~ 'rebuild' {
+      say 'Rebuild triggered';
+      render-and-reload()
+    }
+  });
+
 }
 
 # Config
