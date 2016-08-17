@@ -3,6 +3,7 @@ use v6;
 use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
+use Terminal::ANSIColor;
 
 unit module Uzu:ver<0.1.0>:auth<gitlab:samcns>;
 
@@ -114,14 +115,13 @@ our sub render(Hash $config,
   say "Copy asset files";
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
+  # Setup compile specific variables
   my Str $default_language = $config<language>[0];
+  my Str @template_dirs = |$config<template_dirs>;
 
-  say "Compile templates";
-
+  # One per language
   $config<language>.map( -> $language { 
-
-    my Str @template_dirs = |$config<template_dirs>;
-
+    say "Compile templates [$language]";
     # Build %context hash
     build-context(
       i18n_dir         => $config<i18n_dir>,
@@ -136,7 +136,6 @@ our sub render(Hash $config,
     # Write HTML to build/
     ==> write-generated-files(
       build_dir        => $build_dir);
-    
   });
 
   say "Compile complete";
@@ -156,9 +155,8 @@ our sub serve(Str :$config_file) returns Proc::Async {
   }
 
   my Promise $server-up .= new;
-  $p.stdout.tap: -> $v { shell "stty sane"; $*OUT.print: $v; }
+  $p.stdout.tap: -> $v { $*OUT.print: $v; }
   $p.stderr.tap: -> $v { 
-    shell "stty sane";
     # Wait until server started
     if $server-up.status ~~ Planned {
       $server-up.keep if $v.contains('Started HTTP server');
@@ -263,7 +261,6 @@ our sub web-server(Hash $config) {
 
 # Watchers
 sub watch-it(Str $p) returns Tap {
-  shell "stty sane";
   say "Starting watch on {$p.subst("{$*CWD}/", '')}";
   whenever IO::Notification.watch-path($p) -> $e {
     if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
@@ -274,6 +271,7 @@ sub watch-it(Str $p) returns Tap {
 }
 
 sub watch-dirs(Str @dirs) returns Supply {
+  run("stty", "sane");
   supply {
     watch-it(~$_) for |@dirs.map: { find-dirs($_) };
   }
@@ -323,7 +321,6 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
 
   # Start server
   my Proc::Async $app    = serve(config_file => $config<path>);
-  #my $web_server = Thread.start(web-server($config));
 
   sub render-and-reload() {
     $config ==> render(no_livereload => $no_livereload);
@@ -334,10 +331,8 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
 
   # Spawn thread to watch directories for modifications
   my $thread_watch_dirs = Thread.start({
-    my Supply $watch_dirs = watch-dirs(@dirs);
     react {
-      whenever $watch_dirs -> $e {
-        shell "stty sane";
+      whenever watch-dirs(@dirs) -> $e {
         # Make sure the file change is a known extension; don't re-render too fast
         if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 2) {
           $last = now;
@@ -349,11 +344,10 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   });
 
   # Listen for keyboard input
-  say "Press `r enter` to [rebuild]";
-  my Supply $keybinding = keybinding();
-  $keybinding.tap( -> $c { 
+  say colored("Press `r enter` to [rebuild]", "bold green on_blue");
+  keybinding().tap( -> $c { 
     if $c ~~ 'rebuild' {
-      say 'Rebuild triggered';
+      say colored("Rebuild triggered", "bold green on_blue");
       render-and-reload()
     }
   });
