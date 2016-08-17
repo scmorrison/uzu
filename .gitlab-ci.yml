@@ -1,4 +1,4 @@
-image: rakudo-star:2016.04
+image: rakudo-star:2016.07
 
 before_script:
   - panda update
