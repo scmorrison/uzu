@@ -5,7 +5,7 @@ use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.0>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.1>:auth<gitlab:samcns>;
 
 # Utils
 sub path-exists(Str :$path) returns Bool {
@@ -41,13 +41,9 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
 
 sub write-generated-files(Hash $content, Str :$build_dir) {
   # IO write to disk
-  my @p;
   for $content.keys -> $path {
-    push @p, start {
-      spurt "$build_dir/$path.html", $content{$path}
-    }
+    spurt "$build_dir/$path.html", $content{$path}
   }
-  await @p;
 }
 
 sub prepare-html-output(Hash  $context,
@@ -62,35 +58,31 @@ sub prepare-html-output(Hash  $context,
   @template_dirs.map( -> $dir { $t6.add-path: $dir } );
   my %generated_pages = Hash;
 
-  my @p;
   $pages.keys.map( -> $page_name {
-    push @p, start {
-      # Render the page content
-      my Str $page_content = $t6.process($page_name, |$context);
+    # Render the page content
+    my Str $page_content = $t6.process($page_name, |$context);
 
-      # Append page content to $context
-      $context<content> = $page_content;
+    # Append page content to $context
+    $context<content> = $page_content;
 
-      my Str $layout_content = $t6.process('layout', |$context );
+    my Str $layout_content = $t6.process('layout', |$context );
 
-      unless $no_livereload {
-        # Add livejs if live-reload enabled (default)
-        my Str $livejs = '<script src="uzu/js/live.js"></script>';
-        $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
-      };
+    unless $no_livereload {
+      # Add livejs if live-reload enabled (default)
+      my Str $livejs = '<script src="uzu/js/live.js"></script>';
+      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+    };
 
-      # Default file_name without prefix
-      my Str $file_name = $page_name;
-      if $language !~~ $default_language {
-        $file_name = "{$page_name}-{$language}";
-      }
-
-      # Capture generated HTML
-      %generated_pages{$file_name} = $layout_content;
+    # Default file_name without prefix
+    my Str $file_name = $page_name;
+    if $language !~~ $default_language {
+      $file_name = "{$page_name}-{$language}";
     }
+
+    # Capture generated HTML
+    %generated_pages{$file_name} = $layout_content;
   });
 
-  await @p;
   return %generated_pages;
 };
 
