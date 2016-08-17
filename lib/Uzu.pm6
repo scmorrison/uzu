@@ -41,7 +41,13 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
 
 sub write-generated-files(Hash $content, Str :$build_dir) {
   # IO write to disk
-  for $content.keys -> $path { spurt "$build_dir/$path.html", $content{$path} };
+  my @p;
+  for $content.keys -> $path {
+    push @p, start {
+      spurt "$build_dir/$path.html", $content{$path}
+    }
+  }
+  await @p;
 }
 
 sub prepare-html-output(Hash  $context,
@@ -52,42 +58,52 @@ sub prepare-html-output(Hash  $context,
                         Bool  :$no_livereload) returns Hash {
   use Template6;
   my $t6 = Template6.new;
-  @template_dirs.map( -> $dir { $t6.add-path: $dir } );
 
+  @template_dirs.map( -> $dir { $t6.add-path: $dir } );
   my %generated_pages = Hash;
 
+  my @p;
   $pages.keys.map( -> $page_name {
+    push @p, start {
+      # Render the page content
+      my Str $page_content = $t6.process($page_name, |$context);
 
-    # Render the page content
-    my Str $page_content = $t6.process($page_name, |$context);
+      # Append page content to $context
+      $context<content> = $page_content;
 
-    # Append page content to $context
-    $context<content> = $page_content;
+      my Str $layout_content = $t6.process('layout', |$context );
 
-    my Str $layout_content = $t6.process('layout', |$context );
+      unless $no_livereload {
+        # Add livejs if live-reload enabled (default)
+        my Str $livejs = '<script src="uzu/js/live.js"></script>';
+        $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+      };
 
-    unless $no_livereload {
-      # Add livejs if live-reload enabled (default)
-      my Str $livejs = '<script src="uzu/js/live.js"></script>';
-      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
-    };
+      # Default file_name without prefix
+      my Str $file_name = $page_name;
+      if $language !~~ $default_language {
+        $file_name = "{$page_name}-{$language}";
+      }
 
-    # Default file_name without prefix
-    my Str $file_name = $page_name;
-    if $language !~~ $default_language {
-      $file_name = "{$page_name}-{$language}";
+      # Capture generated HTML
+      %generated_pages{$file_name} = $layout_content;
     }
-
-    # Capture generated HTML
-    %generated_pages{$file_name} = $layout_content;
-
   });
 
+  await @p;
   return %generated_pages;
 };
 
-our sub render(Hash $config,
+our sub build(Hash $config,
                Bool :$no_livereload = False) {
+  # Set up logger
+  $config ==> logger();
+  $config ==> render(no_livereload => $no_livereload);
+  exit;
+}
+
+our sub render(Hash $config,
+           Bool :$no_livereload = False) {
 
   my Str $themes_dir = $config<themes_dir>;
   my Str $layout_dir = $config<layout_dir>;
@@ -105,14 +121,17 @@ our sub render(Hash $config,
   });
 
   # Clear out build
-  say "Clear old files";
+  $config<logger>.emit("Clear old files");
   run(«rm "-rf" "$build_dir"»);
 
   # Create build dir
-  if !path-exists(path => $build_dir) { say "Creating build directory"; mkdir $build_dir }
+  if !path-exists(path => $build_dir) { 
+    $config<logger>.emit("Create build directory");
+    mkdir $build_dir;
+  }
 
   # Copy assets
-  say "Copy asset files";
+  $config<logger>.emit("Copy asset files");
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
   # Setup compile specific variables
@@ -120,25 +139,30 @@ our sub render(Hash $config,
   my Str @template_dirs = |$config<template_dirs>;
 
   # One per language
+  my @p;
   $config<language>.map( -> $language { 
-    say "Compile templates [$language]";
-    # Build %context hash
-    build-context(
-      i18n_dir         => $config<i18n_dir>,
-      language         => $language)
-    # Render HTML
-    ==> prepare-html-output(
-      template_dirs    => @template_dirs, 
-      default_language => $default_language,
-      language         => $language,
-      pages            => %pages,
-      no_livereload    => $no_livereload)
-    # Write HTML to build/
-    ==> write-generated-files(
-      build_dir        => $build_dir);
+    push @p, start {
+      $config<logger>.emit("Compile templates [$language]");
+      # Build %context hash
+      build-context(
+        i18n_dir         => $config<i18n_dir>,
+        language         => $language)
+      # Render HTML
+      ==> prepare-html-output(
+        template_dirs    => @template_dirs, 
+        default_language => $default_language,
+        language         => $language,
+        pages            => %pages,
+        no_livereload    => $no_livereload)
+      # Write HTML to build/
+      ==> write-generated-files(
+        build_dir        => $build_dir);
+    }
   });
 
-  say "Compile complete";
+  # Wait for compiling
+  await @p;
+  $config<logger>.emit("Compile complete");
 }
 
 our sub serve(Str :$config_file) returns Proc::Async {
@@ -261,7 +285,6 @@ our sub web-server(Hash $config) {
 
 # Watchers
 sub watch-it(Str $p) returns Tap {
-  say "Starting watch on {$p.subst("{$*CWD}/", '')}";
   whenever IO::Notification.watch-path($p) -> $e {
     if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
       watch-it($_) for find-dirs($e.path);
@@ -301,6 +324,17 @@ sub keybinding() {
   };
 }
 
+sub logger(Hash $config) {
+  my $logger = Thread.start({
+    react {
+      whenever $config<logger>.Supply -> $e { 
+        say $e;
+      }
+    }
+  });
+  return $logger;
+}
+
 our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   use HTTP::Tinyish;
 
@@ -309,8 +343,27 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
     exit(1);
   }
 
+  sub build() {
+    $config  ==> render(no_livereload => $no_livereload);
+  }
+
+  sub reload-browser() {
+    unless $no_livereload {
+      HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
+    }
+  }
+
+  sub build-and-reload() {
+    build();
+    reload-browser();
+  }
+
+  # Set up logger
+  $config ==> logger();
+
   # Initialize build
-  $config ==> render(no_livereload => $no_livereload);
+  $config<logger>.emit("Initial build");
+  build();
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
@@ -318,40 +371,35 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   my Instant $last;
   my Str @exts = |$config<template_extensions>;
   my Str @dirs = |$config<template_dirs>.grep: *.IO.e;
+  @dirs.map: -> $dir {
+    $config<logger>.emit("Starting watch on {$dir.subst("{$*CWD}/", '')}");
+  }
 
   # Start server
-  my Proc::Async $app    = serve(config_file => $config<path>);
-
-  sub render-and-reload() {
-    $config ==> render(no_livereload => $no_livereload);
-    unless $no_livereload {
-      HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
-    }
-  }
+  my Proc::Async $app = serve(config_file => $config<path>);
 
   # Spawn thread to watch directories for modifications
   my $thread_watch_dirs = Thread.start({
     react {
       whenever watch-dirs(@dirs) -> $e {
         # Make sure the file change is a known extension; don't re-render too fast
-        if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 2) {
+        if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 4) {
           $last = now;
-          say "Change detected [{$e.path()}].";
-          render-and-reload()
+          $config<logger>.emit("Change detected [{$e.path()}].");
+          build-and-reload();
         }
       }
     }
   });
 
   # Listen for keyboard input
-  say colored("Press `r enter` to [rebuild]", "bold green on_blue");
-  keybinding().tap( -> $c { 
-    if $c ~~ 'rebuild' {
-      say colored("Rebuild triggered", "bold green on_blue");
-      render-and-reload()
+  $config<logger>.emit(colored("Press `r enter` to [rebuild]", "bold green on_blue"));
+  keybinding().tap( -> $e { 
+    if $e ~~ 'rebuild' {
+      $config<logger>.emit(colored("Rebuild triggered", "bold green on_blue"));
+      build-and-reload();
     }
   });
-
 }
 
 # Config
@@ -373,20 +421,21 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
   # Parse yaml config
   my %config = parse-config(config_file => $config_file);
   # Set configuration
-  %config<host>                   = "{%config<host>||'0.0.0.0'}";
-  %config<port>                   = %config<port>||3000;
-  my $project_root                = %config<project_root>||$*CWD;
-  %config<project_root>           = $project_root;
-  %config<path>                   = $config_file;
-  %config<build_dir>              = "{$project_root}/build";
-  %config<themes_dir>             = "{$project_root}/themes";
-  %config<assets_dir>             = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
-  %config<layout_dir>             = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
-  %config<pages_dir>              = "{$project_root}/pages";
-  %config<partials_dir>           = "{$project_root}/partials";
-  %config<i18n_dir>               = "{$project_root}/i18n";
-  %config<template_dirs>          = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
-  %config<template_extensions>    = ['tt', 'html', 'yml'];
+  %config<logger>               = Supplier.new;
+  %config<host>                 = "{%config<host>||'0.0.0.0'}";
+  %config<port>                 = %config<port>||3000;
+  my $project_root              = %config<project_root>||$*CWD;
+  %config<project_root>         = $project_root;
+  %config<path>                 = $config_file;
+  %config<build_dir>            = "{$project_root}/build";
+  %config<themes_dir>           = "{$project_root}/themes";
+  %config<assets_dir>           = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
+  %config<layout_dir>           = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
+  %config<pages_dir>            = "{$project_root}/pages";
+  %config<partials_dir>         = "{$project_root}/partials";
+  %config<i18n_dir>             = "{$project_root}/i18n";
+  %config<template_dirs>        = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
+  %config<template_extensions>  = ['tt', 'html', 'yml'];
 
   %config.kv.map( -> $k, $v { 
     # Replace ~ with full home path if applicable:

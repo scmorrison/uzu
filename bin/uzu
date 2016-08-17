@@ -14,7 +14,7 @@ multi MAIN('webserver', Str :$config = 'config.yml') {
 
 multi MAIN('build', Str :$config = 'config.yml') {
   uzu-config(config_file => $config)
-  ==> Uzu::render(no_livereload => True);
+  ==> Uzu::build(no_livereload => True);
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
