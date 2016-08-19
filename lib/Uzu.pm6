@@ -131,29 +131,24 @@ our sub render(Hash $config,
   my Str @template_dirs = |$config<template_dirs>;
 
   # One per language
-  my @p;
   $config<language>.map( -> $language { 
-    push @p, start {
-      $config<logger>.emit("Compile templates [$language]");
-      # Build %context hash
-      build-context(
-        i18n_dir         => $config<i18n_dir>,
-        language         => $language)
-      # Render HTML
-      ==> prepare-html-output(
-        template_dirs    => @template_dirs, 
-        default_language => $default_language,
-        language         => $language,
-        pages            => %pages,
-        no_livereload    => $no_livereload)
-      # Write HTML to build/
-      ==> write-generated-files(
-        build_dir        => $build_dir);
-    }
+    $config<logger>.emit("Compile templates [$language]");
+    # Build %context hash
+    build-context(
+      i18n_dir         => $config<i18n_dir>,
+      language         => $language)
+    # Render HTML
+    ==> prepare-html-output(
+      template_dirs    => @template_dirs, 
+      default_language => $default_language,
+      language         => $language,
+      pages            => %pages,
+      no_livereload    => $no_livereload)
+    # Write HTML to build/
+    ==> write-generated-files(
+      build_dir        => $build_dir);
   });
 
-  # Wait for compiling
-  await @p;
   $config<logger>.emit("Compile complete");
 }
 
