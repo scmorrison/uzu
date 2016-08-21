@@ -5,7 +5,7 @@ use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.1>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.2>:auth<gitlab:samcns>;
 
 # Utils
 sub path-exists(Str :$path) returns Bool {
@@ -41,9 +41,13 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
 
 sub write-generated-files(Hash $content, Str :$build_dir) {
   # IO write to disk
-  for $content.keys -> $path {
-    spurt "$build_dir/$path.html", $content{$path}
-  }
+  my @p;
+  $content.keys.map( -> $path {
+    push @p, start {
+      spurt "$build_dir/$path.html", $content{$path}
+    }
+  });
+  await @p;
 }
 
 sub prepare-html-output(Hash  $context,
@@ -58,36 +62,40 @@ sub prepare-html-output(Hash  $context,
   @template_dirs.map( -> $dir { $t6.add-path: $dir } );
   my %generated_pages = Hash;
 
+  my @p;
   $pages.keys.map( -> $page_name {
-    # Render the page content
-    my Str $page_content = $t6.process($page_name, |$context);
+    push @p, start {
+      # Render the page content
+      my Str $page_content = $t6.process($page_name, |$context);
 
-    # Append page content to $context
-    $context<content> = $page_content;
+      # Append page content to $context
+      $context<content> = $page_content;
 
-    my Str $layout_content = $t6.process('layout', |$context );
+      my Str $layout_content = $t6.process('layout', |$context );
 
-    unless $no_livereload {
-      # Add livejs if live-reload enabled (default)
-      my Str $livejs = '<script src="uzu/js/live.js"></script>';
-      $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
-    };
+      unless $no_livereload {
+        # Add livejs if live-reload enabled (default)
+        my Str $livejs = '<script src="uzu/js/live.js"></script>';
+        $layout_content = $layout_content.subst('</body>', "{$livejs}\n</body>");
+      };
 
-    # Default file_name without prefix
-    my Str $file_name = $page_name;
-    if $language !~~ $default_language {
-      $file_name = "{$page_name}-{$language}";
+      # Default file_name without prefix
+      my Str $file_name = $page_name;
+      if $language !~~ $default_language {
+        $file_name = "{$page_name}-{$language}";
+      }
+
+      # Capture generated HTML
+      %generated_pages{$file_name} = $layout_content;
     }
-
-    # Capture generated HTML
-    %generated_pages{$file_name} = $layout_content;
   });
 
+  await @p;
   return %generated_pages;
 };
 
 our sub build(Hash $config,
-               Bool :$no_livereload = False) {
+              Bool :$no_livereload = False) {
   # Set up logger
   $config ==> logger();
   $config ==> render(no_livereload => $no_livereload);
@@ -95,7 +103,7 @@ our sub build(Hash $config,
 }
 
 our sub render(Hash $config,
-           Bool :$no_livereload = False) {
+               Bool :$no_livereload = False) {
 
   my Str $themes_dir = $config<themes_dir>;
   my Str $layout_dir = $config<layout_dir>;
@@ -131,24 +139,28 @@ our sub render(Hash $config,
   my Str @template_dirs = |$config<template_dirs>;
 
   # One per language
+  my @p;
   $config<language>.map( -> $language { 
-    $config<logger>.emit("Compile templates [$language]");
-    # Build %context hash
-    build-context(
-      i18n_dir         => $config<i18n_dir>,
-      language         => $language)
-    # Render HTML
-    ==> prepare-html-output(
-      template_dirs    => @template_dirs, 
-      default_language => $default_language,
-      language         => $language,
-      pages            => %pages,
-      no_livereload    => $no_livereload)
-    # Write HTML to build/
-    ==> write-generated-files(
-      build_dir        => $build_dir);
+    push @p, start {
+      $config<logger>.emit("Compile templates [$language]");
+      # Build %context hash
+      build-context(
+        i18n_dir         => $config<i18n_dir>,
+        language         => $language)
+      # Render HTML
+      ==> prepare-html-output(
+        template_dirs    => @template_dirs, 
+        default_language => $default_language,
+        language         => $language,
+        pages            => %pages,
+        no_livereload    => $no_livereload)
+      # Write HTML to build/
+      ==> write-generated-files(
+        build_dir        => $build_dir);
+    }
   });
 
+  await @p;
   $config<logger>.emit("Compile complete");
 }
 
@@ -355,7 +367,7 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
   # edit. 
-  my Instant $last;
+  my Instant $last = now;
   my Str @exts = |$config<template_extensions>;
   my Str @dirs = |$config<template_dirs>.grep: *.IO.e;
   @dirs.map: -> $dir {
@@ -372,7 +384,7 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
         # Make sure the file change is a known extension; don't re-render too fast
         if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 4) {
           $last = now;
-          $config<logger>.emit("Change detected [{$e.path()}].");
+          $config<logger>.emit(colored("Change detected [{$e.path()}]", "bold green on_blue"));
           build-and-reload();
         }
       }
@@ -411,7 +423,7 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
   %config<logger>               = Supplier.new;
   %config<host>                 = "{%config<host>||'0.0.0.0'}";
   %config<port>                 = %config<port>||3000;
-  my $project_root              = %config<project_root>||$*CWD;
+  my $project_root              = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
   %config<project_root>         = $project_root;
   %config<path>                 = $config_file;
   %config<build_dir>            = "{$project_root}/build";
@@ -423,13 +435,6 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
   %config<i18n_dir>             = "{$project_root}/i18n";
   %config<template_dirs>        = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
   %config<template_extensions>  = ['tt', 'html', 'yml'];
-
-  %config.kv.map( -> $k, $v { 
-    # Replace ~ with full home path if applicable:
-    if %config{$k} ~~ Str {
-      %config{$k} = $v.subst('~', $*HOME);
-    }
-  });
 
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
