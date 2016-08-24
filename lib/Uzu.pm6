@@ -42,11 +42,11 @@ sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
 sub write-generated-files(Hash $content, Str :$build_dir) {
   # IO write to disk
   my @p;
-  $content.keys.map( -> $path {
+  for $content.keys -> $path {
     push @p, start {
       spurt "$build_dir/$path.html", $content{$path}
     }
-  });
+  };
   await @p;
 }
 
@@ -64,7 +64,6 @@ sub prepare-html-output(Hash  $context,
 
   my @p;
   $pages.keys.map( -> $page_name {
-    push @p, start {
       # Render the page content
       my Str $page_content = $t6.process($page_name, |$context);
 
@@ -87,11 +86,10 @@ sub prepare-html-output(Hash  $context,
 
       # Capture generated HTML
       %generated_pages{$file_name} = $layout_content;
-    }
   });
 
-  await @p;
   return %generated_pages;
+
 };
 
 our sub build(Hash $config,
@@ -418,30 +416,41 @@ sub parse-config(Str :$config_file) returns Hash {
 sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
 
   # Parse yaml config
-  my %config = parse-config(config_file => $config_file);
+  my %config       = parse-config(config_file => $config_file);
+
+  # Paths
+  my $project_root = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
+  my $build_dir    = "{$project_root}/build";
+  my $themes_dir   = "{$project_root}/themes";
+  my $assets_dir   = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
+  my $layout_dir   = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
+  my $pages_dir    = "{$project_root}/pages";
+  my $partials_dir = "{$project_root}/partials";
+  my $i18n_dir     = "{$project_root}/i18n";
+
   # Set configuration
-  %config<logger>               = Supplier.new;
-  %config<host>                 = "{%config<host>||'0.0.0.0'}";
-  %config<port>                 = %config<port>||3000;
-  my $project_root              = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
-  %config<project_root>         = $project_root;
-  %config<path>                 = $config_file;
-  %config<build_dir>            = "{$project_root}/build";
-  %config<themes_dir>           = "{$project_root}/themes";
-  %config<assets_dir>           = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
-  %config<layout_dir>           = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
-  %config<pages_dir>            = "{$project_root}/pages";
-  %config<partials_dir>         = "{$project_root}/partials";
-  %config<i18n_dir>             = "{$project_root}/i18n";
-  %config<template_dirs>        = [%config<layout_dir>, %config<partials_dir>, %config<pages_dir>, %config<i18n_dir>];
-  %config<template_extensions>  = ['tt', 'html', 'yml'];
+  my %config_plus  = logger               => Supplier.new,
+                     host                 => "{%config<host>||'0.0.0.0'}",
+                     port                 => %config<port>||3000,
+                     project_root         => $project_root,
+                     path                 => $config_file,
+                     build_dir            => $build_dir,
+                     themes_dir           => $themes_dir,
+                     assets_dir           => $assets_dir,
+                     layout_dir           => $layout_dir,
+                     pages_dir            => $pages_dir,
+                     partials_dir         => $partials_dir,
+                     i18n_dir             => $i18n_dir,
+                     template_dirs        => [$layout_dir, $pages_dir, $partials_dir, $i18n_dir],
+                     template_extensions  => ['tt', 'html', 'yml'];
 
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
-  if %config<build_dir>.IO ~~ $*HOME.IO|%config<project_root>.IO {
-    return { error => "Build directory [{%config<build_dir>}] cannot be {$*HOME} or project root [{%config<project_root>}]."}
+  if $build_dir.IO ~~ $*HOME.IO|$project_root.IO {
+    return { error => "Build directory [{$build_dir}] cannot be {$*HOME} or project root [{$project_root}]."}
   }
-  return %config;
+
+  return %(%config, %config_plus);
 }
 
 our sub init( Str   :$config_file  = 'config.yml', 
@@ -450,11 +459,10 @@ our sub init( Str   :$config_file  = 'config.yml',
               Str   :$language     = 'en',
               Str   :$theme        = 'default') returns Bool {
 
-  my Hash %config;
-  %config<name>     = $project_name;
-  %config<url>      = $url;
-  %config<language> = [$language];
-  %config<theme>    = $theme;
+  my Hash %config = name     => $project_name,
+                    url      => $url,
+                    language => [$language],
+                    theme    => $theme;
 
   # Write config file
   my Str $config_yaml = save-yaml(%config).subst('...', '');
