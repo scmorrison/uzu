@@ -50,6 +50,6 @@ END
 
 # Save to tmp_build_path i18n yaml file
 spurt "$tmp_root/i18n/en.yml", $test4;
-output-like { %config ==> Uzu::render() }, / 'Invalid i18n yaml file' /, 'render 4/4: invalid i18n yaml warning to stdout';
+output-like { %config ==> Uzu::render() }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
 
 # vim: ft=perl6
