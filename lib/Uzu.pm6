@@ -406,7 +406,7 @@ sub parse-config(Str :$config_file) returns Hash {
 sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
 
   # Parse yaml config
-  my %config       = parse-config(config_file => $config_file);
+  my %config                  = parse-config(config_file => $config_file);
 
   # Paths
   my Str $project_root        = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
