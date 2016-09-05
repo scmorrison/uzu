@@ -17,8 +17,8 @@ sub find-dirs (Str:D $p) returns Slip {
   return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
 }
 
-sub templates(Str :@exts!, Str :$dir!) returns Seq {
-  return $dir.IO.dir(:test(/:i '.' @exts $/));
+sub templates(List :$exts!, Str :$dir!) returns Seq {
+  return $dir.IO.dir(:test(/:i ^ \w+ '.' |$exts $/));
 }
 
 sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
@@ -108,8 +108,8 @@ our sub render(Hash $config,
   my Str $build_dir  = $config<build_dir>;
 
   # All available pages
-  my Str @exts = |$config<template_extensions>;
-  my IO::Path @page_templates = templates(exts => @exts,
+  my List $exts = $config<extensions>;
+  my IO::Path @page_templates = templates(exts => $exts,
                                            dir => $config<pages_dir>);
   my Str %pages = @page_templates.map( -> $page { 
     my Str $page_name = IO::Path.new($page).basename.Str.split('.')[0]; 
@@ -286,10 +286,10 @@ sub watch-it(Str $p) returns Tap {
   }
 }
 
-sub watch-dirs(Str @dirs) returns Supply {
+sub watch-dirs(List $dirs) returns Supply {
   run("stty", "sane");
   supply {
-    watch-it(~$_) for |@dirs.map: { find-dirs($_) };
+    watch-it(~$_) for $dirs.map: { find-dirs($_) };
   }
 }
 
@@ -361,9 +361,9 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   # Some editors trigger more than one event per
   # edit. 
   my Instant $last = now;
-  my Str @exts = |$config<template_extensions>;
-  my Str @dirs = $config<template_dirs>.grep(*.IO.e);
-  @dirs.map: -> $dir {
+  my List $exts = $config<extensions>;
+  my List $dirs = $config<template_dirs>.grep(*.IO.e).List;
+  $dirs.map: -> $dir {
     $config<logger>.emit("Starting watch on {$dir.subst("{$*CWD}/", '')}");
   }
 
@@ -373,9 +373,9 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
   # Spawn thread to watch directories for modifications
   my $thread_watch_dirs = Thread.start({
     react {
-      whenever watch-dirs(@dirs) -> $e {
+      whenever watch-dirs($dirs) -> $e {
         # Make sure the file change is a known extension; don't re-render too fast
-        if $e.path.grep: /'.' @exts $/ and (!$last.defined or now - $last > 4) {
+        if so $e.path.IO.extension ∈ $exts and (!$last.defined or now - $last > 4) {
           $last = now;
           $config<logger>.emit(colored("Change detected [{$e.path()}]", "bold green on_blue"));
           build-and-reload();
@@ -406,35 +406,35 @@ sub parse-config(Str :$config_file) returns Hash {
 sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
 
   # Parse yaml config
-  my %config                  = parse-config(config_file => $config_file);
+  my %config              = parse-config(config_file => $config_file);
 
   # Paths
-  my Str $project_root        = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
-  my Str $build_dir           = "{$project_root}/build";
-  my Str $themes_dir          = "{$project_root}/themes";
-  my Str $assets_dir          = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
-  my Str $layout_dir          = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
-  my Str $pages_dir           = "{$project_root}/pages";
-  my Str $partials_dir        = "{$project_root}/partials";
-  my Str $i18n_dir            = "{$project_root}/i18n";
-  my Str @template_dirs       = $layout_dir, $pages_dir, $partials_dir, $i18n_dir;
-  my Str @template_extensions = 'tt', 'html', 'yml';
+  my Str  $project_root   = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
+  my Str  $build_dir      = "{$project_root}/build";
+  my Str  $themes_dir     = "{$project_root}/themes";
+  my Str  $assets_dir     = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
+  my Str  $layout_dir     = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
+  my Str  $pages_dir      = "{$project_root}/pages";
+  my Str  $partials_dir   = "{$project_root}/partials";
+  my Str  $i18n_dir       = "{$project_root}/i18n";
+  my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
+  my List $extensions     = ['tt', 'html', 'yml'];
 
   # Set configuratin
-  my %config_plus  = %( logger               => Supplier.new,
-                        host                 => "{%config<host>||'0.0.0.0'}",
-                        port                 => %config<port>||3000,
-                        project_root         => $project_root,
-                        path                 => $config_file,
-                        build_dir            => $build_dir,
-                        themes_dir           => $themes_dir,
-                        assets_dir           => $assets_dir,
-                        layout_dir           => $layout_dir,
-                        pages_dir            => $pages_dir,
-                        partials_dir         => $partials_dir,
-                        i18n_dir             => $i18n_dir,
-                        template_dirs        => @template_dirs,
-                        template_extensions  => @template_extensions );
+  my %config_plus  = %( logger         => Supplier.new,
+                        host           => "{%config<host>||'0.0.0.0'}",
+                        port           => %config<port>||3000,
+                        project_root   => $project_root,
+                        path           => $config_file,
+                        build_dir      => $build_dir,
+                        themes_dir     => $themes_dir,
+                        assets_dir     => $assets_dir,
+                        layout_dir     => $layout_dir,
+                        pages_dir      => $pages_dir,
+                        partials_dir   => $partials_dir,
+                        i18n_dir       => $i18n_dir,
+                        template_dirs  => $template_dirs,
+                        extensions     => $extensions );
                           
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
