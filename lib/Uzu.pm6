@@ -8,19 +8,6 @@ use Terminal::ANSIColor;
 unit module Uzu:ver<0.1.2>:auth<gitlab:samcns>;
 
 #
-# Utils
-#
-
-sub path-exists(Str :$path) returns Bool {
-  return $path.IO ~~ :f|:d;
-}
-
-sub find-dirs (Str:D $p) returns Slip {
-  state $seen = {};
-  return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
-}
-
-#
 # HTML Rendering
 #
 
@@ -30,7 +17,7 @@ sub templates(List :$exts!, Str :$dir!) returns Seq {
 
 sub build-context(Str :$i18n_dir, Str :$language) returns Hash {
   my Str $i18n_file = "$i18n_dir/$language.yml";
-  if path-exists(path => $i18n_file) {
+  if $i18n_file.IO.f {
     try {
       CATCH {
         default {
@@ -121,7 +108,7 @@ our sub render(Map      $config,
   run(«rm "-rf" "$build_dir"»);
 
   # Create build dir
-  if !path-exists(path => $build_dir) { 
+  if !$build_dir.IO.d { 
     $log.emit("Create build directory");
     mkdir $build_dir;
   }
@@ -182,7 +169,7 @@ our sub serve(Str :$config_file) returns Proc::Async {
   my @args = ("--config={$config_file}", "webserver");
 
   # Use the library path if running from test
-  if path-exists(path => "bin/uzu") {
+  if "bin/uzu".IO.d {
     my IO::Path $lib_path = $?FILE.IO.parent;
     $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
@@ -293,6 +280,11 @@ our sub web-server(Map $config) {
 # Event triggers
 #
 
+sub find-dirs (Str:D $p) returns Slip {
+  state $seen = {};
+  return slip ($p.IO, slip find :dir($p), :type<dir>).grep: { !$seen{$_}++ };
+}
+
 sub watch-it(Str $p) returns Tap {
   whenever IO::Notification.watch-path($p) -> $e {
     if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
@@ -341,6 +333,22 @@ sub logger(Supplier $log) {
       }
     }
   });
+}
+
+# Some editors, vim for example, make multiple
+# file IO modifications when a file is saved
+# that result in firing FileModified events in
+# our file watcher. render-throttle allows us to
+# prevent a render from triggering more than once
+# within a designated time frame. 2 seconds seems
+# resonable from testing.
+sub render-throttle(Channel $ch) returns Bool {
+  my ($time, $until) = $ch.poll;
+  if (now - $time) < $until {
+    $ch.send(($time, $until));
+    return False;
+  }
+  return True;
 }
 
 our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
@@ -394,22 +402,6 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   my $ch_throttle = Channel.new;
   $ch_throttle.send((now, 0));
 
-  # Some editors, vim for example, make multiple
-  # file IO modifications when a file is saved
-  # that result in firing FileModified events in
-  # our file watcher. render-throttle allows us to
-  # prevent a render from triggering more than once
-  # within a designated time frame. 2 seconds seems
-  # resonable from testing.
-  sub render-throttle(Channel $ch) returns Bool {
-    my ($time, $until) = $ch.poll;
-    if (now - $time) < $until {
-      $ch.send(($time, $until));
-      return False;
-    }
-    return True;
-  }
-
   # Spawn thread to watch directories for modifications
   my $thread_watch_dirs = Thread.start({
     react {
@@ -439,7 +431,7 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
 #
 
 sub parse-config(Str :$config_file) returns Map {
-  if path-exists(path => $config_file) {
+  if $config_file.IO.f {
     return load-yaml(slurp($config_file)).Map;
   } else {
     return Map.new( :error("Config file [$config_file] not found. Please run uzu init to generate.") );
@@ -547,12 +539,12 @@ Uzu is a static site generator with built-in web server,
 file modification watcher, i18n, themes, and multi-page
 support.
 
-=head3 C<render(Hash %config)>
+=head3 C<render(Map $config)>
 
 Render all template files to ./build. This is destructive and replaces
 all content in ./build with the new rendered content.
 
-=head3 C<web-server(Hash %config)>
+=head3 C<web-server(Map $config)>
 
 Start a development web server on port 3000 that serves the contents
 of ./build. Web server port can be overriden in config.yml
