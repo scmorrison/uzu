@@ -98,7 +98,7 @@ sub prepare-html-output(Hash  $context,
 
 };
 
-our sub render(Hash     $config,
+our sub render(Map      $config,
                Bool     :$no_livereload = False,
                Supplier :$log = Supplier.new) {
 
@@ -131,11 +131,12 @@ our sub render(Hash     $config,
   run(«cp "-rf" "$assets_dir/." "$build_dir/"»);
 
   # Setup compile specific variables
-  my Str $default_language = $config<language>[0];
-  my List $template_dirs = $config<template_dirs>;
+  my Str  $default_language = $config<language>[0];
+  my List $template_dirs    = $config<template_dirs>;
+  my List $languages        = $config<language>;
 
   # One per language
-  await $config<language>.map( -> $language { 
+  await $languages.map( -> $language { 
     start {
       $log.emit("Compile templates [$language]");
       # Build %context hash
@@ -158,7 +159,7 @@ our sub render(Hash     $config,
   $log.emit("Compile complete");
 }
 
-our sub build(Hash $config,
+our sub build(Map  $config,
               Bool :$no_livereload = False) {
 
   # Create a new logger
@@ -208,7 +209,7 @@ our sub serve(Str :$config_file) returns Proc::Async {
   return $p;
 }
 
-our sub web-server(Hash $config) {
+our sub web-server(Map $config) {
   use Bailador;
   use Bailador::App;
   my Bailador::ContentTypes $content-types = Bailador::ContentTypes.new;
@@ -332,16 +333,6 @@ sub keybinding() {
   };
 }
 
-#sub logger(Hash $config) {
-#  Thread.start({
-#    react {
-#      whenever $config<logger>.Supply -> $e { 
-#        say $e;
-#      }
-#    }
-#  });
-#}
-
 sub logger(Supplier $log) {
   Thread.start({
     react {
@@ -351,10 +342,11 @@ sub logger(Supplier $log) {
     }
   });
 }
-our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
+
+our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
 
   # Create a new logger
-  my $log = Supplier.new;
+  my Supplier $log = Supplier.new;
 
   # Start logger
   logger($log);
@@ -446,53 +438,57 @@ our sub watch(Hash $config, Bool :$no_livereload = False) returns Tap {
 # Config
 #
 
-sub parse-config(Str :$config_file) returns Hash {
+sub parse-config(Str :$config_file) returns Map {
   if path-exists(path => $config_file) {
-    return load-yaml slurp($config_file);
+    return load-yaml(slurp($config_file)).Map;
   } else {
-    return {error => "Config file [$config_file] not found. Please run uzu init to generate."};
+    return Map.new( :error("Config file [$config_file] not found. Please run uzu init to generate.") );
   }
 }
 
-sub uzu-config(Str :$config_file = 'config.yml') returns Hash is export {
+sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
 
   # Parse yaml config
-  my %config              = parse-config(config_file => $config_file);
+  my $config              = parse-config(config_file => $config_file);
+
+  # Network
+  my Str  $host           = $config<host>||'0.0.0.0';
+  my Int  $port           = $config<port>||3000;
 
   # Paths
-  my Str  $project_root   = "{%config<project_root>||$*CWD}".subst('~', $*HOME);
+  my Str  $project_root   = "{$config<project_root>||$*CWD}".subst('~', $*HOME);
   my Str  $build_dir      = "{$project_root}/build";
   my Str  $themes_dir     = "{$project_root}/themes";
-  my Str  $assets_dir     = "{$project_root}/themes/{%config<defaults><theme>||'default'}/assets";
-  my Str  $layout_dir     = "{$project_root}/themes/{%config<defaults><theme>||'default'}/layout";
+  my Str  $assets_dir     = "{$project_root}/themes/{$config<defaults><theme>||'default'}/assets";
+  my Str  $layout_dir     = "{$project_root}/themes/{$config<defaults><theme>||'default'}/layout";
   my Str  $pages_dir      = "{$project_root}/pages";
   my Str  $partials_dir   = "{$project_root}/partials";
   my Str  $i18n_dir       = "{$project_root}/i18n";
   my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
   my List $extensions     = ['tt', 'html', 'yml'];
-
-  # Set configuratin
-  my %config_plus  = %( host           => "{%config<host>||'0.0.0.0'}",
-                        port           => %config<port>||3000,
-                        project_root   => $project_root,
-                        path           => $config_file,
-                        build_dir      => $build_dir,
-                        themes_dir     => $themes_dir,
-                        assets_dir     => $assets_dir,
-                        layout_dir     => $layout_dir,
-                        pages_dir      => $pages_dir,
-                        partials_dir   => $partials_dir,
-                        i18n_dir       => $i18n_dir,
-                        template_dirs  => $template_dirs,
-                        extensions     => $extensions );
                           
+  my $config_plus  = ( :host($host),
+                       :port($port),
+                       :project_root($project_root),
+                       :path($config_file),
+                       :build_dir($build_dir),
+                       :themes_dir($themes_dir),
+                       :assets_dir($assets_dir),
+                       :layout_dir($layout_dir),
+                       :pages_dir($pages_dir),
+                       :partials_dir($partials_dir),
+                       :i18n_dir($i18n_dir),
+                       :template_dirs($template_dirs),
+                       :extensions($extensions) ).Map;
+
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
   if $build_dir.IO ~~ $*HOME.IO|$project_root.IO {
     return { error => "Build directory [{$build_dir}] cannot be {$*HOME} or project root [{$project_root}]."}
   }
 
-  return %(%config, %config_plus);
+  # Merged config as output
+  return Map.new($config.pairs, $config_plus.pairs);
 }
 
 #
