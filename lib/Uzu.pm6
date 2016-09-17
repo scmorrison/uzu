@@ -423,13 +423,14 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
 # Config
 #
 
-sub valid-project-folder-structure(List $template_dirs) {
+sub valid-project-folder-structure(List $template_dirs) returns Bool {
   $template_dirs.map: -> $dir {
     if !$dir.IO.e {
       note "Project directory missing [{$dir}]";
       exit(1);
     }
   }
+  return True;
 }
 
 sub parse-config(Str :$config_file) returns Map {
@@ -467,20 +468,20 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
   # before continuing.
   valid-project-folder-structure($template_dirs);
 
-  my $config_plus  = ( :host($host),
-                       :port($port),
-                       :language($language),
-                       :project_root($project_root),
-                       :path($config_file),
-                       :build_dir($build_dir),
-                       :themes_dir($themes_dir),
-                       :assets_dir($assets_dir),
-                       :layout_dir($layout_dir),
-                       :pages_dir($pages_dir),
-                       :partials_dir($partials_dir),
-                       :i18n_dir($i18n_dir),
-                       :template_dirs($template_dirs),
-                       :extensions($extensions) ).Map;
+  my Map $config_plus = ( :host($host),
+                          :port($port),
+                          :language($language),
+                          :project_root($project_root),
+                          :path($config_file),
+                          :build_dir($build_dir),
+                          :themes_dir($themes_dir),
+                          :assets_dir($assets_dir),
+                          :layout_dir($layout_dir),
+                          :pages_dir($pages_dir),
+                          :partials_dir($partials_dir),
+                          :i18n_dir($i18n_dir),
+                          :template_dirs($template_dirs),
+                          :extensions($extensions) ).Map;
 
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
@@ -497,11 +498,11 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
 # Init
 #
 
-our sub init( Str   :$config_file  = 'config.yml', 
-              Str   :$project_name = 'New Uzu Project',
-              Str   :$url          = 'http://example.com',
-              Str   :$language     = 'en',
-              Str   :$theme        = 'default') returns Bool {
+our sub init( Str  :$config_file  = 'config.yml', 
+              Str  :$project_name = 'New Uzu Project',
+              Str  :$url          = 'http://example.com',
+              Str  :$language     = 'en',
+              Str  :$theme        = 'default') returns Bool {
 
   my Map $config = ( :name($project_name),
                      :url($url),
@@ -509,14 +510,18 @@ our sub init( Str   :$config_file  = 'config.yml',
                      :theme($theme) ).Map;
 
   my Str $theme_dir = "themes/$theme";
-  my List $template_dirs = ("i18n", "partials", "pages", "$theme_dir/layout", "$theme_dir/assets");
+  my List $template_dirs = ("i18n", 
+                            "pages",
+                            "partials",
+                            "$theme_dir/layout",
+                            "$theme_dir/assets");
 
   # Create project directories
   $template_dirs.map: -> $dir { mkdir $dir };
 
   # Write config file
   my Str $config_yaml = save-yaml($config).subst('...', '');
-  return spurt $config_file.subst('~', $*HOME), $config_yaml;
+  return spurt( $config_file.subst('~', $*HOME), $config_yaml );
 }
 
 =begin pod
@@ -535,7 +540,7 @@ Uzu - Static site generator with built-in web server, file modification watcher,
 
         # Render all templates to ./build/
         uzu-config(config_file => $config)
-        ==> Uzu::render();
+        ==> Uzu::build();
 
         # Watch template files for modification
         # and spawn development web server for testing

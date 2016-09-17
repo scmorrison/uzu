@@ -31,7 +31,7 @@ multi MAIN('init', Str :$config = 'config.yml') {
   my $project_name = prompt("Please enter project name: ");
   my $url = prompt("Please enter project url (e.g http://example.com): ");
   my $language = prompt("Please enter project language (e.g. en, ja): ");
-  my $theme = prompt("Please enter project theme (e.g. default): ");
+  my $theme = prompt("Please enter project theme (e.g. default): ")||"default";
 
   if Uzu::init config_file  => $config,
                project_name => $project_name,
