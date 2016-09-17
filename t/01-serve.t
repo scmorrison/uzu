@@ -3,11 +3,12 @@ use lib 'lib';
 
 use Test;
 use Uzu;
+use File::Temp;
 use HTTP::Tinyish;
 
 plan 3;
 
-my $r1 = Uzu::serve(config_file => "t/config.yml");
+my $r1 = Uzu::serve(config_file => "t/serve/config.yml");
 is $r1.WHAT, Proc::Async, 'serve 1/3: spawned server as proc async';
 say "Waiting for web server to start serving";
 

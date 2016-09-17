@@ -155,8 +155,7 @@ our sub build(Map  $config,
   # Start logger
   logger($log);
 
-  $config ==> render(no_livereload => $no_livereload,
-                               log => $log);
+  render($config, no_livereload => $no_livereload, log => $log);
   exit;
 }
 
@@ -359,14 +358,8 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   # Start logger
   logger($log);
   
-  unless 'partials'.IO.e {
-    note "No project files available";
-    exit(1);
-  }
-
-  sub build() {
-    $config  ==> render(no_livereload => $no_livereload,
-                                  log => $log);
+  sub trigger-build() {
+    render($config, no_livereload => $no_livereload, log => $log);
   }
 
   sub reload-browser() {
@@ -377,13 +370,13 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   }
 
   sub build-and-reload() {
-    build();
+    trigger-build();
     reload-browser();
   }
 
   # Initialize build
   $log.emit("Initial build");
-  build();
+  trigger-build();
   
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
@@ -430,18 +423,29 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
 # Config
 #
 
+sub valid-project-folder-structure(List $template_dirs) {
+  $template_dirs.map: -> $dir {
+    if !$dir.IO.e {
+      note "Project directory missing [{$dir}]";
+      exit(1);
+    }
+  }
+}
+
 sub parse-config(Str :$config_file) returns Map {
   if $config_file.IO.f {
     return load-yaml(slurp($config_file)).Map;
   } else {
-    return Map.new( :error("Config file [$config_file] not found. Please run uzu init to generate.") );
+    note "Config file [$config_file] not found. Please run uzu init to generate.";
+    exit(1);
   }
 }
 
 sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
 
   # Parse yaml config
-  my $config              = parse-config(config_file => $config_file);
+  my Map $config          = parse-config(config_file => $config_file);
+  my List $language       = [$config<language>];
 
   # Network
   my Str  $host           = $config<host>||'0.0.0.0';
@@ -459,8 +463,13 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
   my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
   my List $extensions     = ['tt', 'html', 'yml'];
                           
+  # Confirm all template directories exist
+  # before continuing.
+  valid-project-folder-structure($template_dirs);
+
   my $config_plus  = ( :host($host),
                        :port($port),
+                       :language($language),
                        :project_root($project_root),
                        :path($config_file),
                        :build_dir($build_dir),
@@ -476,7 +485,8 @@ sub uzu-config(Str :$config_file = 'config.yml') returns Map is export {
   # We want to stop everything if the project root ~~ $*HOME or
   # the build dir ~~ project root. This would have bad side-effects
   if $build_dir.IO ~~ $*HOME.IO|$project_root.IO {
-    return { error => "Build directory [{$build_dir}] cannot be {$*HOME} or project root [{$project_root}]."}
+    note "Build directory [{$build_dir}] cannot be {$*HOME} or project root [{$project_root}].";
+    exit(1);
   }
 
   # Merged config as output
@@ -493,13 +503,19 @@ our sub init( Str   :$config_file  = 'config.yml',
               Str   :$language     = 'en',
               Str   :$theme        = 'default') returns Bool {
 
-  my Hash %config = name     => $project_name,
-                    url      => $url,
-                    language => [$language],
-                    theme    => $theme;
+  my Map $config = ( :name($project_name),
+                     :url($url),
+                     :language($language),
+                     :theme($theme) ).Map;
+
+  my Str $theme_dir = "themes/$theme";
+  my List $template_dirs = ("i18n", "partials", "pages", "$theme_dir/layout", "$theme_dir/assets");
+
+  # Create project directories
+  $template_dirs.map: -> $dir { mkdir $dir };
 
   # Write config file
-  my Str $config_yaml = save-yaml(%config).subst('...', '');
+  my Str $config_yaml = save-yaml($config).subst('...', '');
   return spurt $config_file.subst('~', $*HOME), $config_yaml;
 }
 

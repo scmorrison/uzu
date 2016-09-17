@@ -25,7 +25,7 @@ spurt $config_path, $config_file ~ "project_root: $tmp_root";
 # Set config file path
 my $config = uzu-config(config_file => $config_path);
 # Generate HTML from templates
-$config ==> Uzu::render();
+Uzu::render($config);
 
 # Did we generate the build directory?
 my $tmp_build_path = "{$tmp_root.IO.path}/build";
@@ -50,6 +50,6 @@ END
 
 # Save to tmp_build_path i18n yaml file
 spurt "$tmp_root/i18n/en.yml", $test4;
-output-like { $config ==> Uzu::render() }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
+output-like { Uzu::render($config) }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
 
 # vim: ft=perl6
