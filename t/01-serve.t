@@ -3,7 +3,6 @@ use lib 'lib';
 
 use Test;
 use Uzu;
-use File::Temp;
 use HTTP::Tinyish;
 
 plan 3;

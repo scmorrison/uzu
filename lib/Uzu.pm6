@@ -5,7 +5,7 @@ use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.2>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.3>:auth<gitlab:samcns>;
 
 #
 # HTML Rendering
@@ -334,22 +334,6 @@ sub logger(Supplier $log) {
   });
 }
 
-# Some editors, vim for example, make multiple
-# file IO modifications when a file is saved
-# that result in firing FileModified events in
-# our file watcher. render-throttle allows us to
-# prevent a render from triggering more than once
-# within a designated time frame. 2 seconds seems
-# resonable from testing.
-sub render-throttle(Channel $ch) returns Bool {
-  my ($time, $until) = $ch.poll;
-  if (now - $time) < $until {
-    $ch.send(($time, $until));
-    return False;
-  }
-  return True;
-}
-
 our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
 
   # Create a new logger
@@ -392,18 +376,17 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   my Proc::Async $app = serve(config_file => $config<path>);
 
   # Keep track of the last render timestamp
-  my $ch_throttle = Channel.new;
-  $ch_throttle.send((now, 0));
+  my Instant $last_run = now;
 
   # Spawn thread to watch directories for modifications
   my $thread_watch_dirs = Thread.start({
     react {
       whenever watch-dirs($dirs) -> $e {
         # Make sure the file change is a known extension; don't re-render too fast
-        if so $e.path.IO.extension ∈ $exts and render-throttle($ch_throttle) {
+        if so $e.path.IO.extension ∈ $exts and (now - $last_run) > 2 {
           $log.emit(colored("Change detected [{$e.path()}]", "bold green on_blue"));
           build-and-reload();
-          $ch_throttle.send((now, 2));
+          $last_run = now;
         }
       }
     }
