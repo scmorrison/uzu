@@ -325,13 +325,13 @@ sub keybinding() {
 }
 
 sub logger(Supplier $log) {
-  Thread.start({
+  start {
     react {
       whenever $log.Supply -> $e { 
         say $e;
       }
     }
-  });
+  }
 }
 
 our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
@@ -365,7 +365,6 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   # Track time delta between FileChange events. 
   # Some editors trigger more than one event per
   # edit. 
-  #my Instant $last = now;
   my List $exts = $config<extensions>;
   my List $dirs = $config<template_dirs>.grep(*.IO.e).List;
   $dirs.map: -> $dir {
@@ -378,8 +377,8 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
   # Keep track of the last render timestamp
   my Instant $last_run = now;
 
-  # Spawn thread to watch directories for modifications
-  my $thread_watch_dirs = Thread.start({
+  # Watch directories for modifications
+  start {
     react {
       whenever watch-dirs($dirs) -> $e {
         # Make sure the file change is a known extension; don't re-render too fast
@@ -390,7 +389,7 @@ our sub watch(Map $config, Bool :$no_livereload = False) returns Tap {
         }
       }
     }
-  });
+  }
 
   # Listen for keyboard input
   $log.emit(colored("Press `r enter` to [rebuild]", "bold green on_blue"));
@@ -492,7 +491,7 @@ our sub init( Str  :$config_file  = 'config.yml',
                      :language($language),
                      :theme($theme) ).Map;
 
-  my Str $theme_dir = "themes/$theme";
+  my Str $theme_dir      = "themes/$theme";
   my List $template_dirs = ("i18n", 
                             "pages",
                             "partials",

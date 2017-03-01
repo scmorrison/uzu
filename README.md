@@ -257,6 +257,10 @@ AUTHORS
 =======
 
 * [Sam Morrison](@samcns)
+
+CONTRIBUTORS
+============
+
 * [ab5tract ](@ab5tract)
 
 SEE ALSO
