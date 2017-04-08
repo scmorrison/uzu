@@ -235,7 +235,9 @@ Installation
 ============
 
 ```
-panda install Uzu
+# Having issues with zef at the moment
+zef install Uzu --depsonly
+zef install Uzu
 ```
 
 Todo
