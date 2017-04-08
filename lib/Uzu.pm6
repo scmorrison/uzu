@@ -168,7 +168,7 @@ our sub serve(Str :$config_file) returns Proc::Async {
   my @args = ("--config={$config_file}", "webserver");
 
   # Use the library path if running from test
-  if "bin/uzu".IO.d {
+  if "bin/uzu".IO.f {
     my IO::Path $lib_path = $?FILE.IO.parent;
     $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
   } else {
