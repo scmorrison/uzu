@@ -1,3 +1,4 @@
+image: generic
 before_script:
   - curl -O -J -L https://github.com/nxadm/rakudo-pkg/releases/download/2017.01/perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
   - sudo dpkg -i perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
