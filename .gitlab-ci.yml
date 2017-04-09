@@ -9,9 +9,9 @@ build:
     - export PATH=/opt/rakudo/bin:~/.perl6/bin:$PATH
     - /opt/rakudo/bin/install_zef_as_user.sh
     - ~/.perl6/bin/zef --force --/test install .
-  test:
-    stage: test
-    script:
-      - prove -ve 'perl6 -Ilib'
-    only:
-      - master
+test:
+  stage: test
+  script:
+    - prove -ve 'perl6 -Ilib'
+  only:
+    - master
