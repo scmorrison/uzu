@@ -1,17 +1,17 @@
 stages:
-   - build
-   - test
-
+  - build
+  - test
 build:
   stage: build
   script:
-	  - curl -O -J -L https://github.com/nxadm/rakudo-pkg/releases/download/2017.01/perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
-	  - sudo dpkg -i perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
-	  - export PATH=/opt/rakudo/bin:~/.perl6/bin:$PATH
-	  - /opt/rakudo/bin/install_zef_as_user.sh
-	  - ~/.perl6/bin/zef --force --/test install .
-
-test:
-  stage: test
-  script:
-    - prove -ve 'perl6 -Ilib'
+    - curl -O -J -L https://github.com/nxadm/rakudo-pkg/releases/download/2017.01/perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
+    - sudo dpkg -i perl6-rakudo-moarvm-ubuntu16.04_20170100-01_amd64.deb
+    - export PATH=/opt/rakudo/bin:~/.perl6/bin:$PATH
+    - /opt/rakudo/bin/install_zef_as_user.sh
+    - ~/.perl6/bin/zef --force --/test install .
+  test:
+    stage: test
+    script:
+      - prove -ve 'perl6 -Ilib'
+    only:
+      - master
