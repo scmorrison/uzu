@@ -1,4 +1,4 @@
-image: jesse
+image: debian:jessie
 stages:
   - build
   - test
