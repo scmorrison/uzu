@@ -1,3 +1,4 @@
+image: jesse
 stages:
   - build
   - test
