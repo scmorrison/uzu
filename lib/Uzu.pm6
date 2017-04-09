@@ -459,7 +459,7 @@ sub valid-project-folder-structure(
 sub parse-config(
     Str :$config_file --> Map()
 ) {
-    return load-yaml(slurp($config_file)) when $config_file.IO.f;
+    return load-yaml(slurp($config_file)).Map when $config_file.IO.f;
     note "Config file [$config_file] not found. Please run uzu init to generate.";
     exit 1;
 }
