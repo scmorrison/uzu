@@ -347,14 +347,9 @@ sub logger(
     }
 }
 
-sub trigger-build(
-    $config, :$no_livereload, :$log
-) {
-	render($config, no_livereload => $no_livereload, log => $log);
-}
-
 sub reload-browser(
-    $config, :$no_livereload
+    $config,
+    :$no_livereload --> Bool()
 ) {
 	unless $no_livereload {
 		use HTTP::Tinyish;
@@ -363,21 +358,24 @@ sub reload-browser(
 }
 
 sub build-and-reload(
-    $config, :$no_livereload, :$log
+    $config,
+    :$no_livereload,
+    :$log --> Bool
 ) {
-	trigger-build($config, no_livereload => $no_livereload, log => $log);
+	render($config, no_livereload => $no_livereload, log => $log);
 	reload-browser($config, no_livereload => $no_livereload);
 }
 
 sub user-input(
-    $config, :$app, :$no_livereload, :$log
+    $config,
+    :$app,
+    :$no_livereload,
+    :$log
 ) {
-	my $usage = colored(
-		"Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue");
 	loop {
-		$log.emit: $usage;
-		my $command = prompt('');
-		given $command {
+		$log.emit: colored(
+            "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue");
+		given prompt('') {
 			when 'r' {
 				$log.emit: colored "Rebuild triggered", "bold green on_blue";
 				build-and-reload($config, no_livereload => $no_livereload, log => $log);
@@ -395,14 +393,14 @@ our sub watch(
     Bool :$no_livereload = False --> Bool
 ) {
     # Create a new logger
-    my Supplier $log = Supplier.new;
+    my Supplier $log .= new;
 
     # Start logger
     logger($log);
     
     # Initialize build
     $log.emit: "Initial build";
-    trigger-build($config, no_livereload => $no_livereload, log => $log);
+    render($config, no_livereload => $no_livereload, log => $log);
     
     # Track time delta between FileChange events. 
     # Some editors trigger more than one event per
