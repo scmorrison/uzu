@@ -5,7 +5,7 @@ use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.5>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.6>:auth<gitlab:samcns>;
 
 #
 # HTML Rendering
@@ -271,7 +271,7 @@ our sub web-server(
         }
         setTimeout(live, 1000);
         END
-        #'
+        #"
 
         header("Content-Type", "application/javascript");
         return [ $livejs ];
@@ -332,28 +332,9 @@ sub watch-it(
 sub watch-dirs(
     List $dirs --> Supply
 ) {
-    run("stty", "sane");
     supply {
         watch-it(~$_) for $dirs.map: { find-dirs($_) };
     }
-}
-
-sub keybinding(
-    --> Supply
-) {
-    use Term::termios;
-    my $fd = $*IN.native-descriptor();
-    my $saved_termios = Term::termios.new(fd => $fd ).getattr;
-    my $termios = Term::termios.new(fd => $fd ).getattr;
-    $termios.makeraw;
-    $termios.setattr(:DRAIN);
-    supply {
-        loop {
-            my $c = $*IN.getc;
-            emit 'rebuild' if $c.ord == 114;
-        }
-        $saved_termios.setattr(:DRAIN);
-    };
 }
 
 sub logger(
@@ -366,9 +347,52 @@ sub logger(
     }
 }
 
+sub trigger-build(
+    $config, :$no_livereload, :$log
+) {
+	render($config, no_livereload => $no_livereload, log => $log);
+}
+
+sub reload-browser(
+    $config, :$no_livereload
+) {
+	unless $no_livereload {
+		use HTTP::Tinyish;
+		HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
+	}
+}
+
+sub build-and-reload(
+    $config, :$no_livereload, :$log
+) {
+	trigger-build($config, no_livereload => $no_livereload, log => $log);
+	reload-browser($config, no_livereload => $no_livereload);
+}
+
+sub user-input(
+    $config, :$app, :$no_livereload, :$log
+) {
+	my $usage = colored(
+		"Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue");
+	loop {
+		$log.emit: $usage;
+		my $command = prompt('');
+		given $command {
+			when 'r' {
+				$log.emit: colored "Rebuild triggered", "bold green on_blue";
+				build-and-reload($config, no_livereload => $no_livereload, log => $log);
+			}
+			when 'q'|'quit' {
+				$app.kill(SIGKILL);
+				exit 1;
+			}
+		}
+	}
+}
+
 our sub watch(
     Map  $config,
-    Bool :$no_livereload = False --> Tap
+    Bool :$no_livereload = False --> Bool
 ) {
     # Create a new logger
     my Supplier $log = Supplier.new;
@@ -376,25 +400,9 @@ our sub watch(
     # Start logger
     logger($log);
     
-    sub trigger-build() {
-      render($config, no_livereload => $no_livereload, log => $log);
-    }
-
-    sub reload-browser() {
-      unless $no_livereload {
-        use HTTP::Tinyish;
-        HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
-      }
-    }
-
-    sub build-and-reload() {
-      trigger-build();
-      reload-browser();
-    }
-
     # Initialize build
     $log.emit: "Initial build";
-    trigger-build();
+    trigger-build($config, no_livereload => $no_livereload, log => $log);
     
     # Track time delta between FileChange events. 
     # Some editors trigger more than one event per
@@ -420,7 +428,7 @@ our sub watch(
                 if so $e.path.IO.extension ∈ $exts and (now - $last_run) > 2 {
                     $log.emit: 
                         colored "Change detected [{$e.path()}]", "bold green on_blue";
-                    build-and-reload();
+                    build-and-reload($config, no_livereload => $no_livereload, log => $log);
                     $last_run = now;
                 }
             }
@@ -428,15 +436,7 @@ our sub watch(
     }
 
     # Listen for keyboard input
-    $log.emit: 
-        colored "Press `r enter` to [rebuild]", "bold green on_blue";
-    keybinding().tap( -> $e { 
-        if $e ~~ 'rebuild' {
-            $log.emit:
-                colored "Rebuild triggered", "bold green on_blue";
-            build-and-reload();
-        }
-    });
+    user-input($config, app => $app, no_livereload => $no_livereload, log => $log);
 }
 
 #
