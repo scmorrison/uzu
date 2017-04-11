@@ -5,7 +5,25 @@ use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.6>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.7>:auth<gitlab:samcns>;
+
+#
+# Logger
+#
+
+sub start-logger(
+    Supplier $log = Supplier.new --> Callable
+) {
+    start {
+        react {
+            whenever $log.Supply { say $_ }
+        }
+    }
+
+    return -> $message, $l = $log {
+        $l.emit: $message;
+    }
+}
 
 #
 # HTML Rendering
@@ -107,9 +125,9 @@ sub prepare-html-output(
 };
 
 our sub render(
-    Map      $config,
-    Bool     :$no_livereload = False,
-    Supplier :$log = Supplier.new --> Bool
+    Map  $config,
+    Bool :$no_livereload = False,
+    ::D  :&logger = start-logger() --> Bool
 ) {
     my Str $themes_dir = $config<themes_dir>;
     my Str $layout_dir = $config<layout_dir>;
@@ -130,17 +148,17 @@ our sub render(
                      }));
 
     # Clear out build
-    $log.emit: "Clear old files";
+    logger "Clear old files";
     qqx{ rm -rf $build_dir };
 
     # Create build dir
     if !$build_dir.IO.d { 
-        $log.emit: "Create build directory";
+        logger "Create build directory";
         mkdir $build_dir;
     }
 
     # Copy assets
-    $log.emit: "Copy asset files";
+    logger "Copy asset files";
     qqx{ cp -rf $assets_dir/. $build_dir/ };
 
     # Setup compile specific variables
@@ -151,7 +169,7 @@ our sub render(
     # One per language
     await $languages.map( -> $language { 
         start {
-            $log.emit: "Compile templates [$language]";
+            logger "Compile templates [$language]";
             # Build %context hash
             build-context(
                 i18n_dir         => $config<i18n_dir>,
@@ -169,7 +187,7 @@ our sub render(
         }
     });
 
-    $log.emit: "Compile complete";
+    logger "Compile complete";
 }
 
 our sub build(
@@ -177,12 +195,9 @@ our sub build(
     Bool :$no_livereload = False --> Bool
 ) {
     # Create a new logger
-    my $log = Supplier.new;
+    my &logger = start-logger(); 
 
-    # Start logger
-    logger $log;
-
-    render $config, no_livereload => $no_livereload, log => $log;
+    render $config, no_livereload => $no_livereload, logger => &logger;
 }
 
 #
@@ -310,7 +325,7 @@ our sub web-server(
 # Event triggers
 #
 
-sub find-dirs (
+sub find-dirs(
     Str:D $p --> Slip
 ) {
     state $seen = {};
@@ -337,16 +352,6 @@ sub watch-dirs(
     }
 }
 
-sub logger(
-    Supplier $log --> Promise
-) {
-    start {
-        react {
-            whenever $log.Supply { say $_ }
-        }
-    }
-}
-
 sub reload-browser(
     $config,
     :$no_livereload --> Bool()
@@ -360,9 +365,9 @@ sub reload-browser(
 sub build-and-reload(
     $config,
     :$no_livereload,
-    :$log --> Bool
+    :&logger --> Bool
 ) {
-	render($config, no_livereload => $no_livereload, log => $log);
+	render($config, no_livereload => $no_livereload, logger => &logger);
 	reload-browser($config, no_livereload => $no_livereload);
 }
 
@@ -370,15 +375,15 @@ sub user-input(
     $config,
     :$app,
     :$no_livereload,
-    :$log
+    :&logger
 ) {
 	loop {
-		$log.emit: colored(
+		logger colored(
             "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue");
 		given prompt('') {
 			when 'r' {
-				$log.emit: colored "Rebuild triggered", "bold green on_blue";
-				build-and-reload($config, no_livereload => $no_livereload, log => $log);
+				logger colored "Rebuild triggered", "bold green on_blue";
+				build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
 			}
 			when 'q'|'quit' {
 				$app.kill(SIGKILL);
@@ -393,14 +398,11 @@ our sub watch(
     Bool :$no_livereload = False --> Bool
 ) {
     # Create a new logger
-    my Supplier $log .= new;
-
-    # Start logger
-    logger($log);
+    my &logger = start-logger();
     
     # Initialize build
-    $log.emit: "Initial build";
-    render($config, no_livereload => $no_livereload, log => $log);
+    logger "Initial build";
+    render($config, no_livereload => $no_livereload, logger => &logger);
     
     # Track time delta between FileChange events. 
     # Some editors trigger more than one event per
@@ -408,7 +410,7 @@ our sub watch(
     my List $exts = $config<extensions>;
     my List $dirs = $config<template_dirs>.grep(*.IO.e).List;
     $dirs.map: -> $dir {
-      $log.emit: "Starting watch on {$dir.subst("{$*CWD}/", '')}";
+      logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
     }
 
     # Start server
@@ -424,9 +426,8 @@ our sub watch(
                 # Make sure the file change is a 
                 # known extension; don't re-render too fast
                 if so $e.path.IO.extension ∈ $exts and (now - $last_run) > 2 {
-                    $log.emit: 
-                        colored "Change detected [{$e.path()}]", "bold green on_blue";
-                    build-and-reload($config, no_livereload => $no_livereload, log => $log);
+                    logger colored "Change detected [{$e.path()}]", "bold green on_blue";
+                    build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
                     $last_run = now;
                 }
             }
@@ -434,7 +435,7 @@ our sub watch(
     }
 
     # Listen for keyboard input
-    user-input($config, app => $app, no_livereload => $no_livereload, log => $log);
+    user-input($config, app => $app, no_livereload => $no_livereload, logger => &logger);
 }
 
 #
