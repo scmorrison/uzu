@@ -35,12 +35,12 @@ is $tmp_build_path.IO.e, True, 'render 1/3: build directory created';
 is "$tmp_build_path/img/logo.png".IO.e, True, 'render 2/3: assets folder contents copied';
 
 # Generated HTML looks good?
-my $sample_html = slurp "t/generated/index.html";
+my $sample_html    = slurp "t/generated/index.html";
 my $generated_html = slurp "$tmp_build_path/index.html";
 is $generated_html ~~ $sample_html, True, 'render 3/4: rendered HTML matches test';
 
 # Expect a warning when i18n yaml is invalid
-my $test4 = q:heredoc/END/;
+my $test4 = q:to/END/;
 ---
 company: Sam Morrison
 site_name: Uzu Test Project

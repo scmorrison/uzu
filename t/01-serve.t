@@ -26,7 +26,7 @@ my $html_test = q:to/END/;
 END
 
 my $client = HTTP::Tinyish.new(agent => "Mozilla/4.0");
-my %r2 = $client.get("http://$host:$port/index.html");
+my %r2     = $client.get("http://$host:$port/index.html");
 is %r2<status>, 200, 'serve 2/3: HTTP 200 OK';
 is %r2<content>, $html_test, 'serve 3/3: served HTML match';
 

@@ -59,7 +59,7 @@ sub build-context(
 
 sub write-generated-files(
     Hash $content,
-    Str :$build_dir
+    Str  :$build_dir
     --> Bool
 ) {
     # IO write to disk
@@ -103,15 +103,12 @@ sub prepare-html-output(
     use Template6;
     my $t6 = Template6.new;
 
-    |$template_dirs
-    ==> map(-> $dir {
+    $template_dirs.map(-> $dir {
         $t6.add-path: $dir
     });
 
     return gather {
-        $pages
-        ==> keys()
-        ==> map(-> $page_name {
+        $pages.keys().map(-> $page_name {
 
             # Render the page content
             my Str $page_content = $t6.process($page_name, |$context);
@@ -151,8 +148,7 @@ our sub build(
     my List $exts = $config<extensions>;
     my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
-    my Str %pages = (@page_templates
-                     ==> map( -> $page { 
+    my Str %pages = (@page_templates.map( -> $page { 
                          my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
                          %( $page_name => slurp $page, :r );
                      }));
@@ -173,20 +169,19 @@ our sub build(
 
     # One per language
     await gather {
-        |$config<language>
-        ==> map(-> $language { 
+        $config<language>.map(-> $language { 
             take start {
                 logger "Compile templates [$language]";
                 build-context(
                     i18n_dir         => $config<i18n_dir>,
-                    language         => $language)
-                ==> prepare-html-output(
+                    language         => $language
+                ).&prepare-html-output(
                     template_dirs    => $config<template_dirs>,
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,
-                    no_livereload    => $config<no_livereload>)
-                ==> write-generated-files(
+                    no_livereload    => $config<no_livereload>
+                ).&write-generated-files(
                     build_dir        => $build_dir);
             }
         });
@@ -345,8 +340,7 @@ sub watch-dir(
 ) {
     whenever IO::Notification.watch-path($p) -> $c {
         if $c.event ~~ FileRenamed && $c.path.IO ~~ :d {
-            find-dirs($c.path)
-            ==> map(watch-dir $_);
+            find-dirs($c.path).map(watch-dir $_);
         }
         emit $c;
     }
@@ -406,7 +400,7 @@ our sub watch(
     # edit. 
     my List $exts = $config<extensions>;
     my List $dirs = |$config<template_dirs>.grep(*.IO.e);
-    $dirs ==> map(-> $dir {
+    $dirs.map(-> $dir {
         logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
     });
 
@@ -443,11 +437,9 @@ sub valid-project-folder-structure(
     @template_dirs
     --> Bool()
 ) {
-    @template_dirs
-    ==> grep({ !$_.IO.e })
-    ==> &{
+    @template_dirs.grep({ !$_.IO.e }).&{
         unless elems $_ > 0 {
-            note "Project directory missing: \n * {join "\n * ", $_}";
+            note "Project directory missing: \n * {$_.join: "\n * "}";
             exit 1;
         }
     }();
@@ -550,8 +542,7 @@ our sub init(
     );
 
     # Create project directories
-    $template_dirs
-    ==> map( -> $dir { mkdir $dir });
+    $template_dirs.map( -> $dir { mkdir $dir });
 
     # Write config file
     my Str $config_yaml = S:g /'...'// given save-yaml($config);
