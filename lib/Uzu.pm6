@@ -194,9 +194,7 @@ our sub build(
     Map  $config,
     Bool :$no_livereload = False --> Bool
 ) {
-    # Create a new logger
     my &logger = start-logger(); 
-
     render $config, no_livereload => $no_livereload, logger => &logger;
 }
 
@@ -356,10 +354,10 @@ sub reload-browser(
     $config,
     :$no_livereload --> Bool()
 ) {
-	unless $no_livereload {
-		use HTTP::Tinyish;
-		HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
-	}
+    unless $no_livereload {
+        use HTTP::Tinyish;
+        HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
+    }
 }
 
 sub build-and-reload(
@@ -367,8 +365,8 @@ sub build-and-reload(
     :$no_livereload,
     :&logger --> Bool
 ) {
-	render($config, no_livereload => $no_livereload, logger => &logger);
-	reload-browser($config, no_livereload => $no_livereload);
+    render($config, no_livereload => $no_livereload, logger => &logger);
+    reload-browser($config, no_livereload => $no_livereload);
 }
 
 sub user-input(
@@ -377,26 +375,25 @@ sub user-input(
     :$no_livereload,
     :&logger
 ) {
-	loop {
-		logger colored "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue";
-		given prompt('') {
-			when 'r' {
-				logger colored "Rebuild triggered", "bold green on_blue";
-				build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
-			}
-			when 'q'|'quit' {
-				$app.kill(SIGKILL);
-				exit 1;
-			}
-		}
-	}
+    loop {
+        logger colored "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue";
+        given prompt('') {
+            when 'r' {
+                logger colored "Rebuild triggered", "bold green on_blue";
+                build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
+            }
+            when 'q'|'quit' {
+                $app.kill(SIGKILL);
+                exit 1;
+            }
+        }
+    }
 }
 
 our sub watch(
     Map  $config,
     Bool :$no_livereload = False --> Bool
 ) {
-    # Create a new logger
     my &logger = start-logger();
     
     # Initialize build
@@ -409,7 +406,7 @@ our sub watch(
     my List $exts = $config<extensions>;
     my List $dirs = $config<template_dirs>.grep(*.IO.e).List;
     $dirs.map: -> $dir {
-      logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
+        logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
     }
 
     # Start server
