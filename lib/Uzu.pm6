@@ -12,7 +12,8 @@ unit module Uzu:ver<0.1.7>:auth<gitlab:samcns>;
 #
 
 sub start-logger(
-    Supplier $log = Supplier.new --> Block
+    Supplier $log = Supplier.new
+    --> Block
 ) {
     start {
         react {
@@ -31,14 +32,16 @@ sub start-logger(
 
 sub templates(
     List :$exts!,
-    Str :$dir! --> Seq
+    Str  :$dir!
+    --> Seq
 ) {
     return $dir.IO.dir(:test(/:i ^ \w+ '.' |$exts $/));
 }
 
 sub build-context(
     Str :$i18n_dir,
-    Str :$language --> Hash
+    Str :$language
+    --> Hash
 ) {
     my Str $i18n_file = "$i18n_dir/$language.yml";
     if $i18n_file.IO.f {
@@ -56,7 +59,8 @@ sub build-context(
 
 sub write-generated-files(
     Hash $content,
-    Str :$build_dir --> Bool
+    Str :$build_dir
+    --> Bool
 ) {
     # IO write to disk
     for $content.keys -> $path {
@@ -67,15 +71,17 @@ sub write-generated-files(
 sub html-file-name(
     Str :$page_name,
     Str :$default_language,
-    Str :$language --> Str
+    Str :$language
+    --> Str
 ) {
     return "{$page_name}-{$language}" if $language !~~ $default_language;
     return $page_name;
 }
 
 sub process-livereload(
-    Str :$content,
-    Bool :$no_livereload --> Str
+    Str  :$content,
+    Bool :$no_livereload
+    --> Str
 ) {
     unless $no_livereload {
         # Add livejs if live-reload enabled (default)
@@ -86,60 +92,64 @@ sub process-livereload(
 }
 
 sub prepare-html-output(
-    Hash  $context,
-    List  :$template_dirs,
-    Str   :$default_language,
-    Str   :$language, 
-    Hash  :$pages,
-    Bool  :$no_livereload --> Hash
+    Hash $context,
+    List :$template_dirs,
+    Str  :$default_language,
+    Str  :$language, 
+    Hash :$pages,
+    Bool :$no_livereload
+    --> Hash
 ) {
     use Template6;
     my $t6 = Template6.new;
-    $template_dirs.map( -> $dir { $t6.add-path: $dir } );
 
-    return $pages.keys.map( -> $page_name {
+    |$template_dirs
+    ==> map(-> $dir {
+        $t6.add-path: $dir
+    });
 
-        # Render the page content
-        my Str $page_content = $t6.process($page_name, |$context);
+    return gather {
+        $pages
+        ==> keys()
+        ==> map(-> $page_name {
 
-        # Append page content to $context
-        my %layout_context = %( |$context, %( content => $page_content ) );
-        my Str $layout_content = $t6.process('layout', |%layout_context );
+            # Render the page content
+            my Str $page_content = $t6.process($page_name, |$context);
 
-        # Default file_name without prefix
-        my Str $file_name = 
-            html-file-name(
-                page_name        => $page_name,
-                default_language => $default_language, 
-                language         => $language);
+            # Append page content to $context
+            my %layout_context = %( |$context, %( content => $page_content ) );
+            my Str $layout_content = $t6.process('layout', |%layout_context );
 
-        # Return processed HTML
-        my Str $processed_html =
-            process-livereload(
-                content          => $layout_content,
-                no_livereload    => $no_livereload);
+            # Default file_name without prefix
+            my Str $file_name = 
+                html-file-name(
+                    page_name        => $page_name,
+                    default_language => $default_language, 
+                    language         => $language);
 
-        %( $file_name => $processed_html );
+            # Return processed HTML
+            my Str $processed_html =
+                process-livereload(
+                    content          => $layout_content,
+                    no_livereload    => $no_livereload);
 
-    }).Hash;
+            take $file_name => $processed_html;
+
+        })
+    }.Hash;
 };
 
 our sub build(
-    Map  $config,
-    Bool :$no_livereload = False,
-    ::D  :&logger = start-logger() --> Bool
+    Map $config,
+    ::D :&logger = start-logger()
+    --> Bool
 ) {
-    my Str $themes_dir = $config<themes_dir>;
-    my Str $layout_dir = $config<layout_dir>;
     my Str $assets_dir = $config<assets_dir>;
     my Str $build_dir  = $config<build_dir>;
 
     # All available pages
     my List $exts = $config<extensions>;
-    my IO::Path @page_templates =
-    templates(
-        exts => $exts,
-        dir => $config<pages_dir>);
+    my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
     my Str %pages = (@page_templates
                      ==> map( -> $page { 
@@ -161,31 +171,26 @@ our sub build(
     logger "Copy asset files";
     qqx{ cp -rf $assets_dir/. $build_dir/ };
 
-    # Setup compile specific variables
-    my Str  $default_language = $config<language>[0];
-    my List $template_dirs    = $config<template_dirs>;
-    my List $languages        = $config<language>;
-
     # One per language
-    await $languages.map( -> $language { 
-        start {
-            logger "Compile templates [$language]";
-            # Build %context hash
-            build-context(
-                i18n_dir         => $config<i18n_dir>,
-                language         => $language)
-                # Render HTML
-            ==> prepare-html-output(
-                template_dirs    => $template_dirs, 
-                default_language => $default_language,
-                language         => $language,
-                pages            => %pages,
-                no_livereload    => $no_livereload)
-                # Write HTML to build/
-            ==> write-generated-files(
-                build_dir        => $build_dir);
-        }
-    });
+    await gather {
+        |$config<language>
+        ==> map(-> $language { 
+            take start {
+                logger "Compile templates [$language]";
+                build-context(
+                    i18n_dir         => $config<i18n_dir>,
+                    language         => $language)
+                ==> prepare-html-output(
+                    template_dirs    => $config<template_dirs>,
+                    default_language => $config<language>[0],
+                    language         => $language,
+                    pages            => %pages,
+                    no_livereload    => $config<no_livereload>)
+                ==> write-generated-files(
+                    build_dir        => $build_dir);
+            }
+        });
+    }
 
     logger "Compile complete";
 }
@@ -195,7 +200,8 @@ our sub build(
 #
 
 our sub serve(
-    Str :$config_file --> Proc::Async
+    Str :$config_file
+    --> Proc::Async
 ) {
     my Proc::Async $p;
     my @args = ("--config={$config_file}", "webserver");
@@ -229,7 +235,8 @@ our sub serve(
 }
 
 our sub web-server(
-    Map $config --> Bool
+    Map $config
+    --> Bool
 ) {
     use Bailador;
     use Bailador::App;
@@ -311,68 +318,70 @@ our sub web-server(
     baile($config<port>||3000);
 }
 
-#
-# Event triggers
-#
-
-sub find-dirs(
-    Str:D $p --> Slip
-) {
-    state $seen = {};
-    return slip ($p.IO, slip find :dir($p), :type<dir>)
-           ==> grep({ !$seen{$_}++ });
-}
-
-sub watch-it(
-    Str $p --> Tap
-) {
-    whenever IO::Notification.watch-path($p) -> $e {
-        if $e.event ~~ FileRenamed && $e.path.IO ~~ :d {
-            watch-it($_) for find-dirs($e.path);
-        }
-        emit $e;
-    }
-}
-
-sub watch-dirs(
-    List $dirs --> Supply
-) {
-    supply {
-        watch-it(~$_) for $dirs.map: { find-dirs($_) };
-    }
-}
-
 sub reload-browser(
     $config,
-    :$no_livereload --> Bool()
+    --> Bool()
 ) {
-    unless $no_livereload {
+    unless $config<no_livereload> {
         use HTTP::Tinyish;
         HTTP::Tinyish.new().get("http://{$config<host>}:{$config<port>}/reload");
     }
 }
 
+#
+# Event triggers
+#
+
+sub find-dirs(
+    Str $p
+    --> Slip
+) {
+    slip ($p.IO, slip find :dir($p), :type<dir>);
+}
+
+sub watch-dir(
+    Str $p
+    --> Tap
+) {
+    whenever IO::Notification.watch-path($p) -> $c {
+        if $c.event ~~ FileRenamed && $c.path.IO ~~ :d {
+            find-dirs($c.path)
+            ==> map(watch-dir $_);
+        }
+        emit $c;
+    }
+}
+
+sub file-change-monitor(
+    List $dirs
+    --> Supply
+) {
+    supply {
+        watch-dir(~$_) for $dirs.map: { find-dirs $_ };
+    }
+}
+
 sub build-and-reload(
     $config,
-    :$no_livereload,
-    :&logger --> Bool
+    :&logger
+    --> Bool
 ) {
-    build($config, no_livereload => $no_livereload, logger => &logger);
-    reload-browser($config, no_livereload => $no_livereload);
+    build($config, logger => &logger);
+    reload-browser($config);
 }
 
 sub user-input(
     $config,
     :$app,
-    :$no_livereload,
     :&logger
+    --> Bool
 ) {
     loop {
         logger colored "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue";
         given prompt('') {
             when 'r' {
                 logger colored "Rebuild triggered", "bold green on_blue";
-                build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
+                build-and-reload($config, logger => &logger);
             }
             when 'q'|'quit' {
                 $app.kill(SIGKILL);
@@ -384,22 +393,22 @@ sub user-input(
 
 our sub watch(
     Map  $config,
-    Bool :$no_livereload = False --> Bool
+    --> Bool
 ) {
     my &logger = start-logger();
     
     # Initialize build
     logger "Initial build";
-    build($config, no_livereload => $no_livereload, logger => &logger);
+    build($config, logger => &logger);
     
     # Track time delta between FileChange events. 
     # Some editors trigger more than one event per
     # edit. 
     my List $exts = $config<extensions>;
-    my List $dirs = $config<template_dirs>.grep(*.IO.e).List;
-    $dirs.map: -> $dir {
+    my List $dirs = |$config<template_dirs>.grep(*.IO.e);
+    $dirs ==> map(-> $dir {
         logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
-    }
+    });
 
     # Start server
     my Proc::Async $app = serve config_file => $config<path>;
@@ -410,12 +419,12 @@ our sub watch(
     # Watch directories for modifications
     start {
         react {
-            whenever watch-dirs($dirs) -> $e {
+            whenever file-change-monitor($dirs) -> $e {
                 # Make sure the file change is a 
                 # known extension; don't re-render too fast
                 if so $e.path.IO.extension ∈ $exts and (now - $last_run) > 2 {
                     logger colored "Change detected [{$e.path()}]", "bold green on_blue";
-                    build-and-reload($config, no_livereload => $no_livereload, logger => &logger);
+                    build-and-reload($config, logger => &logger);
                     $last_run = now;
                 }
             }
@@ -423,7 +432,7 @@ our sub watch(
     }
 
     # Listen for keyboard input
-    user-input($config, app => $app, no_livereload => $no_livereload, logger => &logger);
+    user-input($config, app => $app, logger => &logger);
 }
 
 #
@@ -431,7 +440,8 @@ our sub watch(
 #
 
 sub valid-project-folder-structure(
-    @template_dirs --> Bool()
+    @template_dirs
+    --> Bool()
 ) {
     @template_dirs
     ==> grep({ !$_.IO.e })
@@ -444,7 +454,8 @@ sub valid-project-folder-structure(
 }
 
 sub parse-config(
-    Str :$config_file --> Map()
+    Str :$config_file
+    --> Map()
 ) {
     return load-yaml(slurp($config_file)).Map when $config_file.IO.f;
     note "Config file [$config_file] not found. Please run uzu init to generate.";
@@ -452,11 +463,13 @@ sub parse-config(
 }
 
 sub uzu-config(
-    Str :$config_file = 'config.yml' --> Map
+    Str  :$config_file = 'config.yml',
+    Bool :$no_livereload = False
+    --> Map
 ) is export {
 
-    # Parse yaml config
-    my Map $config          = parse-config(config_file => $config_file);
+    # Gemeral config
+    my Map  $config         = parse-config(config_file => $config_file);
     my List $language       = [$config<language>];
 
     # Network
@@ -483,6 +496,7 @@ sub uzu-config(
         :host($host),
         :port($port),
         :language($language),
+        :no_livereload($no_livereload),
         :project_root($project_root),
         :path($config_file),
         :build_dir($build_dir),
@@ -516,7 +530,8 @@ our sub init(
     Str  :$project_name = 'New Uzu Project',
     Str  :$url          = 'http://example.com',
     Str  :$language     = 'en',
-    Str  :$theme        = 'default' --> Bool
+    Str  :$theme        = 'default'
+    --> Bool
 ) {
     my Map $config = (
         :name($project_name),

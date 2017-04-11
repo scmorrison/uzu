@@ -13,13 +13,17 @@ multi MAIN('webserver', Str :$config = 'config.yml') {
 }
 
 multi MAIN('build', Str :$config = 'config.yml') {
-  uzu-config(config_file => $config)
-  ==> Uzu::build(no_livereload => True);
+  uzu-config(
+      config_file => $config,
+      no_livereload => True
+  ) ==> Uzu::build();
 }
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
-  uzu-config(config_file => $config)
-  ==> Uzu::watch(no_livereload => ($no-livereload ?? True !! False));
+  uzu-config(
+      config_file => $config,
+      no_livereload => ($no-livereload ?? True !! False)
+  ) ==> Uzu::watch();
 }
 
 multi MAIN('init', Str :$config = 'config.yml') {
