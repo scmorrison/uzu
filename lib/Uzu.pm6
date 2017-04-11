@@ -378,8 +378,7 @@ sub user-input(
     :&logger
 ) {
 	loop {
-		logger colored(
-            "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue");
+		logger colored "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue";
 		given prompt('') {
 			when 'r' {
 				logger colored "Rebuild triggered", "bold green on_blue";
