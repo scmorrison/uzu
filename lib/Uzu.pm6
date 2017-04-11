@@ -12,7 +12,7 @@ unit module Uzu:ver<0.1.7>:auth<gitlab:samcns>;
 #
 
 sub start-logger(
-    Supplier $log = Supplier.new --> Callable
+    Supplier $log = Supplier.new --> Block
 ) {
     start {
         react {
@@ -124,7 +124,7 @@ sub prepare-html-output(
     }).Hash;
 };
 
-our sub render(
+our sub build(
     Map  $config,
     Bool :$no_livereload = False,
     ::D  :&logger = start-logger() --> Bool
@@ -188,14 +188,6 @@ our sub render(
     });
 
     logger "Compile complete";
-}
-
-our sub build(
-    Map  $config,
-    Bool :$no_livereload = False --> Bool
-) {
-    my &logger = start-logger(); 
-    render $config, no_livereload => $no_livereload, logger => &logger;
 }
 
 #
@@ -365,7 +357,7 @@ sub build-and-reload(
     :$no_livereload,
     :&logger --> Bool
 ) {
-    render($config, no_livereload => $no_livereload, logger => &logger);
+    build($config, no_livereload => $no_livereload, logger => &logger);
     reload-browser($config, no_livereload => $no_livereload);
 }
 
@@ -398,7 +390,7 @@ our sub watch(
     
     # Initialize build
     logger "Initial build";
-    render($config, no_livereload => $no_livereload, logger => &logger);
+    build($config, no_livereload => $no_livereload, logger => &logger);
     
     # Track time delta between FileChange events. 
     # Some editors trigger more than one event per
