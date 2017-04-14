@@ -74,7 +74,7 @@ sub html-file-name(
     Str :$language
     --> Str
 ) {
-    return "{$page_name}-{$language}" if $language !~~ $default_language;
+    return "{$page_name}-{$language}" when $language !~~ $default_language;
     return $page_name;
 }
 
@@ -198,24 +198,24 @@ our sub serve(
     Str :$config_file
     --> Proc::Async
 ) {
-    my Proc::Async $p;
-    my @args = ("--config={$config_file}", "webserver");
+    my @args = "--config={$config_file}", "webserver";
 
     # Use the library path if running from test
-    if "bin/uzu".IO.f {
-        my IO::Path $lib_path = $?FILE.IO.parent;
-        $p .= new: "perl6", "-I{$lib_path}", "bin/uzu", @args;
-    } else {
-        # Use uzu from PATH otherwise
-        $p .= new: "uzu", @args;
+    my $p = do given "bin/uzu".IO {
+        when *.f {
+            Proc::Async.new: "perl6", "-I{$?FILE.IO.parent}", "bin/uzu", @args;
+        }
+        default {
+            Proc::Async.new: "uzu", @args;
+        }
     }
 
-    my Promise $server-up .= new;
+    my Promise $server_up .= new;
     $p.stdout.tap: -> $v { $*OUT.print: $v; }
-    $p.stderr.tap: -> $v { 
+    $p.stderr.tap: -> $v {
         # Wait until server started
-        if $server-up.status ~~ Planned {
-            $server-up.keep if $v.contains('Started HTTP server');
+        if $server_up.status ~~ Planned && $v.contains('Started HTTP server') {
+            $server_up.keep; 
         }
         # Filter out livereload requests
         if !$v.contains('GET /live') { $*ERR.print: $v }
@@ -225,7 +225,7 @@ our sub serve(
     $p.start;
 
     # Wait for server to come online
-    await $server-up;
+    await $server_up;
     return $p;
 }
 
@@ -260,7 +260,7 @@ our sub web-server(
     # Include live.js that starts polling /live
     # for reload instructions
     get '/uzu/js/live.js' => sub () {
-        my Str $livejs = q:to/END/; 
+        my Str $livejs = q:to|END|; 
         // Uzu live-reload
         function live() {
             var xhttp = new XMLHttpRequest();
@@ -278,7 +278,6 @@ our sub web-server(
         }
         setTimeout(live, 1000);
         END
-        #"
 
         header("Content-Type", "application/javascript");
         return [ $livejs ];
@@ -314,7 +313,7 @@ our sub web-server(
 }
 
 sub reload-browser(
-    $config,
+    Map $config,
     --> Bool()
 ) {
     unless $config<no_livereload> {
@@ -356,8 +355,8 @@ sub file-change-monitor(
 }
 
 sub build-and-reload(
-    $config,
-    :&logger
+    Map $config,
+    ::D :&logger
     --> Bool
 ) {
     build($config, logger => &logger);
@@ -365,9 +364,9 @@ sub build-and-reload(
 }
 
 sub user-input(
-    $config,
-    :$app,
-    :&logger
+    Map         $config,
+    Proc::Async :$app,
+    ::D         :&logger
     --> Bool
 ) {
     loop {
@@ -386,7 +385,7 @@ sub user-input(
 }
 
 our sub watch(
-    Map  $config,
+    Map $config,
     --> Bool
 ) {
     my &logger = start-logger();
@@ -449,13 +448,13 @@ sub parse-config(
     Str :$config_file
     --> Map()
 ) {
-    return load-yaml(slurp($config_file)).Map when $config_file.IO.f;
+    return slurp($config_file).&load-yaml when $config_file.IO.f;
     note "Config file [$config_file] not found. Please run uzu init to generate.";
     exit 1;
 }
 
 sub uzu-config(
-    Str  :$config_file = 'config.yml',
+    Str  :$config_file   = 'config.yml',
     Bool :$no_livereload = False
     --> Map
 ) is export {
