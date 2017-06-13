@@ -203,7 +203,7 @@ our sub serve(
     # Use the library path if running from test
     my $p = do given "bin/uzu".IO {
         when *.f {
-            Proc::Async.new: "perl6", "-I{$?FILE.IO.parent}", "bin/uzu", @args;
+            Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent}", "bin/uzu", @args;
         }
         default {
             Proc::Async.new: "uzu", @args;
