@@ -309,7 +309,8 @@ our sub web-server(
     }    
 
     # Start bailador
-    baile($config<port>||3000);
+    set( 'port', $config<port>||3000 );
+    baile;
 }
 
 sub reload-browser(
