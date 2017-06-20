@@ -3,7 +3,10 @@ use lib 'lib';
 
 use Test;
 use Test::Output;
-use Uzu;
+use Uzu::Config;
+use Uzu::HTTP;
+use Uzu::Render;
+use Uzu::Utilities;
 use File::Temp;
 
 plan 4;
@@ -16,7 +19,7 @@ my $source_root = $test_root.IO.child('example_project');
 my $tmp_root    = tempdir;
 
 # Copy all example project files to tmp project root
-Uzu::copy-dir $source_root, $tmp_root.IO;
+copy-dir $source_root, $tmp_root.IO;
 
 # Add tmp path to project config
 my $config_path = $tmp_root.IO.child('config.yml');
@@ -24,10 +27,10 @@ my $config_file = slurp $config_path;
 spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
 
 # Set config file path
-my $config = uzu-config config_file => $config_path;
+my $config = Uzu::Config::from-file config_file => $config_path;
 
 # Generate HTML from templates
-Uzu::build $config;
+Uzu::Render::build $config;
 
 # Did we generate the build directory?
 my $tmp_build_path = $tmp_root.IO.child('build').path;
@@ -52,6 +55,6 @@ END
 
 # Save to tmp_build_path i18n yaml file
 spurt $tmp_root.IO.child('i18n').child('en.yml'), $test4;
-output-like { Uzu::build $config }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
+output-like { Uzu::Render::build $config }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
 
 # vim: ft=perl6

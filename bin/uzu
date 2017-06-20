@@ -1,74 +1,7 @@
 #!/usr/bin/env perl6
 
 use v6;
-use Uzu;
 
-multi MAIN('config', Str :$config = 'config.yml') {
-  say uzu-config(config_file => $config);
-}
-
-multi MAIN('webserver', Str :$config = 'config.yml') {
-  uzu-config(config_file => $config.IO).&Uzu::web-server();
-}
-
-multi MAIN('build', Str :$config = 'config.yml') {
-  uzu-config(
-      config_file => $config,
-      no_livereload => True
-  ).&Uzu::build();
-}
-
-multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
-  uzu-config(
-      config_file   => $config.IO,
-      no_livereload => ($no-livereload ?? True !! False)
-  ).&Uzu::watch();
-}
-
-multi MAIN('init', Str :$config = 'config.yml') {
-
-  # config file exists, exit
-  return say "Config [$config] already exists." if $config.IO ~~ :f;
-
-  say "Uzu project initialization";
-  my $project_name = prompt("Please enter project name: ");
-  my $url = prompt("Please enter project url (e.g http://example.com): ");
-  my $language = prompt("Please enter project language (e.g. en, ja): ");
-  my $theme = prompt("Please enter project theme (e.g. default): ")||"default";
-
-  if Uzu::init config_file  => $config,
-               project_name => $project_name,
-               url          => $url,
-               language     => $language,
-               theme        => $theme {
-    say "Config [$config] successfully created.";
-  }
-}
-
-multi MAIN('version') {
-  say "uzu {Uzu.^ver}";
-}
-
-sub USAGE {
-  say q:to/END/;
-      Usage:
-        uzu init          - Initialize new project
-        uzu webserver     - Start local web server
-        uzu build         - Render all templates to build
-        uzu watch         - Start web server and re-render
-                            build on template modification
-        uzu version       - Print uzu version and exit
-
-      Optional arguments:
-        
-        --config=         - Specify a custom config file
-                            Default is `config`
-
-        e.g. uzu --config=path/to/config.yml init 
-
-        --no-livereload   - Disable livereload when
-                            running uzu watch.
-      END
-}
+use Uzu::CLI;
 
 # vim: ft=perl6
