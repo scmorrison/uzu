@@ -221,20 +221,14 @@ our sub build(
 #
 
 our sub serve(
-    Str :$config_file
+    IO::Path :$config_file
     --> Proc::Async
 ) {
     my @args = "--config={$config_file}", "webserver";
 
     # Use the library path if running from test
-    my $p = do given "bin/uzu".IO {
-        when *.f {
-            Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent}", "bin/uzu", @args;
-        }
-        default {
-            Proc::Async.new: "uzu", @args;
-        }
-    }
+    my $p = Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent}",
+            $?FILE.IO.parent.parent.child('bin').child('uzu'), @args;
 
     my Promise $server_up .= new;
     $p.stdout.tap: -> $v { $*OUT.print: $v; }
@@ -472,7 +466,7 @@ sub valid-project-folder-structure(
 }
 
 sub parse-config(
-    Str :$config_file
+    IO::Path :$config_file
     --> Map()
 ) {
     return slurp($config_file).&load-yaml when $config_file.IO.f;
@@ -481,8 +475,8 @@ sub parse-config(
 }
 
 sub uzu-config(
-    Str  :$config_file   = 'config.yml',
-    Bool :$no_livereload = False
+    IO::Path :$config_file   = 'config.yml'.IO,
+    Bool     :$no_livereload = False
     --> Map
 ) is export {
 

@@ -19,9 +19,9 @@ my $tmp_root    = tempdir;
 Uzu::copy-dir $source_root, $tmp_root.IO;
 
 # Add tmp path to project config
-my $config_path = $tmp_root.IO.child('config.yml').path;
+my $config_path = $tmp_root.IO.child('config.yml');
 my $config_file = slurp $config_path;
-spurt $config_path, $config_file ~ "project_root: $tmp_root";
+spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
 
 # Set config file path
 my $config = uzu-config config_file => $config_path;
