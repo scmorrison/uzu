@@ -3,13 +3,12 @@ use lib 'lib';
 
 use Test;
 use Uzu::HTTP;
-use HTTP::Tinyish;
 
-plan 3;
+plan 2;
 
 my $root = $*CWD;
 my $r1 = Uzu::HTTP::serve(config_file => $root.IO.child('t').child('serve').child('config.yml'));
-is $r1.WHAT, Proc::Async, 'serve 1/3: spawned server as proc async';
+is $r1.WHAT, Proc::Async, 'serve 1/2: spawned server as proc async';
 say "Waiting for web server to start serving";
 
 my $host = '127.0.0.1';
@@ -26,10 +25,9 @@ my $html_test = q:to/END/;
 </html>
 END
 
-my $client = HTTP::Tinyish.new(agent => "Mozilla/4.0");
-my %r2     = $client.get("http://$host:$port/index.html");
-is %r2<status>, 200, 'serve 2/3: HTTP 200 OK';
-is %r2<content>, $html_test, 'serve 3/3: served HTML match';
+# Wait for server to come online
+Uzu::HTTP::wait-port($port, times => 600);
+ok Uzu::HTTP::inet-test("GET /index.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port) ~~ / $html_test /, 'serve 2/2: served HTML match';
 
 # Clean up
 $r1.kill(SIGKILL);

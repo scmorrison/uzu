@@ -24,4 +24,3 @@ our sub rm-dir(
         so shell "rm -rf $dir";
     }
 }
-
