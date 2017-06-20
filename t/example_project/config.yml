@@ -1,6 +1,7 @@
 ---
-name: "uzu-tests"
+name: uzu-tests
 language:
-  - "en"
-theme: "default"
-url: "https://gitlab.com/samcns/uzu"
+  - en
+theme: default
+url: https://gitlab.com/samcns/uzu
+

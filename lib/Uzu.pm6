@@ -472,7 +472,7 @@ sub valid-project-folder-structure(
 }
 
 sub parse-config(
-    Str :$config_file
+    IO::Path :$config_file
     --> Map()
 ) {
     return slurp($config_file).&load-yaml when $config_file.IO.f;
@@ -481,8 +481,8 @@ sub parse-config(
 }
 
 sub uzu-config(
-    Str  :$config_file   = 'config.yml',
-    Bool :$no_livereload = False
+    IO::Path :$config_file   = 'config.yml'.IO,
+    Bool     :$no_livereload = False
     --> Map
 ) is export {
 
