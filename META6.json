@@ -2,14 +2,14 @@
     "perl" : "6.*",
     "name" : "Uzu",
     "license" : "Artistic-2.0",
-    "version"  : "0.1.7",
+    "version"  : "0.1.8",
     "auth" : "gitlab:samcns",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.",
     "provides" : {
       "Uzu" : "lib/Uzu.pm6"
     },
     "author" : "Sam Morrison <sam@linux.com>",
-    "depends" : [ "File::Find", "File::Temp", "JSON::Tiny", "Terminal::ANSIColor", "Template6", "IO::Notification::Recursive", "Bailador", "HTTP::Tinyish", "YAMLish" ],
+    "depends" : [ "File::Find", "File::Temp", "JSON::Tiny", "Terminal::ANSIColor", "Template6", "Bailador", "HTTP::Tinyish", "YAMLish" ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://gitlab.com/samcns/uzu.git"
 }

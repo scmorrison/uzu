@@ -1,11 +1,10 @@
 use v6;
 
-use IO::Notification::Recursive;
 use File::Find;
 use YAMLish;
 use Terminal::ANSIColor;
 
-unit module Uzu:ver<0.1.7>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.8>:auth<gitlab:samcns>;
 
 #
 # Logger
@@ -27,24 +26,51 @@ sub start-logger(
 }
 
 #
+# Utilities
+#
+
+our sub copy-dir(
+    IO::Path $source,
+    IO::Path $target
+    --> Bool
+) {
+    if $*SPEC ~~ 'Win32' {
+        so shell "copy $source $target /O /X /E /H /K /Y";
+    } else {
+        so shell "cp -rf $source/* $target/";
+    }
+}
+
+our sub rm-dir(
+    IO::Path $dir
+    --> Bool
+) {
+    if $*SPEC ~~ 'Win32' {
+        so shell "rmdir $dir /s /q";
+    } else {
+        so shell "rm -rf $dir";
+    }
+}
+
+#
 # HTML Rendering
 #
 
 sub templates(
-    List :$exts!,
-    Str  :$dir!
+    List     :$exts!,
+    IO::Path :$dir!
     --> Seq
 ) {
-    return $dir.IO.dir(:test(/:i ^ \w+ '.' |$exts $/));
+    return dir $dir, :test(/:i ^ \w+ '.' |$exts $/);
 }
 
 sub build-context(
-    Str :$i18n_dir,
-    Str :$language
+    IO::Path :$i18n_dir,
+    Str      :$language
     --> Hash
 ) {
-    my Str $i18n_file = "$i18n_dir/$language.yml";
-    if $i18n_file.IO.f {
+    my Str $i18n_file = $i18n_dir.IO.child("$language.yml").path;
+    if $i18n_file.IO ~~ :f {
         try {
             CATCH {
                 default {
@@ -58,8 +84,8 @@ sub build-context(
 }
 
 sub write-generated-files(
-    Hash $content,
-    Str  :$build_dir
+    Hash     $content,
+    IO::Path :$build_dir
     --> Bool
 ) {
     # IO write to disk
@@ -141,8 +167,8 @@ our sub build(
     ::D :&logger = start-logger()
     --> Bool
 ) {
-    my Str $assets_dir = $config<assets_dir>;
-    my Str $build_dir  = $config<build_dir>;
+    my $assets_dir = $config<assets_dir>;
+    my $build_dir  = $config<build_dir>;
 
     # All available pages
     my List $exts = $config<extensions>;
@@ -155,7 +181,7 @@ our sub build(
 
     # Clear out build
     logger "Clear old files";
-    qqx{ rm -rf $build_dir };
+    rm-dir $build_dir;
 
     # Create build dir
     if !$build_dir.IO.d { 
@@ -165,7 +191,7 @@ our sub build(
 
     # Copy assets
     logger "Copy asset files";
-    qqx{ cp -rf $assets_dir/. $build_dir/ };
+    copy-dir $assets_dir, $build_dir;
 
     # One per language
     await gather {
@@ -290,10 +316,10 @@ our sub web-server(
         my IO::Path $path;
         if $file ~~ '/' {
             # Serve index.html on /
-            $path = IO::Path.new("{$build_dir}/index.html");
+            $path = $build_dir.IO.child('index.html');
         } else {
             # Strip query string for now
-            $path = IO::Path.new("{$build_dir}{$file.split('?')[0]}");
+            $path = $build_dir.IO.child($file.split('?')[0]);
         }
 
         # Invalid path
@@ -351,7 +377,7 @@ sub file-change-monitor(
     --> Supply
 ) {
     supply {
-        watch-dir(~$_) for $dirs.map: { find-dirs $_ };
+        watch-dir(~$_) for $dirs.map: { find-dirs $_.Str };
     }
 }
 
@@ -469,14 +495,14 @@ sub uzu-config(
     my Int  $port           = $config<port>||3000;
 
     # Paths
-    my Str  $project_root   = "{$config<project_root>||$*CWD}".subst('~', $*HOME);
-    my Str  $build_dir      = "{$project_root}/build";
-    my Str  $themes_dir     = "{$project_root}/themes";
-    my Str  $assets_dir     = "{$project_root}/themes/{$config<defaults><theme>||'default'}/assets";
-    my Str  $layout_dir     = "{$project_root}/themes/{$config<defaults><theme>||'default'}/layout";
-    my Str  $pages_dir      = "{$project_root}/pages";
-    my Str  $partials_dir   = "{$project_root}/partials";
-    my Str  $i18n_dir       = "{$project_root}/i18n";
+    my IO::Path $project_root = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
+    my IO::Path $build_dir    = $project_root.IO.child('build');
+    my IO::Path $themes_dir   = $project_root.IO.child('themes');
+    my IO::Path $assets_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('assets');
+    my IO::Path $layout_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('layout');
+    my IO::Path $pages_dir    = $project_root.IO.child('pages');
+    my IO::Path $partials_dir = $project_root.IO.child('partials');
+    my IO::Path $i18n_dir     = $project_root.IO.child('i18n');
     my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
     my List $extensions     = ['tt', 'html', 'yml'];
 
