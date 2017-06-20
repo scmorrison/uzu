@@ -9,7 +9,16 @@
       "Uzu" : "lib/Uzu.pm6"
     },
     "author" : "Sam Morrison <sam@linux.com>",
-    "depends" : [ "File::Find", "File::Temp", "JSON::Tiny", "Terminal::ANSIColor", "Template6", "Bailador", "HTTP::Tinyish", "YAMLish" ],
+    "depends" : [
+        "File::Find",
+        "File::Temp",
+        "Log::Any",
+        "JSON::Tiny",
+        "Terminal::ANSIColor",
+        "Template6",
+        "Bailador",
+        "HTTP::Tinyish",
+        "YAMLish" ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://gitlab.com/samcns/uzu.git"
 }
