@@ -8,7 +8,7 @@ use HTTP::Tinyish;
 plan 3;
 
 my $root = $*CWD;
-my $r1 = Uzu::serve(config_file => $root.IO.child('t').child('serve').child('config.yml').path);
+my $r1 = Uzu::serve(config_file => $root.IO.child('t').child('serve').child('config.yml'));
 is $r1.WHAT, Proc::Async, 'serve 1/3: spawned server as proc async';
 say "Waiting for web server to start serving";
 

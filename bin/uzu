@@ -8,7 +8,7 @@ multi MAIN('config', Str :$config = 'config.yml') {
 }
 
 multi MAIN('webserver', Str :$config = 'config.yml') {
-  uzu-config(config_file => $config).&Uzu::web-server();
+  uzu-config(config_file => $config.IO).&Uzu::web-server();
 }
 
 multi MAIN('build', Str :$config = 'config.yml') {
@@ -20,7 +20,7 @@ multi MAIN('build', Str :$config = 'config.yml') {
 
 multi MAIN('watch', Str :$config = 'config.yml', Bool :$no-livereload) {
   uzu-config(
-      config_file => $config,
+      config_file   => $config.IO,
       no_livereload => ($no-livereload ?? True !! False)
   ).&Uzu::watch();
 }
