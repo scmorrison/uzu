@@ -84,30 +84,31 @@ project_root: path/to/project/folder
 Project folder structure
 ========================
 ```
-├── config.yml
-├── pages
+├── config.yml                    # Uzu config file
+├── pages                         # Each page becomes a .html file
 │   ├── about.mustache
 │   └── index.mustache
-├── partials
-│   ├── footer.mustache
+├── partials                      # Partials can be included in pages
+│   ├── footer.mustache           # and themes
 │   ├── head.mustache
 │   ├── home.mustache
 │   ├── jumbotron.mustache
 │   ├── navigation.mustache
 │   └── profiles.mustache
-├── i18n
+├── public                        # Static files / assets independant of theme (copied to /)
+├── i18n                          # Language translation files
 │   ├── en.yml
 │   ├── fr.yml
 │   ├── ja.yml
-└── themes
+└── themes                        # Project themes
     └── default
-        ├── assets
+        ├── assets                # Theme specific static files / assets (copied to /)
         │   ├── css
         │   ├── favicon.ico
         │   ├── fonts
         │   ├── img
         │   ├── js
-        └── layout
+        └── layout                # Theme layout file
             └── layout.mustache
 ```
 

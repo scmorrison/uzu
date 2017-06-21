@@ -118,6 +118,7 @@ our sub build(
     --> Bool
 ) {
     my $assets_dir = $config<assets_dir>;
+    my $public_dir = $config<public_dir>;
     my $build_dir  = $config<build_dir>;
 
     # All available pages
@@ -139,9 +140,8 @@ our sub build(
         mkdir $build_dir;
     }
 
-    # Copy assets
-    logger "Copy asset files";
-    copy-dir $assets_dir, $build_dir;
+    logger "Copy public, assets";
+    [$public_dir, $assets_dir].map: { copy-dir $_, $build_dir };
 
     # One per language
     await gather {
