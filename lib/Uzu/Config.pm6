@@ -42,12 +42,13 @@ our sub from-file(
     # Paths
     my IO::Path $project_root = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
     my IO::Path $build_dir    = $project_root.IO.child('build');
+    my IO::Path $i18n_dir     = $project_root.IO.child('i18n');
     my IO::Path $themes_dir   = $project_root.IO.child('themes');
     my IO::Path $assets_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('assets');
     my IO::Path $layout_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('layout');
     my IO::Path $pages_dir    = $project_root.IO.child('pages');
     my IO::Path $partials_dir = $project_root.IO.child('partials');
-    my IO::Path $i18n_dir     = $project_root.IO.child('i18n');
+    my IO::Path $public_dir   = $project_root.IO.child('public');
     my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
     my List $extensions     = ['tt', 'html', 'yml'];
 
@@ -67,6 +68,7 @@ our sub from-file(
         :assets_dir($assets_dir),
         :layout_dir($layout_dir),
         :pages_dir($pages_dir),
+        :public_dir($public_dir),
         :partials_dir($partials_dir),
         :i18n_dir($i18n_dir),
         :template_dirs($template_dirs),
@@ -104,6 +106,7 @@ our sub init(
         "i18n".IO, 
         "pages".IO,
         "partials".IO,
+        "public".IO,
         $theme_dir.IO.child('layout'),
         $theme_dir.IO.child($theme).child('assets')
     );
