@@ -5,6 +5,7 @@
     "version"  : "0.1.8",
     "auth" : "gitlab:samcns",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.",
+    "tags"         : [ "web", "static-site-generator" ],
     "provides" : {
       "Uzu"             : "lib/Uzu.pm6",
       "Uzu::Config"     : "lib/Uzu/Config.pm6",
@@ -25,7 +26,6 @@
         "Terminal::ANSIColor",
         "Template6",
         "Bailador",
-        "HTTP::Tinyish",
         "YAMLish" ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://gitlab.com/samcns/uzu.git"
