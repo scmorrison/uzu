@@ -27,7 +27,7 @@ END
 
 # Wait for server to come online
 Uzu::HTTP::wait-port($port, times => 600);
-ok Uzu::HTTP::inet-test("GET /index.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port) ~~ / $html_test /, 'serve 2/2: served HTML match';
+ok Uzu::HTTP::inet-request("GET /index.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port) ~~ / $html_test /, 'serve 2/2: served HTML match';
 
 # Clean up
 $r1.kill(SIGKILL);

@@ -139,8 +139,8 @@ our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) 
     die "$host:$port doesn't open in {$sleep*$times} sec.";
 }
 
-our sub inet-test(Str $req, $port) is export {
-    my $client = IO::Socket::INET.new(:host<0.0.0.0>, :port($port));
+our sub inet-request(Str $req, $port, $host='0.0.0.0') is export {
+    my $client = IO::Socket::INET.new(:host($host), :port($port));
     my $data   = '';
     $client.print($req);
     sleep .5;
