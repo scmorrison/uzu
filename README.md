@@ -14,7 +14,7 @@ Features
 * **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non .tt or .yml files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
-**Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://gitlab.com/samcns/uzu/issues) you find.
+**Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://github.com/scmorrison/uzu/issues) you find.
 
 Usage
 =====
@@ -69,7 +69,7 @@ language:
 theme: default
 
 # Site URL
-url: https://gitlab.com/samcns/uzu-starter
+url: https://github.com/scmorrison/uzu-starter
 
 # Optional parameters (also, comments like this are ok)
 
@@ -112,7 +112,7 @@ Project folder structure
             └── layout.mustache
 ```
 
-See [uzu-starter](https://gitlab.com/samcns/uzu-starter) for a full example.
+See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
 
 i18n YAML and Templating
 =========
@@ -131,7 +131,7 @@ An example YAML file might look like this:
 ```yaml
 ---
 site_name: The Uzu Project Site
-url: https://gitlab.com/samcns/uzu-starter
+url: https://github.com/scmorrison/uzu-starter
 founders:
   - name: Sam
     title: "Dish Washer"
