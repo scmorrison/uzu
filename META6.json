@@ -3,7 +3,7 @@
     "name" : "Uzu",
     "license" : "Artistic-2.0",
     "version"  : "0.1.9",
-    "auth" : "gitlab:samcns",
+    "auth" : "scmorrison:uzu",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.",
     "tags"         : [ "web", "static-site-generator" ],
     "provides" : {
@@ -28,5 +28,5 @@
         "Bailador",
         "YAMLish" ],
     "test-depends" : [ "Test::Output" ],
-    "source-url" : "https://gitlab.com/samcns/uzu.git"
+    "source-url" : "https://github.com/scmorrison/uzu.git"
 }
