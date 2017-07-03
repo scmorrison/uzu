@@ -1,4 +1,4 @@
-Uzu (渦) [![build status](https://gitlab.com/samcns/uzu/badges/master/build.svg)](https://gitlab.com/samcns/uzu/commits/master)
+Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=master)](https://travis-ci.org/scmorrison/uzu)
 ===
 
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
