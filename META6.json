@@ -20,12 +20,11 @@
     "depends" : [
         "File::Find",
         "File::Temp",
-        "Log::Any",
-        "JSON::Tiny",
         "Terminal::ANSIColor",
         "Template6",
-        "Bailador",
-        "YAMLish" ],
+        "Bailador:ver<0.0.6>",
+        "YAMLish"
+    ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://github.com/scmorrison/uzu.git"
 }
