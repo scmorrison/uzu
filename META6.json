@@ -22,7 +22,7 @@
         "File::Temp",
         "Terminal::ANSIColor",
         "Template6",
-        "Bailador:ver<0.0.6>",
+        "Bailador",
         "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
