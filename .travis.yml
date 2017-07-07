@@ -1,12 +1,7 @@
-language: generic
+language: perl6
+sudo: false
+perl6:
+  - latest
 install:
-  - curl -O -J -L https://github.com/nxadm/rakudo-pkg/releases/download/2017.06/perl6-rakudo-moarvm-ubuntu17.04_20170600-01_amd64.deb
-  - sudo dpkg -i perl6-rakudo-moarvm-ubuntu17.04_20170600-01_amd64.deb
-  - export PATH=/opt/rakudo/bin:~/.perl6/bin:$PATH
-  - git clone https://github.com/ugexe/zef $HOME/zef
-  - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef update
-  - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef --depsonly --/test install .
-script:
-  - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef --force install . --/test
-  - prove -ve 'perl6 -Ilib' t/
-sudo: sudo
+  - rakudobrew build-zef
+  - zef --depsonly install .
