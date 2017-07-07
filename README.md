@@ -86,15 +86,15 @@ Project folder structure
 ```
 ├── config.yml                    # Uzu config file
 ├── pages                         # Each page becomes a .html file
-│   ├── about.mustache
-│   └── index.mustache
+│   ├── about.tt
+│   └── index.tt
 ├── partials                      # Partials can be included in pages
-│   ├── footer.mustache           # and themes
-│   ├── head.mustache
-│   ├── home.mustache
-│   ├── jumbotron.mustache
-│   ├── navigation.mustache
-│   └── profiles.mustache
+│   ├── footer.tt           # and themes
+│   ├── head.tt
+│   ├── home.tt
+│   ├── jumbotron.tt
+│   ├── navigation.tt
+│   └── profiles.tt
 ├── public                        # Static files / assets independant of theme (copied to /)
 ├── i18n                          # Language translation files
 │   ├── en.yml
@@ -109,7 +109,7 @@ Project folder structure
         │   ├── img
         │   ├── js
         └── layout                # Theme layout file
-            └── layout.mustache
+            └── layout.tt
 ```
 
 See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
