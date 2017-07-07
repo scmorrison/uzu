@@ -6,5 +6,6 @@ install:
   - git clone https://github.com/ugexe/zef $HOME/zef
   - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef --depsonly --/test install .
 script:
-  - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef --force install .
-sudo: sudo 
+  - perl6 -I $HOME/zef/lib $HOME/zef/bin/zef --force install . --/test
+  - prove -ve 'perl6 -Ilib' t/
+sudo: sudo
