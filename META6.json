@@ -23,8 +23,7 @@
         "Terminal::ANSIColor",
         "Template6",
         "HTTP::Server::Tiny",
-        "YAMLish",
-        "Log::Any"
+        "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://github.com/scmorrison/uzu.git"
