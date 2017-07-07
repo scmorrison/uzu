@@ -22,7 +22,7 @@
         "File::Temp",
         "Terminal::ANSIColor",
         "Template6",
-        "Bailador",
+        "HTTP::Server::Tiny",
         "YAMLish",
         "Log::Any"
     ],
