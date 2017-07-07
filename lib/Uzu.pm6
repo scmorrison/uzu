@@ -1,4 +1,4 @@
-use v6;
+use v6.c;
 
 unit module Uzu:ver<0.1.9>:auth<github:scmorrison>;
 
