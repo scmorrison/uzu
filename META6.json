@@ -22,9 +22,8 @@
         "File::Temp",
         "Terminal::ANSIColor",
         "Template6",
-        "Bailador",
-        "YAMLish",
-        "Log::Any"
+        "HTTP::Server::Tiny",
+        "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
     "source-url" : "https://github.com/scmorrison/uzu.git"
