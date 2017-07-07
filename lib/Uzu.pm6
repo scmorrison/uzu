@@ -1,6 +1,6 @@
 use v6;
 
-unit module Uzu:ver<0.1.9>:auth<gitlab:samcns>;
+unit module Uzu:ver<0.1.9>:auth<github:scmorrison>;
 
 # License
 # 
