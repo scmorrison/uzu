@@ -1,5 +1,5 @@
 {
-    "perl" : "6.*",
+    "perl" : "6.c",
     "name" : "Uzu",
     "license" : "Artistic-2.0",
     "version"  : "0.1.9",
