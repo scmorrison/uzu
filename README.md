@@ -9,7 +9,6 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Project folder structure](#project-folder-structure)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
 - [Template Features](#template-features)
-  * [Features include:](#features-include-)
   * [Examples](#examples)
     + [Single variable](#single-variable)
     + [For loop](#for-loop)
@@ -258,7 +257,6 @@ Installation
 
 ```
 # Having issues with zef at the moment
-zef install Uzu --depsonly
 zef install Uzu
 ```
 
@@ -280,9 +278,9 @@ Requirements
 Troubleshooting
 ===============
 
-* Errors installing from previous version:
+* *Errors installing from previous version:*
   
-  Remove the zef tmp / store uzu.git directories
+  Remove the zef tmp / store uzu.git directories:
 
   ```
   # Delete these folders from your zef install 
