@@ -3,6 +3,27 @@ Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=maste
 
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
 
+- [Features](#features)
+- [Usage](#usage)
+- [Config](#config)
+- [Project folder structure](#project-folder-structure)
+- [i18n YAML and Templating](#i18n-yaml-and-templating)
+- [Template Features](#template-features)
+  * [Features include:](#features-include-)
+  * [Examples](#examples)
+    + [Single variable](#single-variable)
+    + [For loop](#for-loop)
+    + [IF/ELSEIF/UNLESS](#if-elseif-unless)
+    + [Including partials](#including-partials)
+- [Installation](#installation)
+- [Todo](#todo)
+- [Requirements](#requirements)
+- [Troubleshooting](#troubleshooting)
+- [AUTHORS](#authors)
+- [CONTRIBUTORS](#contributors)
+- [LICENSE](#license)
+- [SEE ALSO](#see-also)
+
 Features
 ========
 * **Easy to use**: Based on existing static site generator conventions
@@ -255,6 +276,19 @@ Requirements
 ============
 
 * [Perl 6](http://perl6.org/)
+
+Troubleshooting
+===============
+
+* Errors installing from previous version:
+  
+  Remove the zef tmp / store uzu.git directories
+
+  ```
+  # Delete these folders from your zef install 
+  # directory.
+  rm -rf ~/.zef/store/uzu.git ~/.zef/tmp/uzu.git 
+  ```
 
 AUTHORS
 =======
