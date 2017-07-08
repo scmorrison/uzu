@@ -3,6 +3,26 @@ Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=maste
 
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
 
+- [Features](#features)
+- [Usage](#usage)
+- [Config](#config)
+- [Project folder structure](#project-folder-structure)
+- [i18n YAML and Templating](#i18n-yaml-and-templating)
+- [Template Features](#template-features)
+  * [Examples](#examples)
+    + [Single variable](#single-variable)
+    + [For loop](#for-loop)
+    + [IF/ELSEIF/UNLESS](#if-elseif-unless)
+    + [Including partials](#including-partials)
+- [Installation](#installation)
+- [Todo](#todo)
+- [Requirements](#requirements)
+- [Troubleshooting](#troubleshooting)
+- [Authors](#authors)
+- [Contributors](#contributors)
+- [License](#license)
+- [See also](#see-also)
+
 Features
 ========
 * **Easy to use**: Based on existing static site generator conventions
@@ -237,7 +257,6 @@ Installation
 
 ```
 # Having issues with zef at the moment
-zef install Uzu --depsonly
 zef install Uzu
 ```
 
@@ -256,23 +275,36 @@ Requirements
 
 * [Perl 6](http://perl6.org/)
 
-AUTHORS
+Troubleshooting
+===============
+
+* **Errors installing from previous version:**
+  
+  Remove the zef tmp / store uzu.git directories:
+
+  ```
+  # Delete these folders from your zef install 
+  # directory.
+  rm -rf ~/.zef/store/uzu.git ~/.zef/tmp/uzu.git 
+  ```
+
+Authors
 =======
 
 * [Sam Morrison](@samcns)
 
-CONTRIBUTORS
+Contributors
 ============
 
 * [ab5tract ](@ab5tract)
 
 
-LICENSE
+License
 =======
 
 Uzu is free software; you can redistribute it and/or modify it under the terms of the Artistic License 2.0. (Note that, unlike the Artistic License 1.0, version 2.0 is GPL compatible by itself, hence there is no benefit to having an Artistic 2.0 / GPL disjunction.) See the file LICENSE for details.
 
-SEE ALSO
+See also
 ========
 
 * Templating engine used in `uzu`: [Template6](https://github.com/supernovus/template6)
