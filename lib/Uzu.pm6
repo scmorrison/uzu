@@ -1,6 +1,6 @@
 use v6.c;
 
-unit module Uzu:ver<0.1.9>:auth<github:scmorrison>;
+unit module Uzu:ver<0.2.0>:auth<github:scmorrison>;
 
 # License
 # 
