@@ -278,7 +278,7 @@ Requirements
 Troubleshooting
 ===============
 
-* *Errors installing from previous version:*
+* **Errors installing from previous version:**
   
   Remove the zef tmp / store uzu.git directories:
 
