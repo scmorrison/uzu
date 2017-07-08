@@ -18,10 +18,10 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Todo](#todo)
 - [Requirements](#requirements)
 - [Troubleshooting](#troubleshooting)
-- [AUTHORS](#authors)
-- [CONTRIBUTORS](#contributors)
-- [LICENSE](#license)
-- [SEE ALSO](#see-also)
+- [Authors](#authors)
+- [Contributors](#contributors)
+- [License](#license)
+- [See also](#see-also)
 
 Features
 ========
