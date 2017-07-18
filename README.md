@@ -252,7 +252,7 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 
 ### Page variables
 
-```tt
+```html
 [%
    title = 'Welcome to Uzu'
    date  = '2017/07/16'
