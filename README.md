@@ -300,9 +300,9 @@ Installation
 ============
 
 ```
-# Having issues with zef at the moment
 zef install Uzu
 ```
+Installation issue? See [Troubleshooting](#troubleshooting).
 
 Todo
 ====
@@ -313,6 +313,9 @@ Todo
 * Build deploy process push to S3
 * Features
   * Posts for blogs
+  * Additional templating support (mustache, markdown)
+  * Nested directory support for pages / i18n variables
+  * Dynamic variables (tags, pagination) 
 
 Requirements
 ============
