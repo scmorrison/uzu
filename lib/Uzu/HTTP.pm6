@@ -22,7 +22,7 @@ our sub serve(
     my Promise $server_up .= new;
     $p.stdout.tap: -> $v {
         # Wait until server started
-        if $server_up.status ~~ Planned && $v ~~ / 'http server is ready' / {
+        if $server_up.status ~~ Planned && $v ~~ / 'uzu serves' / {
             $server_up.keep; 
         }
         $*OUT.print: $v; 
@@ -39,93 +39,100 @@ our sub serve(
 
 our sub web-server(
     Map $config
-    --> Bool
+#    --> Bool
 ) {
-    use HTTP::Server::Tiny;
+    use HTTP::Server::Async;
+    use HTTP::Server::Router;
+
+    my HTTP::Server::Async $server .=new: port => $config<port>||3000;
+    serve $server;
 
     my $build_dir = $config<build_dir>;
 
     # Use for triggering reload staging when reload is triggered
     my $channel = Channel.new;
 
-    my $httpd = HTTP::Server::Tiny.new(
-        host => '127.0.0.1',
-        port => $config<port>||3000,
-    );
-
     # When accessed, sets $reload to True
-    $httpd.run(sub ($env) {
+    # Routes
+    route '/reload', -> $req, $res {
+        $channel.send(True);
+        say "GET /reload";
+        $res.headers<Content-Type> = 'application/json';
+        $res.close( '{ "reload": "Staged" }' );
+    }
 
-        # Routes
-        given $env<PATH_INFO> {
-            when '/reload' {
-                $channel.send(True);
-                say "GET /reload";
-                return 200, ['Content-Type' => 'application/json'], [ '{ "reload": "Staged" }' ];
-            }
+    # If $reload is True, return a JSON doc
+    # instructing uzu/js/live.js to reload the
+    # browser.
+    route '/live', -> $req, $res {
+        $res.headers<Content-Type> = 'application/json';
+        $res.close( '{ "reload": "True" }' ) if $channel.poll;
+        $res.close( '{ "reload": "False" }' );
+    }
 
-            # If $reload is True, return a JSON doc
-            # instructing uzu/js/live.js to reload the
-            # browser.
-            when '/live' {
-                return 200, ['Content-Type' => 'application/json'], ['{ "reload": "True"  }'] if $channel.poll;
-                return 200, ['Content-Type' => 'application/json'], ['{ "reload": "False"  }'];
-            }
-
-            # Include live.js that starts polling /live
-            # for reload instructions
-            when '/uzu/js/live.js' {
-                say "GET /uzu/js/live.js";
-                my Str $livejs = q:to|END|; 
-                // Uzu live-reload
-                function live() {
-                    var xhttp = new XMLHttpRequest();
-                    xhttp.onreadystatechange = function() {
-                        if (xhttp.readyState == 4 && xhttp.status == 200) {
-                            var resp = JSON.parse(xhttp.responseText);
-                            if (resp.reload == 'True') {
-                                document.location.reload();
-                            };
-                        };
+    # Include live.js that starts polling /live
+    # for reload instructions
+    route '/uzu/js/live.js', -> $req, $res {
+        say "GET /uzu/js/live.js";
+        my Str $livejs = q:to|END|; 
+        // Uzu live-reload
+        function live() {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (xhttp.readyState == 4 && xhttp.status == 200) {
+                    var resp = JSON.parse(xhttp.responseText);
+                    if (resp.reload == 'True') {
+                        document.location.reload();
                     };
-                    xhttp.open("GET", "live", true);
-                    xhttp.send();
-                    setTimeout(live, 1000);
-                }
-                setTimeout(live, 1000);
-                END
-
-                return 200, ['Content-Type' => 'application/javascript'], [ $livejs ];
-            }
-
-            default {
-                my $file = $_;
-
-                # Trying to access files outside of build path
-                return 404, ['Content-Type' => 'text/plain'], [ "Invalid path" ] if $file.match('..');
-
-                my IO::Path $path;
-                say "GET $file";
-                if $file ~~ '/' {
-                    # Serve index.html on /
-                    $path = $build_dir.IO.child('index.html');
-                } else {
-                    # Strip query string for now
-                    $path = $build_dir.IO.child($file.split('?')[0]);
-                }
-
-                # Invalid path
-                return 404, ['Content-Type' => 'text/plain'], [ "Invalid path: file does not exists" ] if !$path.IO.e;
-
-                # Return any valid paths
-                my Str $type = detect-content-type($path);
-                # UTF-8 text
-                return 200, ['Content-Type' => $type], [ slurp $path ] unless $type ~~ / image|ttf|woff|octet\-stream /;
-                # Binary
-                return 200, ['Content-Type' => $type], [ slurp $path, :bin ];
-            }    
+                };
+            };
+            xhttp.open("GET", "live", true);
+            xhttp.send();
+            setTimeout(live, 1000);
         }
-    });
+        setTimeout(live, 1000);
+        END
+
+        $res.headers<Content-Type> = 'application/javascript';
+        $res.close( $livejs );
+    }
+
+    route / .+ /, -> $req, $res {
+
+        my $file    = $req.uri;
+
+        # Trying to access files outside of build path
+        $res.status = 404;
+        $res.headers<Content-Type> = 'text/plain';
+        $res.close("Invalid path") if $file.match('..');
+
+        my IO::Path $path;
+        say "GET $file";
+        if $file ~~ '/' {
+            # Serve index.html on /
+            $path = $build_dir.IO.child('index.html');
+        } else {
+            # Strip query string for now
+            $path = $build_dir.IO.child($file.split('?')[0]);
+        }
+
+        # Invalid path
+        $res.close("Invalid path: $path") if !$path.IO.e;
+
+        # Return any valid paths
+        $res.status  = 200;
+        my Str $type = detect-content-type($path);
+        $res.headers<Content-Type> = $type;
+
+        # UTF-8 text
+        $res.close( slurp $path ) unless $type ~~ / image|ttf|woff|octet\-stream /;
+
+        # Binary
+        $res.close( slurp $path, :bin );
+    }    
+
+    say 'uzu serves';
+    $server.listen(True);
 }
 
 our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) is export {

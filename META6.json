@@ -22,7 +22,8 @@
         "File::Temp",
         "Terminal::ANSIColor",
         "Template6",
-        "HTTP::Server::Tiny",
+        "HTTP::Server::Async",
+        "HTTP::Server::Router",
         "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
