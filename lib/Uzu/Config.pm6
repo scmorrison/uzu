@@ -20,9 +20,18 @@ sub parse-config(
     IO::Path :$config_file
     --> Map()
 ) {
-    return slurp($config_file).&load-yaml when $config_file.IO.f;
-    note "Config file [$config_file] not found. Please run uzu init to generate.";
-    exit 1;
+    unless $config_file.IO.f {
+        note "Config file [$config_file] not found. Please run uzu init to generate.";
+        exit 1;
+    }
+
+    my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
+
+    # Collect non-core variables into :site
+    my $core_vars = 'host'|'language'|'port'|'project_root'|'site'|'theme'|'url';
+    %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
+
+    return %global_config;
 }
 
 our sub from-file(
