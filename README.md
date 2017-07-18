@@ -289,10 +289,9 @@ Partials are stored in the `partials` directory. You can include these in layout
 <html lang="[% language %]">
 [% INCLUDE "head" %]
     <body>
-			[% INCLUDE "navigation" %]
-			[% content %]
-			[% INCLUDE "footer" %]
-			</div>
+      [% INCLUDE "navigation" %]
+      [% content %]
+      [% INCLUDE "footer" %]
     </body>
 </html>
 ```
