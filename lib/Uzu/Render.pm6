@@ -27,7 +27,8 @@ sub build-context(
                     note "Invalid i18n yaml file [$i18n_file]";
                 }
             }
-            return %( %(language => $language), load-yaml slurp($i18n_file) );
+            my %yaml = load-yaml slurp($i18n_file);
+            return %( %(language => $language), %( i18n => %yaml, |%yaml ) );
         }
     }
     return %( error => "i18n yaml file [$i18n_file] could not be loaded" );

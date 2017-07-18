@@ -20,9 +20,18 @@ sub parse-config(
     IO::Path :$config_file
     --> Map()
 ) {
-    return slurp($config_file).&load-yaml when $config_file.IO.f;
-    note "Config file [$config_file] not found. Please run uzu init to generate.";
-    exit 1;
+    unless $config_file.IO.f {
+        note "Config file [$config_file] not found. Please run uzu init to generate.";
+        exit 1;
+    }
+
+    my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
+
+    # Collect non-core variables into :site
+    my $core_vars = 'host'|'language'|'port'|'project_root'|'site'|'theme'|'url';
+    %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
+
+    return %global_config;
 }
 
 our sub from-file(
@@ -44,8 +53,8 @@ our sub from-file(
     my IO::Path $build_dir    = $project_root.IO.child('build');
     my IO::Path $i18n_dir     = $project_root.IO.child('i18n');
     my IO::Path $themes_dir   = $project_root.IO.child('themes');
-    my IO::Path $assets_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('assets');
-    my IO::Path $layout_dir   = $project_root.IO.child('themes').child("{$config<defaults><theme>||'default'}").child('layout');
+    my IO::Path $assets_dir   = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
+    my IO::Path $layout_dir   = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('layout');
     my IO::Path $pages_dir    = $project_root.IO.child('pages');
     my IO::Path $partials_dir = $project_root.IO.child('partials');
     my IO::Path $public_dir   = $project_root.IO.child('public');

@@ -42,7 +42,8 @@ is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/3: as
 # Generated HTML looks good?
 my $sample_html    = slurp $test_root.IO.child('generated').child('index.html');
 my $generated_html = slurp $tmp_build_path.IO.child('index.html');
-is $generated_html ~~ $sample_html, True, 'render 3/4: rendered HTML matches test';
+
+is $generated_html, $sample_html, 'render 3/4: rendered HTML matches test';
 
 # Expect a warning when i18n yaml is invalid
 my $test4 = q:to/END/;

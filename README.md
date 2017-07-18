@@ -11,6 +11,7 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Template Features](#template-features)
   * [Examples](#examples)
     + [Single variable](#single-variable)
+    + [Page variables](#page-variables)
     + [For loop](#for-loop)
     + [IF/ELSEIF/UNLESS](#if-elseif-unless)
     + [Including partials](#including-partials)
@@ -66,6 +67,10 @@ Each project has its own `config.yml` which uses the following format:
 
 ```yaml
 ---
+# 
+# Core variables
+#
+
 # Name of the project
 name: uzu-starter
 
@@ -88,9 +93,6 @@ language:
 # Themes are stored in themes/[theme-name]
 theme: default
 
-# Site URL
-url: https://github.com/scmorrison/uzu-starter
-
 # Optional parameters (also, comments like this are ok)
 
 # Use a custom dev server port, default is 3000
@@ -99,7 +101,34 @@ port: 4040
 # Specify a custom project root path
 # default is .
 project_root: path/to/project/folder
+
+#
+# Non-core variables
+#
+
+url: https://github.com/scmorrison/uzu-starter
+author: Sam Morrison
+
 ```
+
+### Core variables
+
+Core variables are dynamically set by `uzu` or defined / overridden in `config.yml`:
+
+* `name`: Project name
+* `language`: List of languages to render for site. First item is default language. When rendering, the `language` variable is set to the current rendering language and can be referenced in templates. For example, if `uzu` is rendering an `en` version of a page, then the `language` variable will be set to `en`.
+* `theme`: The theme to apply to the layout (themes/themename). `default` refers to the folder named `default` in the themes folder.
+* `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
+* `port`: Host TCP port for dev server. Defaults to `3000`.
+* `project_root`: Project root folder. Defaults to `.`.
+
+### Accessing core variables in templates
+
+Core variables can be accessed from inside templates directly (e.g. `port`, `theme`, etc.)
+
+### Accessing non-core variables in templates
+
+Non-core varibles are any additional variables found in config.yml and can be accessed in templates using `site.variablename` (e.g. `site.url`, `site.author`).
 
 Project folder structure
 ========================
@@ -166,6 +195,9 @@ founders:
 this_will_break_thins:
 do_this_instead: ""
 ```
+### Accessing i18n variables in templates
+
+Variables defined in 18n files can be accessed in templates using the `i18n.variable` format (e.g. `i18n.site_name`, `i18n.founders`).
 
 Template Features
 =================
@@ -212,25 +244,38 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 
 ## Examples
 
-### Single variable
+### Single i18n variable
 
 ```html
-<a class="navbar-brand" href="/">[% site_name %]</a>
+<a class="navbar-brand" href="/">[% i18n.site_name %]</a>
 ```
 
-### For loop
+### Page variables
+
+```html
+[%
+   title = 'Welcome to Uzu'
+   date  = '2017/07/16'
+%]
+<head>
+    <meta charset="utf-8">
+    <title>[% title %] - [% date %]</title>
+</head>
+```
+
+### For loop from yaml dict (non-core variable) defined in config.yml
 ```html
 <h1>Company Founders</h1>
 <ul>
-[% for founder in founders %]
-  <li>[% founder.name %], [% founder.title %]</a>
+[% for founder in site.founders %]
+  <li>[% site.founder.name %], [% founder.title %]</a>
 [% end %]
 </ul>
 ```
 
 ### IF/ELSEIF/UNLESS
 ```html
-[% if graphics %]
+[% if site.graphics %]
     <img src="[% images %]/logo.gif" align=right width=60 height=40>
 [% end %]
 ```
@@ -244,10 +289,9 @@ Partials are stored in the `partials` directory. You can include these in layout
 <html lang="[% language %]">
 [% INCLUDE "head" %]
     <body>
-			[% INCLUDE "navigation" %]
-			[% content %]
-			[% INCLUDE "footer" %]
-			</div>
+      [% INCLUDE "navigation" %]
+      [% content %]
+      [% INCLUDE "footer" %]
     </body>
 </html>
 ```
