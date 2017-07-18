@@ -1,4 +1,4 @@
-[% INCLUDE "jumbotron %]
+[% INCLUDE "jumbotron" %]
 
-[% INCLUDE "home %]
+[% INCLUDE "home" %]
 

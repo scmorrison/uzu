@@ -4,5 +4,5 @@
   </div>
 </div>
 
-[% INCLUDE "profiles %]
+[% INCLUDE "profiles" %]
 
