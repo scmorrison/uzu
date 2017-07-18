@@ -2,6 +2,7 @@ use v6.c;
 
 use Uzu::Logger;
 use Uzu::Utilities;
+use File::Find;
 use YAMLish;
 
 unit module Uzu::Render;
@@ -11,7 +12,7 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    return dir $dir, :test(/:i ^ \w+ '.' |$exts $/);
+    return find(dir => $dir, name => /'.' |$exts/).Seq;
 }
 
 sub build-context(
@@ -40,9 +41,14 @@ sub write-generated-files(
     --> Bool
 ) {
     # IO write to disk
-    for $content.keys -> $path {
-        spurt "$build_dir/$path.html", $content{$path}
+    $content.kv.map: -> $template_name, %meta {
+        my $file     = %meta<path>.Str.split('pages')[1];
+        my $file_dir = $file.IO.dirname ~ '/';
+        my $html     = %meta<html>;
+        mkdir $build_dir ~ $file_dir;
+        spurt $build_dir ~ $file_dir ~ "$template_name.html", $html;
     };
+    return True;
 }
 
 sub html-file-name(
@@ -62,7 +68,7 @@ our sub process-livereload(
 ) {
     unless $no_livereload {
         # Add livejs if live-reload enabled (default)
-        my Str $livejs = '<script src="uzu/js/live.js"></script>';
+        my Str $livejs = '<script src="/uzu/js/live.js"></script>';
         return $content.subst('</body>', "{$livejs}\n</body>");
     }
     return $content;
@@ -81,11 +87,13 @@ sub prepare-html-output(
     my $t6 = Template6.new;
 
     $template_dirs.map(-> $dir {
-        $t6.add-path: $dir
+        $t6.add-path: $dir;
     });
 
     return gather {
-        $pages.keys().map(-> $page_name {
+        $pages.map(-> %page {
+
+            my $page_name = %page.key;
 
             # Render the page content
             my Str $page_content = $t6.process($page_name, |$context);
@@ -107,7 +115,10 @@ sub prepare-html-output(
                     content          => $layout_content,
                     no_livereload    => $no_livereload);
 
-            take $file_name => $processed_html;
+            take $file_name => %{ 
+                path => %page.value<path>,
+                html => $processed_html
+            };
 
         })
     }.Hash;
@@ -126,10 +137,10 @@ our sub build(
     my List $exts = $config<extensions>;
     my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
-    my Str %pages = (@page_templates.map( -> $page { 
-                         my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
-                         %( $page_name => slurp $page, :r );
-                     }));
+    my %pages = (@page_templates.map( -> $page { 
+        my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
+        %( $page_name => %{ path => $page, html => slurp($page, :r) } );
+    }));
 
     # Clear out build
     logger "Clear old files";
@@ -144,6 +155,9 @@ our sub build(
     logger "Copy public, assets";
     [$public_dir, $assets_dir].map: { copy-dir $_, $build_dir };
 
+    # Append nested pages directories
+    my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
+
     # One per language
     await gather {
         $config<language>.map(-> $language { 
@@ -153,7 +167,7 @@ our sub build(
                     i18n_dir         => $config<i18n_dir>,
                     language         => $language
                 ).&prepare-html-output(
-                    template_dirs    => $config<template_dirs>,
+                    template_dirs    => @template_dirs,
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,

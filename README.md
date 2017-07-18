@@ -136,7 +136,10 @@ Project folder structure
 ├── config.yml                    # Uzu config file
 ├── pages                         # Each page becomes a .html file
 │   ├── about.tt
-│   └── index.tt
+│   ├── index.tt
+│   └── blog                      # Pages can be nested in sub-folders. Their URI
+│       └── vacation.tt           # will follow the same path (e.g. /blog/vacation.html)
+│
 ├── partials                      # Partials can be included in pages
 │   ├── footer.tt           # and themes
 │   ├── head.tt

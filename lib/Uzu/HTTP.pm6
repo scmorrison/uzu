@@ -86,7 +86,7 @@ our sub web-server(
                     };
                 };
             };
-            xhttp.open("GET", "live", true);
+            xhttp.open("GET", "/live", true);
             xhttp.send();
             setTimeout(live, 1000);
         }
