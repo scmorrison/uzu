@@ -1,0 +1,6 @@
+<h1>[% i18n.title %]</h1>
+<div>
+    Date: [% i18n.date %]<br/>
+    Body:<br/>
+    [% i18n.body %]
+</div>
