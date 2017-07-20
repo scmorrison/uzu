@@ -8,6 +8,7 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Config](#config)
 - [Project folder structure](#project-folder-structure)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
+  * [Nested i18n variable files](#nested-i18n-variable-files)
 - [Template Features](#template-features)
   * [Examples](#examples)
     + [Single i18n variable](#single-variable)
@@ -206,6 +207,8 @@ do_this_instead: ""
 ### Accessing i18n variables in templates
 
 Variables defined in 18n files can be accessed in templates using the `i18n.variablename` format (e.g. `i18n.site_name`, `i18n.founders`). 
+
+#### Nested i18n variable files
 
 Any variables defined in page specific i18n files, e.g. `i18n/blog/vacation/en.yml`, will override any top-level language i18n file (e.g `i18n/en.yml`) defined variables that share the same name. For example:
 
