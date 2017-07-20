@@ -11,7 +11,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Nested i18n variable files](#nested-i18n-variable-files)
 - [Template Features](#template-features)
   * [Examples](#examples)
-    + [Single i18n variable](#single-variable)
+    + [Single i18n variable](#single-i18n-variable)
     + [Page variables](#page-variables)
     + [For loop](#for-loop)
     + [IF/ELSEIF/UNLESS](#if-elseif-unless)
@@ -178,8 +178,9 @@ You can separate out the content text to YAML files located in a project-root fo
 ```
 ─ i18n
   ├── blog
-  │   └── vacation
-  │       └── en.yml   # Page specific i18n variables
+  │   └── vacation     # Page specific i18n variables
+  │       ├── en.yml   # en i18n variables for page pages/blog/vacation.tt
+          └── ja.yml   # ja i18n variables for page pages/blog/vacation.tt
   ├── en.yml           # Main en i18n variables
   ├── fr.yml           # Main fr i18n variables
   └── ja.yml           # Main ja i18n variables
@@ -188,8 +189,13 @@ You can separate out the content text to YAML files located in a project-root fo
 An example YAML file might look like this:
 ```yaml
 ---
+# Template access i18n.site_name
 site_name: The Uzu Project Site
+
+# Template access i18n.url
 url: https://github.com/scmorrison/uzu-starter
+
+# Template access i18n.founders
 founders:
   - name: Sam
     title: "Dish Washer"
@@ -201,12 +207,17 @@ founders:
 # Comments start with a #
 
 # Do not use blank values
-this_will_break_thins:
+this_will_break_things:
 do_this_instead: ""
 ```
+
 ### Accessing i18n variables in templates
 
-Variables defined in 18n files can be accessed in templates using the `i18n.variablename` format (e.g. `i18n.site_name`, `i18n.founders`). 
+Variables defined in i18n files can be accessed in templates using the `i18n.variablename` format (e.g. `i18n.site_name`, `i18n.founders`). 
+
+```html
+<h1>[% i18n.site_name %]</h1>
+```
 
 #### Nested i18n variable files
 
