@@ -92,64 +92,78 @@ our sub process-livereload(
 }
 
 sub prepare-html-output(
+    Str      :$page_name,
+    Str      :$default_language,
+    Str      :$language,
+    Str      :$layout_contents,
+    Bool     :$no_livereload,
+    IO::Path :$path
+    --> Pair
+) {
+    # Default file_name without prefix
+    my Str $file_name = 
+        html-file-name
+            page_name        => $page_name,
+            default_language => $default_language, 
+            language         => $language;
+
+    # Return processed HTML
+    my Str $processed_html =
+        process-livereload
+            content          => $layout_contents,
+            no_livereload    => $no_livereload;
+
+    return $file_name => %{ 
+        path => $path,
+        html => $processed_html
+    }
+}
+
+sub render-tt(
     Hash  $context,
     List :$template_dirs,
     Str  :$default_language,
     Str  :$language, 
     Hash :$pages,
     Bool :$no_livereload
-    --> Hash
+    --> Hash()
 ) {
 
     use Template6;
-    my $t6 = Template6.new;
+    my Template6 $t6 .= new;
+    $template_dirs.map({ $t6.add-path: $_ });
 
-    $template_dirs.map(-> $dir {
-        $t6.add-path: $dir;
-    });
-
-    my %context = language => $language, |$context{$language};
+    my Any %context = language => $language, |$context{$language};
     return gather {
-        $pages.kv.map(-> $page_name, %meta {
+        $pages.kv.map: -> $page_name, %meta {
             
             # Append page-specific i18n vars if available
-            my $i18n_key = %meta<path>.IO.path.match( / .* '/pages' (.*) '.' .*  / )[0].Str;
-            my %page_context = %context;
-            %page_context<i18n> = $context{$language}<i18n>;
-            if $context{$i18n_key}.defined {
-                for $context{$i18n_key}<i18n>.keys -> $k {
-                    %page_context<i18n>{$k} = $context{$i18n_key}<i18n>{$k};
-                }
-            }
+            my Str $i18n_key     = %meta<path>.IO.path.match( / .* 'pages' (.*) '.' .*  / )[0].Str;
+            my Any %page_context =
+                |%context,
+                i18n => %( |$context{$language}<i18n>, 
+                           # Page-specific i18n vars?
+                           ( $context{$i18n_key}.defined
+                             ?? |$context{$i18n_key}<i18n>
+                             !! %() ));
 
             # Render the page content
-            my Str $page_content = $t6.process($page_name, |%page_context );
+            my Str $page_contents   = $t6.process($page_name, |%page_context );
 
             # Append page content to $context
-            my %layout_context = %( |%context, %( content => $page_content ) );
-            my Str $layout_content = $t6.process('layout', |%layout_context );
+            my Any %layout_context  = %( |%context, %( content => $page_contents ) );
+            my Str $layout_contents = $t6.process('layout', |%layout_context );
 
-            # Default file_name without prefix
-            my Str $file_name = 
-                html-file-name(
-                    page_name        => $page_name,
-                    default_language => $default_language, 
-                    language         => $language);
-
-            # Return processed HTML
-            my Str $processed_html =
-                process-livereload(
-                    content          => $layout_content,
-                    no_livereload    => $no_livereload);
-
-            take $file_name => %{ 
-                path => %meta<path>,
-                html => $processed_html
-            };
-
-        })
-    }.Hash;
-};
+            take prepare-html-output
+                :$page_name,
+                :$default_language,
+                :$language,
+                :$layout_contents,
+                :$no_livereload,
+                path => %meta<path>
+        }
+    }
+}
 
 our sub build(
     Map $config,
@@ -196,7 +210,7 @@ our sub build(
                 i18n-from-yaml(
                     i18n_dir        => $config<i18n_dir>,
                     language         => $language
-                ).&prepare-html-output(
+                ).&::("render-{$config<template_engine>}")(
                     template_dirs    => @template_dirs,
                     default_language => $config<language>[0],
                     language         => $language,

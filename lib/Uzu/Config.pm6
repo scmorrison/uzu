@@ -58,8 +58,9 @@ our sub from-file(
     my IO::Path $pages_dir    = $project_root.IO.child('pages');
     my IO::Path $partials_dir = $project_root.IO.child('partials');
     my IO::Path $public_dir   = $project_root.IO.child('public');
-    my List $template_dirs  = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
-    my List $extensions     = ['tt', 'html', 'yml'];
+    my List $template_dirs    = [$layout_dir, $pages_dir, $partials_dir, $i18n_dir];
+    my Str $template_engine   = $config<template_engine>||'tt',
+    my List $extensions       = ['tt', 'html', 'yml'];
 
     # Confirm all template directories exist
     # before continuing.
@@ -81,6 +82,7 @@ our sub from-file(
         :partials_dir($partials_dir),
         :i18n_dir($i18n_dir),
         :template_dirs($template_dirs),
+        :template_engine($template_engine),
         :extensions($extensions)
     ).Map;
 
