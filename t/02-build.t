@@ -9,7 +9,7 @@ use Uzu::Render;
 use Uzu::Utilities;
 use File::Temp;
 
-plan 4;
+plan 2;
 
 # Source project files
 my $test_root   = $*CWD.IO.child('t');
@@ -32,30 +32,37 @@ my $config = Uzu::Config::from-file config_file => $config_path;
 # Generate HTML from templates
 Uzu::Render::build $config;
 
-# Did we generate the build directory?
-my $tmp_build_path = $tmp_root.IO.child('build').path;
-is $tmp_build_path.IO.e, True, 'render 1/3: build directory created';
+subtest {
+    plan 3;
+    # Did we generate the build directory?
+    my $tmp_build_path = $tmp_root.IO.child('build').path;
+    is $tmp_build_path.IO.e, True, 'render 1/3: build directory created';
 
-# Did we copy the assets folder contents?
-is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/3: assets folder contents copied';
+    # Did we copy the assets folder contents?
+    is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/3: assets folder contents copied';
 
-# Generated HTML looks good?
-my $sample_html    = slurp $test_root.IO.child('generated').child('index.html');
-my $generated_html = slurp $tmp_build_path.IO.child('index.html');
+    # Generated HTML looks good?
+    my $sample_html    = slurp $test_root.IO.child('generated').child('index.html');
+    my $generated_html = slurp $tmp_build_path.IO.child('index.html');
 
-is $generated_html, $sample_html, 'render 3/4: rendered HTML matches test';
+    is $generated_html, $sample_html, 'render 3/4: rendered HTML matches test';
+}
 
-# Expect a warning when i18n yaml is invalid
-my $test4 = q:to/END/;
----
-company: Sam Morrison
-site_name: Uzu Test Project
-copyright: 2016 Sam Morrison
-...
-END
+subtest {
+    plan 1;
+    # Expect a warning when i18n yaml is invalid
+    my $test4 = q:to/END/;
+    ---
+    company: Sam Morrison
+    site_name: Uzu Test Project
+    # Need to quote strings that start with numbers
+    copyright: 2016 Sam Morrison
+    ...
+    END
 
-# Save to tmp_build_path i18n yaml file
-spurt $tmp_root.IO.child('i18n').child('en.yml'), $test4;
-output-like { Uzu::Render::build $config }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
+    # Save to tmp_build_path i18n yaml file
+    spurt $tmp_root.IO.child('i18n').child('en.yml'), $test4;
+    stderr-like { Uzu::Render::build $config }, / "Invalid i18n yaml file" /, 'render 4/4: invalid i18n yaml warning to stdout';
+}
 
 # vim: ft=perl6
