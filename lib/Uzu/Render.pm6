@@ -15,24 +15,41 @@ sub templates(
     return find(dir => $dir, name => /'.' |$exts/).Seq;
 }
 
-sub build-context(
+sub i18n-files(
+    Str      :$language,
+    IO::Path :$dir!
+    --> Seq
+) {
+    find(dir => $dir, name => / $language '.yml' /, type => 'file').Seq;
+}
+
+sub i18n-from-yaml(
     IO::Path :$i18n_dir,
     Str      :$language
-    --> Hash
+    --> Hash 
 ) {
-    my Str $i18n_file = $i18n_dir.IO.child("$language.yml").path;
-    if $i18n_file.IO ~~ :f {
-        try {
-            CATCH {
-                default {
-                    note "Invalid i18n yaml file [$i18n_file]";
+    state %i18n;
+
+    i18n-files(:$language, dir => $i18n_dir).map: -> $i18n_file {
+
+        if $i18n_file.IO ~~ :f {
+            try {
+                my %yaml = load-yaml slurp($i18n_file, :r);
+                CATCH {
+                    default {
+                        note "Invalid i18n yaml file [$i18n_file]";
+                    }
                 }
+
+                my $key = $i18n_file.dirname.split('i18n')[1] || $language;
+                %i18n{$key}<i18n> = %yaml;
             }
-            my %yaml = load-yaml slurp($i18n_file);
-            return %( %(language => $language), %( i18n => %yaml, |%yaml ) );
+        } else {
+            return %( error => "i18n yaml file [$i18n_file] could not be loaded" );
         }
-    }
-    return %( error => "i18n yaml file [$i18n_file] could not be loaded" );
+   }
+
+   return %i18n;
 }
 
 sub write-generated-files(
@@ -41,12 +58,12 @@ sub write-generated-files(
     --> Bool
 ) {
     # IO write to disk
-    $content.kv.map: -> $template_name, %meta {
-        my $file     = %meta<path>.Str.split('pages')[1];
-        my $file_dir = $file.IO.dirname ~ '/';
-        my $html     = %meta<html>;
-        mkdir $build_dir ~ $file_dir;
-        spurt $build_dir ~ $file_dir ~ "$template_name.html", $html;
+    for $content.kv -> $template_name, %meta {
+        my $file       = %meta<path>.Str.split('pages')[1];
+        my $html       = %meta<html>;
+        my $target_dir = $build_dir.IO.child($file.IO.dirname);
+        mkdir $target_dir;
+        spurt $target_dir.IO.child("$template_name.html"), $html;
     };
     return True;
 }
@@ -75,7 +92,7 @@ our sub process-livereload(
 }
 
 sub prepare-html-output(
-    Hash $context,
+    Hash  $context,
     List :$template_dirs,
     Str  :$default_language,
     Str  :$language, 
@@ -83,6 +100,7 @@ sub prepare-html-output(
     Bool :$no_livereload
     --> Hash
 ) {
+
     use Template6;
     my $t6 = Template6.new;
 
@@ -90,16 +108,25 @@ sub prepare-html-output(
         $t6.add-path: $dir;
     });
 
+    my %context = language => $language, |$context{$language};
     return gather {
-        $pages.map(-> %page {
-
-            my $page_name = %page.key;
+        $pages.kv.map(-> $page_name, %meta {
+            
+            # Append page-specific i18n vars if available
+            my $i18n_key = %meta<path>.IO.path.match( / .* '/pages' (.*) '.' .*  / )[0].Str;
+            my %page_context = %context;
+            %page_context<i18n> = $context{$language}<i18n>;
+            if $context{$i18n_key}.defined {
+                for $context{$i18n_key}<i18n>.keys -> $k {
+                    %page_context<i18n>{$k} = $context{$i18n_key}<i18n>{$k};
+                }
+            }
 
             # Render the page content
-            my Str $page_content = $t6.process($page_name, |$context);
+            my Str $page_content = $t6.process($page_name, |%page_context );
 
             # Append page content to $context
-            my %layout_context = %( |$context, %( content => $page_content ) );
+            my %layout_context = %( |%context, %( content => $page_content ) );
             my Str $layout_content = $t6.process('layout', |%layout_context );
 
             # Default file_name without prefix
@@ -116,7 +143,7 @@ sub prepare-html-output(
                     no_livereload    => $no_livereload);
 
             take $file_name => %{ 
-                path => %page.value<path>,
+                path => %meta<path>,
                 html => $processed_html
             };
 
@@ -158,13 +185,16 @@ our sub build(
     # Append nested pages directories
     my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
 
+    # Append nested i18n directories
+    my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
+
     # One per language
     await gather {
         $config<language>.map(-> $language { 
             take start {
                 logger "Compile templates [$language]";
-                build-context(
-                    i18n_dir         => $config<i18n_dir>,
+                i18n-from-yaml(
+                    i18n_dir        => $config<i18n_dir>,
                     language         => $language
                 ).&prepare-html-output(
                     template_dirs    => @template_dirs,
