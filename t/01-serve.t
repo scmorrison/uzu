@@ -33,7 +33,7 @@ subtest {
 
     my $results = Uzu::HTTP::inet-request("GET /index.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port);
     ok $results ~~ / $html_test /, 'serve 2/3: served HTML match';
-}
+}, 'Top-level page';
 
 subtest {
     plan 1;
@@ -52,7 +52,8 @@ subtest {
 
     my $results = Uzu::HTTP::inet-request("GET /blog/fiji.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port);
     ok $results ~~ / $html_test /, 'serve 3/3: served nested page HTML match';
-}
+}, 'Nested page';
+
 # Clean up
 $server.kill(SIGKILL);
 
