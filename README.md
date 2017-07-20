@@ -290,7 +290,7 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 <h1>Company Founders</h1>
 <ul>
 [% for founder in site.founders %]
-  <li>[% site.founder.name %], [% founder.title %]</a>
+  <li>[% founder.name %], [% founder.title %]</a>
 [% end %]
 </ul>
 ```
