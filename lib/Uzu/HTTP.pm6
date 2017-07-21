@@ -9,22 +9,15 @@ our sub serve(
     my @args = "--config={$config_file}", "webserver";
 
     # Use the library path if running from test
-    my $p = do given "bin/uzu".IO {
-        when *.f {
-            Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent.parent}",
-            $?FILE.IO.parent.parent.parent.child('bin').child('uzu'), @args;
-        }
-        default {
-            Proc::Async.new: "uzu", @args;
-        }
-    }
+    my $p = "bin/uzu".IO.f
+            ?? Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent.parent}",
+               $?FILE.IO.parent.parent.parent.child('bin').child('uzu'), @args
+            !! Proc::Async.new: "uzu", @args;
 
     my Promise $server_up .= new;
     $p.stdout.tap: -> $v {
         # Wait until server started
-        if $server_up.status ~~ Planned && $v ~~ / 'uzu serves' / {
-            $server_up.keep; 
-        }
+        $server_up.keep when $server_up.status ~~ Planned && $v ~~ / 'uzu serves' /;
         $*OUT.print: $v; 
     }
     $p.stderr.tap: -> $v { $*ERR.print: $v }
@@ -99,37 +92,42 @@ our sub web-server(
 
     route / .+ /, -> $req, $res {
 
-        my $file    = $req.uri;
+        my $file = $req.uri;
 
         # Trying to access files outside of build path
         $res.status = 404;
         $res.headers<Content-Type> = 'text/plain';
         $res.close("Invalid path") if $file.match('..');
 
-        my IO::Path $path;
-        say "GET $file";
-        if $file ~~ '/' {
-            # Serve index.html on /
-            $path = $build_dir.IO.child('index.html');
-        } else {
-            # Strip query string for now
-            $path = $build_dir.IO.child($file.split('?')[0]);
-        }
+        my IO::Path $path =
+            $file ~~ '/'
+            ?? $build_dir.IO.child('index.html')
+            !! $build_dir.IO.child($file.split('?')[0]);
 
-        # Invalid path
-        $res.close("Invalid path: $path") if !$path.IO.e;
+        given $path {
+        
+            when !*.IO.e {
+                # Invalid path
+                say "GET $file (not found)";
+                $res.close("Invalid path: $path");
+            }
 
-        # Return any valid paths
-        $res.status  = 200;
-        my Str $type = detect-content-type($path);
-        $res.headers<Content-Type> = $type;
+            default {
+                # Return any valid paths
+                $res.status  = 200;
+                my Str $type = detect-content-type($path);
+                $res.headers<Content-Type> = $type;
 
-        # UTF-8 text
-        $res.close( slurp $path ) unless $type ~~ / image|ttf|woff|octet\-stream /;
+                say "GET $file";
 
-        # Binary
-        $res.close( slurp $path, :bin );
-    }    
+                # UTF-8 text
+                $res.close( slurp $path ) unless $type ~~ / image|ttf|woff|octet\-stream /;
+
+                # Binary
+                $res.close( slurp $path, :bin );
+            }
+        }    
+    }
 
     say 'uzu serves';
     $server.listen(True);
@@ -141,10 +139,7 @@ our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) 
             my $sock = IO::Socket::INET.new(:host($host), :port($port));
             $sock.close;
 
-            CATCH { default {
-                sleep $sleep;
-                next LOOP;
-            } }
+            CATCH { default { sleep $sleep; next LOOP } }
         }
         return;
     }

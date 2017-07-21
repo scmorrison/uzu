@@ -32,20 +32,19 @@ sub i18n-from-yaml(
 
     i18n-files(:$language, dir => $i18n_dir).map: -> $i18n_file {
 
-        if $i18n_file.IO ~~ :f {
-            try {
-                my %yaml = load-yaml slurp($i18n_file, :r);
-                CATCH {
-                    default {
-                        note "Invalid i18n yaml file [$i18n_file]";
-                    }
-                }
+        return %( error => "i18n yaml file [$i18n_file] could not be loaded" ) unless $i18n_file.IO.f;
 
-                my $key = $i18n_file.dirname.split('i18n')[1] || $language;
-                %i18n{$key}<i18n> = %yaml;
+        try {
+
+            my %yaml = load-yaml slurp($i18n_file, :r);
+            my $key = $i18n_file.dirname.split('i18n')[1] || $language;
+            %i18n{$key}<i18n> = %yaml;
+
+            CATCH {
+                default {
+                    note "Invalid i18n yaml file [$i18n_file]";
+                }
             }
-        } else {
-            return %( error => "i18n yaml file [$i18n_file] could not be loaded" );
         }
    }
 
