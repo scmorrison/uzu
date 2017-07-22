@@ -13,7 +13,7 @@ plan 2;
 
 # Source project files
 my $test_root   = $*CWD.IO.child('t');
-my $source_root = $test_root.IO.child('example_project');
+my $source_root = $test_root.IO.child('example_project_tt');
 
 # Setup tmp project root
 my $tmp_root    = tempdir;
