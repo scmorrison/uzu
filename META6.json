@@ -22,6 +22,7 @@
         "File::Temp",
         "Terminal::ANSIColor",
         "Template6",
+        "Template::Mojo",
         "HTTP::Server::Async",
         "HTTP::Server::Router",
         "YAMLish"

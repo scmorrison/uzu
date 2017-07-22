@@ -2,6 +2,18 @@ use v6.c;
 
 unit module Uzu::Utilities;
 
+
+our sub decode-entities(
+    Str $str
+) is export {
+    $str.trans:
+        /'&amp;'/  => '&',
+        /'&quot;'/ => '"',
+        /'&lt;'/   => '<',
+        /'&gt;'/   => '>',
+        /'&nbsp;'/ => ' ';
+}
+
 our sub copy-dir(
     IO::Path $source,
     IO::Path $target
