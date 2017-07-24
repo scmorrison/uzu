@@ -153,7 +153,7 @@ sub render-mustache(
 
     use Template::Mustache;
 
-    my Any %context = language => $language, |$context{$language};
+    my Any %layout_vars = language => $language, |$context{$language};
     return gather {
         $pages.kv.map: -> $page_name, %meta {
             
@@ -168,11 +168,10 @@ sub render-mustache(
                 $page_html, %( |%page_context, |%page_vars ), from => $template_dirs;
 
             # Append page content to $context
-            my Any %layout_context  = %( |%context, %( content => $page_contents ));
             my Str $layout_contents =
                 decode-entities Template::Mustache.render:
                     'layout',
-                    %layout_context,
+                    %( |%layout_vars, |%page_vars, content => $page_contents ),
                     from => $template_dirs;
 
             take prepare-html-output
@@ -200,7 +199,7 @@ sub render-tt(
     my Template6 $t6 .= new;
     $template_dirs.map: { $t6.add-path: $_ };
 
-    my Any %context = language => $language, |$context{$language};
+    my Any %layout_vars = language => $language, |$context{$language};
     return gather {
         $pages.kv.map: -> $page_name, %meta {
             
@@ -217,8 +216,8 @@ sub render-tt(
             my Str $page_contents   = $t6.process: "_{$page_name}_str", |%page_context, |%page_vars;
 
             # Append page content to $context
-            my Any %layout_context  = %( |%context, %( content => $page_contents ) );
-            my Str $layout_contents = $t6.process: 'layout', |%layout_context;
+            my Str $layout_contents = $t6.process: 
+                'layout', |%layout_vars, |%page_vars, content => $page_contents;
 
             take prepare-html-output
                 :$page_name,
