@@ -367,7 +367,7 @@ Partials are stored in the `partials` directory. You can include these in layout
 
 Uzu also supports the [Mustache](http://mustache.github.io/) templating format for template files. 
 
-Enable mustache support by adding the following line to your `config.yaml`:
+Enable mustache support by adding the following line to your `config.yml`:
 
 `template_engine: mustache`
 
