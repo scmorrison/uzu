@@ -6,7 +6,8 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Features](#features)
 - [Usage](#usage)
 - [Config](#config)
-- [Project folder structure](#project-folder-structure)
+- [Project folder structure (Template6)](#project-folder-structure-template6)
+- [Project folder structure (Mustache)](#project-folder-structure-mustache)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
   * [Nested i18n variable files](#nested-i18n-variable-files)
 - [Template Features](#template-features)
@@ -131,7 +132,7 @@ Core variables can be accessed from inside templates directly (e.g. `port`, `the
 
 Non-core varibles are any additional variables found in config.yml and can be accessed in templates using `site.variablename` (e.g. `site.url`, `site.author`).
 
-Project folder structure
+Project folder structure (Template6)
 ========================
 ```
 ├── config.yml                    # Uzu config file
@@ -168,6 +169,42 @@ Project folder structure
             └── layout.tt
 ```
 
+Project folder structure (Mustache)
+========================
+```
+├── config.yml                    # Uzu config file
+├── pages                         # Each page becomes a .html file
+│   ├── about.mustache
+│   ├── index.mustache
+│   └── blog                      # Pages can be nested in sub-folders. Their URI
+│       └── vacation.mustache     # will follow the same path (e.g. /blog/vacation.html)
+│
+├── partials                      # Partials can be included in pages
+│   ├── footer.mustache           # and theme layouts
+│   ├── head.mustache
+│   ├── home.mustache
+│   ├── jumbotron.mustache
+│   ├── navigation.mustache
+│   └── profiles.mustache
+├── public                        # Static files / assets independant of theme (copied to /)
+├── i18n                          # Language translation files
+│   └── blog
+│       └── vacation              # i18n variables can be defined for specific pages
+            └── en.yml
+│   ├── en.yml
+│   ├── fr.yml
+│   ├── ja.yml
+└── themes                        # Project themes
+    └── default
+        ├── assets                # Theme specific static files / assets (copied to /)
+        │   ├── css
+        │   ├── favicon.ico
+        │   ├── fonts
+        │   ├── img
+        │   ├── js
+        └── layout                # Theme layout file
+            └── layout.mustache
+```
 See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
 
 i18n YAML and Templating
