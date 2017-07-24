@@ -479,4 +479,5 @@ Uzu is free software; you can redistribute it and/or modify it under the terms o
 See also
 ========
 
-* Templating engine used in `uzu`: [Template6](https://github.com/supernovus/template6)
+* [Template6](https://github.com/supernovus/template6)
+* [Mustache](https://github.com/softmoth/p6-Template-Mustache/)
