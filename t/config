@@ -1,8 +1,0 @@
-
-[defaults]
-name=uzu-tests
-language=en
-theme=default
-url=https://gitlab.com/samcns/uzu
-project_root=t
-

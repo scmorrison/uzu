@@ -6,16 +6,16 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Features](#features)
 - [Usage](#usage)
 - [Config](#config)
-- [Project folder structure](#project-folder-structure)
+- [Project folder structure (Template6)](#project-folder-structure-template6)
+- [Project folder structure (Mustache)](#project-folder-structure-mustache)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
   * [Nested i18n variable files](#nested-i18n-variable-files)
 - [Template Features](#template-features)
-  * [Examples](#examples)
-    + [Single i18n variable](#single-i18n-variable)
-    + [Page variables](#page-variables)
-    + [For loop](#for-loop)
-    + [IF/ELSEIF/UNLESS](#if-elseif-unless)
-    + [Including partials](#including-partials)
+  * [Template6](#template6)
+    + [Examples](#examples-template6)
+  * [Mustache](#mustache)
+    + [Examples](#examples-mustache)
+  * [Page variables](#page-variables)
 - [Installation](#installation)
 - [Todo](#todo)
 - [Requirements](#requirements)
@@ -31,9 +31,10 @@ Features
 * **Built-in development webserver**: Test your modifications (http://localhost:3000) as you work
 * **Auto Re-render**: `uzu watch` monitors the `theme/[your-theme]/layout/`, `pages`, `partials/`, and `i18n/` folders for modifications and auto-renders to build
 * **Live reload**: `uzu watch` automatically reloads the browser when a re-render occurs
+* **Templating**: Supports [Template6](#template6) and [Mustache](#mustache) template engines.
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
-* **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non .tt or .yml files
+* **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.ms`, `.mustache`, or `.yml` files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
 **Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://github.com/scmorrison/uzu/issues) you find.
@@ -91,6 +92,11 @@ language:
   - ja
   - fr
 
+# Template engine
+# - Template6: tt
+# - Mustache: mustache
+template_engine: mustache
+
 # Themes are stored in themes/[theme-name]
 theme: default
 
@@ -131,7 +137,7 @@ Core variables can be accessed from inside templates directly (e.g. `port`, `the
 
 Non-core varibles are any additional variables found in config.yml and can be accessed in templates using `site.variablename` (e.g. `site.url`, `site.author`).
 
-Project folder structure
+Project folder structure (Template6)
 ========================
 ```
 ├── config.yml                    # Uzu config file
@@ -152,7 +158,7 @@ Project folder structure
 ├── i18n                          # Language translation files
 │   └── blog
 │       └── vacation              # i18n variables can be defined for specific pages
-            └── en.yml
+│           └── en.yml
 │   ├── en.yml
 │   ├── fr.yml
 │   ├── ja.yml
@@ -168,6 +174,42 @@ Project folder structure
             └── layout.tt
 ```
 
+Project folder structure (Mustache)
+========================
+```
+├── config.yml                    # Uzu config file
+├── pages                         # Each page becomes a .html file
+│   ├── about.mustache
+│   ├── index.mustache
+│   └── blog                      # Pages can be nested in sub-folders. Their URI
+│       └── vacation.mustache     # will follow the same path (e.g. /blog/vacation.html)
+│
+├── partials                      # Partials can be included in pages
+│   ├── footer.mustache           # and theme layouts
+│   ├── head.mustache
+│   ├── home.mustache
+│   ├── jumbotron.mustache
+│   ├── navigation.mustache
+│   └── profiles.mustache
+├── public                        # Static files / assets independant of theme (copied to /)
+├── i18n                          # Language translation files
+│   └── blog
+│       └── vacation              # i18n variables can be defined for specific pages
+│           └── en.yml
+│   ├── en.yml
+│   ├── fr.yml
+│   ├── ja.yml
+└── themes                        # Project themes
+    └── default
+        ├── assets                # Theme specific static files / assets (copied to /)
+        │   ├── css
+        │   ├── favicon.ico
+        │   ├── fonts
+        │   ├── img
+        │   ├── js
+        └── layout                # Theme layout file
+            └── layout.mustache
+```
 See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
 
 i18n YAML and Templating
@@ -186,7 +228,7 @@ You can separate out the content text to YAML files located in a project-root fo
   └── ja.yml           # Main ja i18n variables
 ```
 
-An example YAML file might look like this:
+An example i18n YAML file might look like this:
 ```yaml
 ---
 # Template access i18n.site_name
@@ -238,9 +280,11 @@ site_name: "Our Vacation 2017"
 Template Features
 =================
 
-Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format for template files.
+## Template6
 
-## Features include:
+Uzu supports the [Template Toolkit](http://template-toolkit.org/) templating format for template files. This is the default template engine.
+
+### Features include:
 
 * GET and SET statements, including implicit versions
 
@@ -278,25 +322,12 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 * CALL and DEFAULT statements.
 * INSERT, INCLUDE and PROCESS statements.
 
-## Examples
+### Examples (Template6)
 
 ### Single i18n variable
 
 ```html
 <a class="navbar-brand" href="/">[% i18n.site_name %]</a>
-```
-
-### Page variables
-
-```html
-[%
-   title = 'Welcome to Uzu'
-   date  = '2017/07/16'
-%]
-<head>
-    <meta charset="utf-8">
-    <title>[% title %] - [% date %]</title>
-</head>
 ```
 
 ### For loop from yaml dict (non-core variable) defined in config.yml
@@ -316,7 +347,7 @@ Uzu uses the [Template Toolkit](http://template-toolkit.org/) templating format 
 [% end %]
 ```
 
-### Including partials
+### Including partials 
 
 Partials are stored in the `partials` directory. You can include these in layouts and pages.
 
@@ -330,6 +361,106 @@ Partials are stored in the `partials` directory. You can include these in layout
       [% INCLUDE "footer" %]
     </body>
 </html>
+```
+
+## Mustache
+
+Uzu also supports the [Mustache](http://mustache.github.io/) templating format for template files. 
+
+Enable mustache support by adding the following line to your `config.yaml`:
+
+`template_engine: mustache`
+
+For example:
+
+```yaml
+---
+name: mysite
+language:
+  - en
+theme: default
+template_engine: mustache
+```
+
+### Examples (Mustache)
+
+### Single i18n variable
+
+```html
+<a class="navbar-brand" href="/">{{ i18n.site_name }}</a>
+```
+
+### For loop from yaml dict (non-core variable) defined in config.yml
+```html
+<h1>Company Founders</h1>
+<ul>
+{{ #founders }}
+  <li>{{ name }}, {{ title }}</a>
+{{ /founders }}
+</ul>
+```
+
+### If conditionals
+
+Mustache is a 'logic-less' templating system, but you can test for the existence of a variable, and if it exists then anything inside the test block with be processed. Otherwise it is ignored.
+
+```html
+{{ #site.graphics }}
+    <img src="{{ images }}/logo.gif" align=right width=60 height=40>
+{{ /site.graphics }}
+```
+
+### Including partials
+
+Partials are stored in the `partials` directory. You can include these in layouts and pages.
+
+```html
+<!doctype html>
+<html lang="{{ language }}">
+{{> head }}
+    <body>
+      {{> navigation }}
+      {{ content }}
+      {{> footer }}
+    </body>
+</html>
+```
+
+### Page variables
+
+You can define page-specific variables using a yaml block at the top of any page (`pages/`):
+
+`pages/index.tt`
+
+```html
+---
+title: 'Welcome to Uzu'
+date:  '2017/07/16'
+---
+```
+
+To access these variables inside of a template you do not need to use the `i18n.` scope prefix.
+
+For `Template6`:
+
+`partials/head.tt`
+
+```html
+<head>
+    <meta charset="utf-8">
+    <title>[% title %] - [% date %]</title>
+</head>
+```
+
+...and for `Mustache`:
+
+`partials/head.mustache`
+
+```html
+<head>
+    <meta charset="utf-8">
+    <title>{{ title }} - {{ date }}</title>
+</head>
 ```
 
 Installation
@@ -390,4 +521,5 @@ Uzu is free software; you can redistribute it and/or modify it under the terms o
 See also
 ========
 
-* Templating engine used in `uzu`: [Template6](https://github.com/supernovus/template6)
+* [Template6](https://github.com/supernovus/template6)
+* [Mustache](https://github.com/softmoth/p6-Template-Mustache/)

@@ -1,3 +1,6 @@
+---
+title: Fiji Vacation 2017
+---
 <h1>[% i18n.title %]</h1>
 <div>
     Date: [% i18n.date %]<br/>
