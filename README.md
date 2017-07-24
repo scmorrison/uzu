@@ -12,11 +12,9 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Template Features](#template-features)
   * [Template6](#template6)
     + [Examples](#examples-template6)
-    + [Including partials](#including-partials)
   * [Mustache](#mustache)
     + [Examples](#examples-mustache)
-    + [Including partials](#including-partials)
-  * [Single i18n variable](#single-i18n-variable)
+  * [Page variables](#page-variables)
 - [Installation](#installation)
 - [Todo](#todo)
 - [Requirements](#requirements)
@@ -282,7 +280,7 @@ Uzu supports the [Template Toolkit](http://template-toolkit.org/) templating for
 * CALL and DEFAULT statements.
 * INSERT, INCLUDE and PROCESS statements.
 
-### Examples
+### Examples (Template6)
 
 ### Single i18n variable
 
@@ -307,7 +305,7 @@ Uzu supports the [Template Toolkit](http://template-toolkit.org/) templating for
 [% end %]
 ```
 
-### Including partials
+### Including partials 
 
 Partials are stored in the `partials` directory. You can include these in layouts and pages.
 
