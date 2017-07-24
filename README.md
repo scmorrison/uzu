@@ -92,6 +92,11 @@ language:
   - ja
   - fr
 
+# Template engine
+# - Template6: tt
+# - Mustache: mustache
+template_engine: mustache
+
 # Themes are stored in themes/[theme-name]
 theme: default
 
@@ -153,7 +158,7 @@ Project folder structure (Template6)
 ├── i18n                          # Language translation files
 │   └── blog
 │       └── vacation              # i18n variables can be defined for specific pages
-            └── en.yml
+│           └── en.yml
 │   ├── en.yml
 │   ├── fr.yml
 │   ├── ja.yml
@@ -190,7 +195,7 @@ Project folder structure (Mustache)
 ├── i18n                          # Language translation files
 │   └── blog
 │       └── vacation              # i18n variables can be defined for specific pages
-            └── en.yml
+│           └── en.yml
 │   ├── en.yml
 │   ├── fr.yml
 │   ├── ja.yml
