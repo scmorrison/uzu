@@ -136,8 +136,7 @@ sub parse-template(
     --> List
 ) {
     # Extract header yaml if available
-    my ($page_yaml, $page_html) =
-        ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
+    my ($page_yaml, $page_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
     my %page_vars = $page_yaml ?? load-yaml $page_yaml !! %{};
     return $page_html, %page_vars;
 }
