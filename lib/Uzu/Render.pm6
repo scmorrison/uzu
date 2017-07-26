@@ -24,20 +24,20 @@ sub i18n-files(
 }
 
 sub i18n-from-yaml(
-    IO::Path :$i18n_dir,
-    Str      :$language
+    Str      :$language,
+    IO::Path :$i18n_dir
     --> Hash 
 ) {
     state %i18n;
 
-    i18n-files(:$language, dir => $i18n_dir).map: -> $i18n_file {
+    map -> $i18n_file {
 
         return %( error => "i18n yaml file [$i18n_file] could not be loaded" ) unless $i18n_file.IO.f;
 
         try {
 
             my %yaml = load-yaml slurp($i18n_file, :r);
-            my $key = $i18n_file.dirname.split('i18n')[1] || $language;
+            my $key  = $i18n_file.dirname.split('i18n')[1] || $language;
             %i18n{$key}<i18n> = %yaml;
 
             CATCH {
@@ -46,15 +46,16 @@ sub i18n-from-yaml(
                 }
             }
         }
-   }
+
+   }, i18n-files(:$language, dir => $i18n_dir);
 
    return %i18n;
 }
 
 sub i18n-context-vars(
-    Hash     :$context,
     Str      :$language, 
-    IO::Path :$path
+    IO::Path :$path,
+    Hash     :$context
 ) {
     my Str $i18n_key = ( $path.IO.path ~~ / .* 'pages' (.*) '.' .*  / ).head.Str;
     return %( |$context,
@@ -137,11 +138,11 @@ sub parse-template(
 ) {
     # Extract header yaml if available
     my ($page_yaml, $page_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
-    my %page_vars = $page_yaml ?? load-yaml $page_yaml !! %{};
-    return $page_html, %page_vars;
+    return $page_html, $page_yaml ?? load-yaml $page_yaml !! %{};
 }
 
-sub render-mustache(
+multi sub render(
+    'mustache',
     Hash  $context,
     List :$template_dirs,
     Str  :$default_language,
@@ -155,7 +156,7 @@ sub render-mustache(
 
     my Any %layout_vars = language => $language, |$context{$language};
     return gather {
-        $pages.kv.map: -> $page_name, %meta {
+        map -> $page_name, %meta {
             
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
@@ -164,7 +165,7 @@ sub render-mustache(
             my ($page_html, %page_vars) = parse-template path => %meta<path>;
 
             # Render the page content
-            my Str $page_contents   = Template::Mustache.render:
+            my Str $page_contents = Template::Mustache.render:
                 $page_html, %( |%page_context, |%page_vars ), from => $template_dirs;
 
             # Append page content to $context
@@ -181,11 +182,12 @@ sub render-mustache(
                 :$layout_contents,
                 :$no_livereload,
                 path => %meta<path>
-        }
+        }, kv $pages;
     }
 }
 
-sub render-tt(
+multi sub render(
+    'tt',
     Hash  $context,
     List :$template_dirs,
     Str  :$default_language,
@@ -197,7 +199,7 @@ sub render-tt(
 
     use Template6;
     my Template6 $t6 .= new;
-    $template_dirs.map: { $t6.add-path: $_ };
+    map { $t6.add-path: $_ }, @$template_dirs;
 
     my Any %layout_vars = language => $language, |$context{$language};
     return gather {
@@ -235,18 +237,16 @@ our sub build(
     ::D :&logger = Uzu::Logger::start()
     --> Bool
 ) {
-    my $assets_dir = $config<assets_dir>;
-    my $public_dir = $config<public_dir>;
-    my $build_dir  = $config<build_dir>;
+    my ($assets_dir, $public_dir, $build_dir) = $config<assets_dir public_dir build_dir>;
 
     # All available pages
     my List $exts = $config<template_exts>{$config<template_engine>};
     my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
-    my %pages = (@page_templates.map( -> $page { 
+    my %pages = map -> $page { 
         my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
         %( $page_name => %{ path => $page, html => slurp($page, :r) } );
-    }));
+    }, @page_templates;
 
     # Clear out build
     logger "Clear old files";
@@ -259,7 +259,7 @@ our sub build(
     }
 
     logger "Copy public, assets";
-    [$public_dir, $assets_dir].map: { copy-dir $_, $build_dir };
+    map { copy-dir $_, $build_dir }, [$public_dir, $assets_dir];
 
     # Append nested pages directories
     my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
@@ -269,22 +269,23 @@ our sub build(
 
     # One per language
     await gather {
-        $config<language>.map(-> $language { 
+        map -> $language { 
             take start {
                 logger "Compile templates [$language]";
                 i18n-from-yaml(
-                    i18n_dir        => $config<i18n_dir>,
-                    language         => $language
-                ).&::("render-{$config<template_engine>}")(
+                    language         => $language,
+                    i18n_dir         => $config<i18n_dir>)
+                ==> render(
+                    $config<template_engine>,
                     template_dirs    => @template_dirs,
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,
-                    no_livereload    => $config<no_livereload>
-                ).&write-generated-files(
+                    no_livereload    => $config<no_livereload>)
+                ==> write-generated-files(
                     build_dir        => $build_dir);
             }
-        });
+        }, $config<language>;
     }
 
     logger "Compile complete";
