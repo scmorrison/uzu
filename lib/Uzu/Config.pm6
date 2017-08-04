@@ -114,18 +114,23 @@ our sub init(
         :theme($theme)
     ).Map;
 
-    my IO::Path $theme_dir      = "themes".IO.child($theme);
+    my IO::Path $theme_dir     = "themes".IO.child($theme);
     my List     $template_dirs = (
         "i18n".IO, 
         "pages".IO,
         "partials".IO,
         "public".IO,
         $theme_dir.IO.child('layout'),
-        $theme_dir.IO.child($theme).child('assets')
+        $theme_dir.IO.child('assets')
     );
 
     # Create project directories
     $template_dirs.map( -> $dir { mkdir $dir });
+
+    # Create placeholder files
+    spurt $theme_dir.IO.child('layout').child("layout.tt"), ""; 
+    spurt "pages".IO.child('index.tt'), "";
+    spurt "i18n".IO.child("{$language}.yml"), "---\nproject_name: $project_name\n";
 
     # Write config file
     my Str $config_yaml = S:g /'...'// given save-yaml($config);
