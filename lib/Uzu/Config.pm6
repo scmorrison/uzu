@@ -48,8 +48,6 @@ our sub from-file(
     my Str  $host           = $config<host>||'0.0.0.0';
     my Int  $port           = $config<port>||3000;
 
-    # Template engine extension mapping
-
     # Paths
     my IO::Path $project_root = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
     my IO::Path $build_dir    = $project_root.IO.child('build');
