@@ -23,7 +23,7 @@ our sub copy-dir(
             shell "copy $source $target /O /X /E /H /K /Y";
         }
         default {
-            shell "cp -rf $source/* $target/" when elems dir $source gt 0;
+            shell "cp -rf $source/* $target/" when elems(dir $source) gt 0;
         }
     }
     return True;
