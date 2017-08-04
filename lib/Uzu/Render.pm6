@@ -57,7 +57,7 @@ sub i18n-context-vars(
     IO::Path :$path,
     Hash     :$context
 ) {
-    my Str $i18n_key = ( $path.IO.path ~~ / .* 'pages' (.*) '.' .*  / ).head.Str;
+    my Str $i18n_key = ($path.IO.path ~~ / .* 'pages' (.*) '.' .*  / ).head.Str;
     return %( |$context,
               i18n => %( |$context{$language}<i18n>, 
                          # Page-specific i18n vars?
@@ -245,6 +245,7 @@ our sub build(
 
     my %pages = map -> $page { 
         my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
+        next unless $page.IO.f;
         %( $page_name => %{ path => $page, html => slurp($page, :r) } );
     }, @page_templates;
 
