@@ -240,7 +240,7 @@ our sub build(
     my ($assets_dir, $public_dir, $build_dir) = $config<assets_dir public_dir build_dir>;
 
     # All available pages
-    my List $exts = $config<template_exts>{$config<template_engine>};
+    my List $exts = $config<template_extensions>{$config<template_engine>};
     my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
     my %pages = map -> $page { 
