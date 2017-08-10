@@ -250,15 +250,15 @@ our sub build(
         my ($page_html, %page_vars) = parse-template path => $path;
 
         # Append page to categories hash if available
-        with %page_vars<categories> {
-            await map -> $category {
-                my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
-                my $title          = %page_vars<title>||$uri;
-                my $category_label = S/'/categories/'// given $category;
-                push %categories<labels>, { name => $category_label };
-                push %categories{$category}, { :$title, :$uri };
-            }, build-category-uri(%page_vars<categories>);
-        }
+        #with %page_vars<categories> {
+        #    await map -> $category {
+        #        my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
+        #        my $title          = %page_vars<title>||$uri;
+        #        my $category_label = S/'/categories/'// given $category;
+        #        push %categories<labels>, { name => $category_label };
+        #        push %categories{$category}, { :$title, :$uri };
+        #    }, build-category-uri(%page_vars<categories>);
+        #}
 
         %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars } );
     }, @page_templates;
