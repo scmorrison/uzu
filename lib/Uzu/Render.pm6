@@ -12,7 +12,7 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    return find(dir => $dir, name => /'.' |$exts/).Seq;
+    find(dir => $dir, name => /'.' |$exts $/).Seq;
 }
 
 sub i18n-files(
@@ -20,7 +20,7 @@ sub i18n-files(
     IO::Path :$dir!
     --> Seq
 ) {
-    find(dir => $dir, name => / $language '.yml' /, type => 'file').Seq;
+    find(dir => $dir, name => / $language '.yml' $/, type => 'file').Seq;
 }
 
 sub i18n-from-yaml(
@@ -148,6 +148,7 @@ multi sub render(
     Str  :$default_language,
     Str  :$language, 
     Hash :$pages,
+    Hash :$categories,
     Bool :$no_livereload
     --> Hash()
 ) {
@@ -161,18 +162,15 @@ multi sub render(
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
-            # Extract header yaml if available
-            my ($page_html, %page_vars) = parse-template path => %meta<path>;
-
             # Render the page content
             my Str $page_contents = Template::Mustache.render:
-                $page_html, %( |%page_context, |%page_vars ), from => $template_dirs;
+                %meta<html>, %( |%page_context, |%meta<vars>, category => $categories ), from => $template_dirs;
 
             # Append page content to $context
             my Str $layout_contents =
                 decode-entities Template::Mustache.render:
                     'layout',
-                    %( |%layout_vars, |%page_vars, content => $page_contents ),
+                    %( |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents ),
                     from => $template_dirs;
 
             take prepare-html-output
@@ -193,6 +191,7 @@ multi sub render(
     Str  :$default_language,
     Str  :$language, 
     Hash :$pages,
+    Hash :$categories,
     Bool :$no_livereload
     --> Hash()
 ) {
@@ -208,18 +207,15 @@ multi sub render(
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
-            # Extract header yaml if available
-            my ($page_html, %page_vars) = parse-template path => %meta<path>;
-
             # Cache template
-            $t6.add-template: "_{$page_name}_str", $page_html;
+            $t6.add-template: "_{$page_name}_str", %meta<html>;
 
             # Render the page content
-            my Str $page_contents   = $t6.process: "_{$page_name}_str", |%page_context, |%page_vars;
+            my Str $page_contents   = $t6.process: "_{$page_name}_str", |%page_context, |%meta<vars>, categories => $categories;
 
             # Append page content to $context
             my Str $layout_contents = $t6.process: 
-                'layout', |%layout_vars, |%page_vars, content => $page_contents;
+                'layout', |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents;
 
             take prepare-html-output
                 :$page_name,
@@ -240,13 +236,31 @@ our sub build(
     my ($assets_dir, $public_dir, $build_dir) = $config<assets_dir public_dir build_dir>;
 
     # All available pages
-    my List $exts = $config<template_exts>{$config<template_engine>};
+    my List $exts = $config<template_extensions>{$config<template_engine>};
     my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
 
-    my %pages = map -> $page { 
-        my Str $page_name = ( split '.', IO::Path.new($page).basename )[0]; 
-        next unless $page.IO.f;
-        %( $page_name => %{ path => $page, html => slurp($page, :r) } );
+    my %categories;
+
+    my %pages = map -> $path { 
+        my Str $page_name = ( split '.', IO::Path.new($path).basename )[0]; 
+        next unless $path.IO.f;
+        my $page_raw = slurp($path, :r);
+
+        # Extract header yaml if available
+        my ($page_html, %page_vars) = parse-template path => $path;
+
+        # Append page to categories hash if available
+        with %page_vars<categories> {
+            await map -> $category {
+                my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
+                my $title          = %page_vars<title>||$uri;
+                my $category_label = S/'/categories/'// given $category;
+                push %categories<labels>, { name => $category_label };
+                push %categories{$category}, { :$title, :$uri };
+            }, build-category-uri(%page_vars<categories>);
+        }
+
+        %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars } );
     }, @page_templates;
 
     # Clear out build
@@ -282,6 +296,7 @@ our sub build(
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,
+                    categories       => %categories,
                     no_livereload    => $config<no_livereload>)
                 ==> write-generated-files(
                     build_dir        => $build_dir);

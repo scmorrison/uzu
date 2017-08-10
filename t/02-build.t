@@ -91,6 +91,7 @@ subtest {
     # Generated nested HTML looks good?
     my $t4_expected_html  = slurp $test_root.IO.child('expected_mustache').child('blog').child('fiji.html');
     my $t4_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
+    spurt "tester.html", $t4_generated_html;
 
     is $t4_generated_html, $t4_expected_html, 'render 2/2: [Mustache] rendered nested HTML matches test';
 }, 'Rendering [Mustache]';

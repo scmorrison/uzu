@@ -29,12 +29,13 @@ Features
 ========
 * **Easy to use**: Based on existing static site generator conventions
 * **Built-in development webserver**: Test your modifications (http://localhost:3000) as you work
-* **Auto Re-render**: `uzu watch` monitors the `theme/[your-theme]/layout/`, `pages`, `partials/`, and `i18n/` folders for modifications and auto-renders to build
+* **Auto Re-render**: `uzu watch` monitors the `theme/[your-theme]/`, `pages/`, `partials/`, and `i18n/` folders for modifications and auto-renders to build
 * **Live reload**: `uzu watch` automatically reloads the browser when a re-render occurs
 * **Templating**: Supports [Template6](#template6) and [Mustache](#mustache) template engines.
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
-* **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.ms`, `.mustache`, or `.yml` files
+* **YAML page variables**: Create page-specific variables as a [YAML block](#page-variables) at the top of any page template.
+* **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.mustache`, or `.yml` files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
 **Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://github.com/scmorrison/uzu/issues) you find.
@@ -170,8 +171,7 @@ Project folder structure (Template6)
         │   ├── fonts
         │   ├── img
         │   ├── js
-        └── layout                # Theme layout file
-            └── layout.tt
+        └── layout.tt             # Theme layout file
 ```
 
 Project folder structure (Mustache)
@@ -207,8 +207,7 @@ Project folder structure (Mustache)
         │   ├── fonts
         │   ├── img
         │   ├── js
-        └── layout                # Theme layout file
-            └── layout.mustache
+        └── layout.mustache       # Theme layout file
 ```
 See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
 
@@ -394,9 +393,9 @@ template_engine: mustache
 ```html
 <h1>Company Founders</h1>
 <ul>
-{{ #founders }}
+{{#founders}}
   <li>{{ name }}, {{ title }}</a>
-{{ /founders }}
+{{/founders}}
 </ul>
 ```
 
@@ -405,9 +404,9 @@ template_engine: mustache
 Mustache is a 'logic-less' templating system, but you can test for the existence of a variable, and if it exists then anything inside the test block with be processed. Otherwise it is ignored.
 
 ```html
-{{ #site.graphics }}
+{{#site.graphics}}
     <img src="{{ images }}/logo.gif" align=right width=60 height=40>
-{{ /site.graphics }}
+{{/site.graphics}}
 ```
 
 ### Including partials
