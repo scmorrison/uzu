@@ -12,7 +12,7 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    return find(dir => $dir, name => /'.' |$exts $/).Seq;
+    find(dir => $dir, name => /'.' |$exts $/).Seq;
 }
 
 sub i18n-files(
@@ -20,7 +20,7 @@ sub i18n-files(
     IO::Path :$dir!
     --> Seq
 ) {
-    find(dir => $dir, name => / $language '.yml' /, type => 'file').Seq;
+    find(dir => $dir, name => / $language '.yml' $/, type => 'file').Seq;
 }
 
 sub i18n-from-yaml(
