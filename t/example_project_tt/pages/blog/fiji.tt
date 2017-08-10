@@ -1,5 +1,9 @@
 ---
 title: Fiji Vacation 2017
+categories:
+    - travel
+    - fiji
+    - vacation
 ---
 <h1>[% i18n.title %]</h1>
 <div>
