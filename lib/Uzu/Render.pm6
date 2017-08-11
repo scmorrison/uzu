@@ -137,8 +137,8 @@ sub parse-template(
     --> List
 ) {
     # Extract header yaml if available
-    my ($page_yaml, $page_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
-    return $page_html, $page_yaml ?? load-yaml $page_yaml !! %{};
+    my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
+    return $template_html, $template_yaml ?? load-yaml $template_yaml !! %{};
 }
 
 multi sub render(
@@ -148,6 +148,7 @@ multi sub render(
     Str  :$default_language,
     Str  :$language, 
     Hash :$pages,
+    Hash :$partials,
     Hash :$categories,
     Bool :$no_livereload
     --> Hash()
@@ -159,12 +160,20 @@ multi sub render(
     return gather {
         map -> $page_name, %meta {
             
+            my @included_partials = ~<< ( %meta<html> ~~ m:g/ '{{>' \h* <( \N*? )> \h* '}}' /);
+            my %include_partials  = $partials{@included_partials}:kv;
+
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
+            # Render the partials content
+            my Any %partials = map -> $k, %p {
+                $k => Template::Mustache.render: %p<html>, %( |%page_context, |%meta<vars>, |%p<vars> );
+            }, kv %include_partials;
+
             # Render the page content
             my Str $page_contents = Template::Mustache.render:
-                %meta<html>, %( |%page_context, |%meta<vars>, category => $categories ), from => $template_dirs;
+                %meta<html>, %( |%page_context, |%meta<vars>, category => $categories ), from => [%partials];
 
             # Append page content to $context
             my Str $layout_contents =
@@ -191,6 +200,7 @@ multi sub render(
     Str  :$default_language,
     Str  :$language, 
     Hash :$pages,
+    Hash :$partials,
     Hash :$categories,
     Bool :$no_livereload
     --> Hash()
@@ -204,8 +214,17 @@ multi sub render(
     return gather {
         $pages.kv.map: -> $page_name, %meta {
             
+            my @included_partials = ~<< ( %meta<html> ~~ m:g/ '[% INCLUDE' \h* '"' <( \N*? )> '"' \h* '%]' /);
+            my %include_partials  = $partials{@included_partials}:kv;
+
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
+
+            # Render the partials content
+            map -> $partial_name, %p {
+                $t6.add-template: "{$partial_name}_str", %p<html>;
+                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_str", |%page_context, |%meta<vars>, |%p<vars> );
+            }, kv %include_partials;
 
             # Cache template
             $t6.add-template: "_{$page_name}_str", %meta<html>;
@@ -237,7 +256,8 @@ our sub build(
 
     # All available pages
     my List $exts = $config<template_extensions>{$config<template_engine>};
-    my IO::Path @page_templates = templates(exts => $exts, dir => $config<pages_dir>);
+    my IO::Path @page_templates    = templates(exts => $exts, dir => $config<pages_dir>);
+    my IO::Path @partial_templates = templates(exts => $exts, dir => $config<partials_dir>);
 
     my %categories;
 
@@ -262,6 +282,17 @@ our sub build(
 
         %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars } );
     }, @page_templates;
+
+    my %partials = map -> $path { 
+        my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
+        next unless $path.IO.f;
+        my $partial_raw = slurp($path, :r);
+
+        # Extract header yaml if available
+        my ($partial_html, %partial_vars) = parse-template path => $path;
+
+        %( $partial_name => %{ path => $path, html => $partial_html, vars => %partial_vars } );
+    }, @partial_templates;
 
     # Clear out build
     logger "Clear old files";
@@ -296,6 +327,7 @@ our sub build(
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,
+                    partials         => %partials,
                     categories       => %categories,
                     no_livereload    => $config<no_livereload>)
                 ==> write-generated-files(
