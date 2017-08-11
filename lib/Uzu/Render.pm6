@@ -168,12 +168,12 @@ multi sub render(
 
             # Render the partials content
             my Any %partials = map -> $k, %p {
-                $k => Template::Mustache.render: %p<html>, %( |%page_context, |%meta<vars>, |%p<vars> );
+                $k => Template::Mustache.render: %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
             }, kv %include_partials;
 
             # Render the page content
             my Str $page_contents = Template::Mustache.render:
-                %meta<html>, %( |%page_context, |%meta<vars>, category => $categories ), from => [%partials];
+                %meta<html>, %( |%layout_vars, |%page_context, |%meta<vars>, category => $categories ), from => [%partials];
 
             # Append page content to $context
             my Str $layout_contents =
@@ -223,14 +223,14 @@ multi sub render(
             # Render the partials content
             map -> $partial_name, %p {
                 $t6.add-template: "{$partial_name}_str", %p<html>;
-                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_str", |%page_context, |%meta<vars>, |%p<vars> );
+                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_str", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
             }, kv %include_partials;
 
             # Cache template
             $t6.add-template: "_{$page_name}_str", %meta<html>;
 
             # Render the page content
-            my Str $page_contents   = $t6.process: "_{$page_name}_str", |%page_context, |%meta<vars>, categories => $categories;
+            my Str $page_contents   = $t6.process: "_{$page_name}_str", |%layout_vars, |%page_context, |%meta<vars>, categories => $categories;
 
             # Append page content to $context
             my Str $layout_contents = $t6.process: 
