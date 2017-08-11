@@ -78,6 +78,7 @@ our sub from-file(
         :build_dir($build_dir),
         :themes_dir($themes_dir),
         :assets_dir($assets_dir),
+        :theme_dir($theme_dir),
         :layout_dir($layout_dir),
         :pages_dir($pages_dir),
         :public_dir($public_dir),

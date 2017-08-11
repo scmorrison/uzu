@@ -143,33 +143,33 @@ sub parse-template(
 
 multi sub render(
     'mustache',
-    Hash  $context,
-    List :$template_dirs,
-    Str  :$default_language,
-    Str  :$language, 
-    Hash :$pages,
-    Hash :$partials,
-    Hash :$categories,
-    Bool :$no_livereload
+    Hash      $context,
+    IO::Path :$theme_dir,
+    Str      :$default_language,
+    Str      :$language, 
+    Hash     :$pages,
+    Hash     :$partials,
+    Hash     :$categories,
+    Bool     :$no_livereload
     --> Hash()
 ) {
 
     use Template::Mustache;
+    my Str $layout_template = slurp grep( / 'layout.mustache' $ /, templates(exts => ['mustache'], dir => $theme_dir) )[0], :r;
+    my Any %layout_vars     = language => $language, |$context{$language};
+    my @rendered_partials;
 
-    my Any %layout_vars = language => $language, |$context{$language};
     return gather {
         map -> $page_name, %meta {
             
-            my @included_partials = ~<< ( %meta<html> ~~ m:g/ '{{>' \h* <( \N*? )> \h* '}}' /);
-            my %include_partials  = $partials{@included_partials}:kv;
-
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
             # Render the partials content
-            my Any %partials = map -> $k, %p {
-                $k => Template::Mustache.render: %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
-            }, kv %include_partials;
+            my Any %partials = map -> $partial_name, %p {
+                next when @rendered_partials (cont) $partial_name;
+                $partial_name => Template::Mustache.render: %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            }, kv $partials;
 
             # Render the page content
             my Str $page_contents = Template::Mustache.render:
@@ -178,9 +178,9 @@ multi sub render(
             # Append page content to $context
             my Str $layout_contents =
                 decode-entities Template::Mustache.render:
-                    'layout',
+                    $layout_template,
                     %( |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents ),
-                    from => $template_dirs;
+                    from => [%partials];
 
             take prepare-html-output
                 :$page_name,
@@ -195,36 +195,38 @@ multi sub render(
 
 multi sub render(
     'tt',
-    Hash  $context,
-    List :$template_dirs,
-    Str  :$default_language,
-    Str  :$language, 
-    Hash :$pages,
-    Hash :$partials,
-    Hash :$categories,
-    Bool :$no_livereload
+    Hash      $context,
+    IO::Path :$theme_dir,
+    Str      :$default_language,
+    Str      :$language, 
+    Hash     :$pages,
+    Hash     :$partials,
+    Hash     :$categories,
+    Bool     :$no_livereload
     --> Hash()
 ) {
 
     use Template6;
-    my Template6 $t6 .= new;
-    map { $t6.add-path: $_ }, @$template_dirs;
 
-    my Any %layout_vars = language => $language, |$context{$language};
+    my Str $layout_template = slurp grep( / 'layout.tt' $ /, templates(exts => ['tt'], dir => $theme_dir) )[0], :r;
+    my Any %layout_vars     = language => $language, |$context{$language};
+    my @rendered_partials;
+
     return gather {
         $pages.kv.map: -> $page_name, %meta {
-            
-            my @included_partials = ~<< ( %meta<html> ~~ m:g/ '[% INCLUDE' \h* '"' <( \N*? )> '"' \h* '%]' /);
-            my %include_partials  = $partials{@included_partials}:kv;
 
+            my Template6 $t6 .= new;
+            $t6.add-template: 'layout', $layout_template;
+            
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
             # Render the partials content
             map -> $partial_name, %p {
+                next when @rendered_partials (cont) $partial_name;
                 $t6.add-template: "{$partial_name}_str", %p<html>;
                 $t6.add-template: $partial_name, $t6.process( "{$partial_name}_str", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
-            }, kv %include_partials;
+            }, kv $partials;
 
             # Cache template
             $t6.add-template: "_{$page_name}_str", %meta<html>;
@@ -252,19 +254,14 @@ our sub build(
     ::D :&logger = Uzu::Logger::start()
     --> Bool
 ) {
-    my ($assets_dir, $public_dir, $build_dir) = $config<assets_dir public_dir build_dir>;
-
-    # All available pages
     my List $exts = $config<template_extensions>{$config<template_engine>};
-    my IO::Path @page_templates    = templates(exts => $exts, dir => $config<pages_dir>);
-    my IO::Path @partial_templates = templates(exts => $exts, dir => $config<partials_dir>);
-
     my %categories;
 
+    # All available pages
     my %pages = map -> $path { 
         my Str $page_name = ( split '.', IO::Path.new($path).basename )[0]; 
         next unless $path.IO.f;
-        my $page_raw = slurp($path, :r);
+        my $page_raw = slurp $path, :r;
 
         # Extract header yaml if available
         my ($page_html, %page_vars) = parse-template path => $path;
@@ -281,8 +278,9 @@ our sub build(
         #}
 
         %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars } );
-    }, @page_templates;
+    }, templates(exts => $exts, dir => $config<pages_dir>);
 
+    # All available partials
     my %partials = map -> $path { 
         my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
         next unless $path.IO.f;
@@ -292,20 +290,20 @@ our sub build(
         my ($partial_html, %partial_vars) = parse-template path => $path;
 
         %( $partial_name => %{ path => $path, html => $partial_html, vars => %partial_vars } );
-    }, @partial_templates;
+    }, templates(exts => $exts, dir => $config<partials_dir>);
 
     # Clear out build
     logger "Clear old files";
-    rm-dir $build_dir;
+    rm-dir $config<build_dir>;
 
     # Create build dir
-    if !$build_dir.IO.d { 
+    if !$config<build_dir>.IO.d { 
         logger "Create build directory";
-        mkdir $build_dir;
+        mkdir $config<build_dir>;
     }
 
     logger "Copy public, assets";
-    map { copy-dir $_, $build_dir }, [$public_dir, $assets_dir];
+    map { copy-dir $_, $config<build_dir> }, [$config<public_dir>, $config<assets_dir>];
 
     # Append nested pages directories
     my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
@@ -323,7 +321,7 @@ our sub build(
                     i18n_dir         => $config<i18n_dir>)
                 ==> render(
                     $config<template_engine>,
-                    template_dirs    => @template_dirs,
+                    theme_dir        => $config<theme_dir>,
                     default_language => $config<language>[0],
                     language         => $language,
                     pages            => %pages,
@@ -331,7 +329,7 @@ our sub build(
                     categories       => %categories,
                     no_livereload    => $config<no_livereload>)
                 ==> write-generated-files(
-                    build_dir        => $build_dir);
+                    build_dir        => $config<build_dir>);
             }
         }, $config<language>;
     }
