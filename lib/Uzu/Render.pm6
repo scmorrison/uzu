@@ -1,4 +1,4 @@
-use v6.c;
+use v6.d.PREVIEW;
 
 use Uzu::Logger;
 use Uzu::Utilities;
@@ -402,4 +402,3 @@ our sub build(
 
     logger "Compile complete";
 }
-
