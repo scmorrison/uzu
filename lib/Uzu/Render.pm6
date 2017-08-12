@@ -152,8 +152,18 @@ sub parse-template(
     --> List
 ) {
     # Extract header yaml if available
-    my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
-    return $template_html, $template_yaml ?? load-yaml $template_yaml !! %{};
+    try {
+        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
+        my %yaml = $template_yaml ?? load-yaml $template_yaml !! %();
+
+        CATCH {
+            default {
+                note "Invalid template yaml [$path]";
+            }
+        }
+
+        return $template_html, %yaml;
+    }
 }
 
 multi sub render(
@@ -247,15 +257,15 @@ multi sub render(
             # Render the partials content
             map -> $partial_name, %p {
                 next when @rendered_partials (cont) $partial_name;
-                $t6.add-template: "{$partial_name}_str", %p<html>;
-                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_str", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                $t6.add-template: "{$partial_name}_", %p<html>;
+                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
             }, kv $partials;
 
             # Cache template
-            $t6.add-template: "_{$page_name}_str", %meta<html>;
+            $t6.add-template: "_{$page_name}_", %meta<html>;
 
             # Render the page content
-            my Str $page_contents   = $t6.process: "_{$page_name}_str", |%layout_vars, |%page_context, |%meta<vars>, categories => $categories;
+            my Str $page_contents   = $t6.process: "_{$page_name}_", |%layout_vars, |%page_context, |%meta<vars>, categories => $categories;
 
             # Append page content to $context
             my Str $layout_contents = do given %meta<out_ext> {
