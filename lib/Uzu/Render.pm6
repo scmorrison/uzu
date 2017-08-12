@@ -83,12 +83,16 @@ sub write-generated-files(
     --> Bool()
 ) {
     # IO write to disk
-    for $content.kv -> $template_name, %meta {
-        my $html       = %meta<html>;
-        my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
-        mkdir $target_dir;
-        spurt $build_dir.IO.child("{$template_name}.{%meta<out_ext>}"), $html;
-    };
+    my Promise @write_queue;
+    map -> $template_name, %meta {
+        push @write_queue, start {
+            my $html       = %meta<html>;
+            my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
+            mkdir $target_dir;
+            spurt $build_dir.IO.child("{$template_name}.{%meta<out_ext>}"), $html;
+        }
+    }, kv $content;
+    await @write_queue;
 }
 
 sub html-file-name(
@@ -182,19 +186,23 @@ multi sub render(
     use Template::Mustache;
     my Str $layout_template = slurp grep( / 'layout.mustache' $ /, templates(exts => ['mustache'], dir => $theme_dir) )[0], :r;
     my Any %layout_vars     = language => $language, |$context{$language};
-    my @rendered_partials;
 
-    return gather {
-        map -> $page_name, %meta {
-            
+    my Promise @page_queue;
+    map -> $page_name, %meta {
+        push @page_queue, start {
+
             # Append page-specific i18n vars if available
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
             # Render the partials content
-            my Any %partials = map -> $partial_name, %p {
-                next when @rendered_partials (cont) $partial_name;
-                $partial_name => Template::Mustache.render: %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            my Promise @partials_queue;
+            map -> $partial_name, %p {
+                push @partials_queue, start {
+                    $partial_name => Template::Mustache.render: %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                }
             }, kv $partials;
+            await Promise.allof: @partials_queue;
+            my Any %partials = @partials_queue».result;
 
             # Render the page content
             my Str $page_contents = Template::Mustache.render:
@@ -213,7 +221,7 @@ multi sub render(
                 default { $page_contents  }
             }
 
-            take prepare-html-output
+            prepare-html-output
                 :$page_name,
                 :$default_language,
                 :$language,
@@ -222,8 +230,10 @@ multi sub render(
                 path => %meta<path>,
                 target_dir => %meta<target_dir>,
                 out_ext    => %meta<out_ext>;
-        }, kv $pages;
-    }
+        }
+    }, kv $pages;
+
+    return @page_queue».result;
 }
 
 multi sub render(
@@ -243,10 +253,10 @@ multi sub render(
 
     my Str $layout_template = slurp grep( / 'layout.tt' $ /, templates(exts => ['tt'], dir => $theme_dir) )[0], :r;
     my Any %layout_vars     = language => $language, |$context{$language};
-    my @rendered_partials;
 
-    return gather {
-        $pages.kv.map: -> $page_name, %meta {
+    my Promise @page_queue;
+    $pages.kv.map: -> $page_name, %meta {
+        push @page_queue, start {
 
             my Template6 $t6 .= new;
             $t6.add-template: 'layout', $layout_template;
@@ -255,11 +265,14 @@ multi sub render(
             my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
             # Render the partials content
+            my Promise @partials_queue;
             map -> $partial_name, %p {
-                next when @rendered_partials (cont) $partial_name;
-                $t6.add-template: "{$partial_name}_", %p<html>;
-                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                push @partials_queue, start {
+                    $t6.add-template: "{$partial_name}_", %p<html>;
+                    $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                }
             }, kv $partials;
+            await Promise.allof: @partials_queue;
 
             # Cache template
             $t6.add-template: "_{$page_name}_", %meta<html>;
@@ -277,7 +290,7 @@ multi sub render(
                 default { $page_contents  }
             }
 
-            take prepare-html-output
+            prepare-html-output
                 :$page_name,
                 :$default_language,
                 :$language,
@@ -288,6 +301,8 @@ multi sub render(
                 out_ext    => %meta<out_ext>;
         }
     }
+
+    return @page_queue».result;
 }
 
 our sub build(
@@ -354,9 +369,9 @@ our sub build(
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
     # One per language
-    await gather {
-        map -> $language { 
-            take start {
+    my Promise @language_queue;
+    map -> $language { 
+            push @language_queue, start {
                 logger "Compile templates [$language]";
                 i18n-from-yaml(
                     language         => $language,
@@ -373,8 +388,8 @@ our sub build(
                 ==> write-generated-files(
                     build_dir        => $config<build_dir>);
             }
-        }, $config<language>;
-    }
+    }, $config<language>;
+    await @language_queue;
 
     logger "Compile complete";
 }
