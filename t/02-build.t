@@ -49,7 +49,7 @@ subtest {
     # Generated HTML looks good?
     my $t3_expected_html  = slurp $test_root.IO.child('expected_tt').child('index.html');
     my $t3_generated_html = slurp $tmp_build_path.IO.child('index.html');
-
+    spurt "t3.html", $t3_generated_html;
     is $t3_generated_html, $t3_expected_html, 'render 4/5: [Template6] rendered HTML matches test';
 
     # Generated nested HTML looks good?
@@ -85,13 +85,12 @@ subtest {
     # Generated HTML looks good?
     my $t3_expected_html  = slurp $test_root.IO.child('expected_mustache').child('index.html');
     my $t3_generated_html = slurp $tmp_build_path.IO.child('index.html');
-
+    spurt "tester.html", $t3_generated_html;
     is $t3_generated_html, $t3_expected_html, 'render 1/2: [Mustache] rendered HTML matches test';
 
     # Generated nested HTML looks good?
     my $t4_expected_html  = slurp $test_root.IO.child('expected_mustache').child('blog').child('fiji.html');
     my $t4_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
-    spurt "tester.html", $t4_generated_html;
 
     is $t4_generated_html, $t4_expected_html, 'render 2/2: [Mustache] rendered nested HTML matches test';
 }, 'Rendering [Mustache]';
