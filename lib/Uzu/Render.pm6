@@ -173,6 +173,7 @@ sub parse-template(
 multi sub render(
     'mustache',
     Hash      $context,
+    Str      :$layout_template,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -184,7 +185,6 @@ multi sub render(
 ) {
 
     use Template::Mustache;
-    my Str $layout_template = slurp grep( / 'layout.mustache' $ /, templates(exts => ['mustache'], dir => $theme_dir) )[0], :r;
     my Any %layout_vars     = language => $language, |$context{$language};
 
     my Promise @page_queue;
@@ -239,6 +239,7 @@ multi sub render(
 multi sub render(
     'tt',
     Hash      $context,
+    Str      :$layout_template,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -250,8 +251,6 @@ multi sub render(
 ) {
 
     use Template6;
-
-    my Str $layout_template = slurp grep( / 'layout.tt' $ /, templates(exts => ['tt'], dir => $theme_dir) )[0], :r;
     my Any %layout_vars     = language => $language, |$context{$language};
 
     my Promise @page_queue;
@@ -316,9 +315,9 @@ our sub build(
     # All available pages
     my Promise @page_load_queue;
     map -> $path { 
+        next unless $path.IO.f;
         push @page_load_queue, start {
             my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
-            next unless $path.IO.f;
             my $page_raw = slurp $path, :r;
 
             # Extract header yaml if available
@@ -335,16 +334,21 @@ our sub build(
             #    }, build-category-uri(%page_vars<categories>);
             #}
 
-            %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars, out_ext => $out_ext, target_dir => $target_dir } );
+            %( $page_name => %{
+                path       => $path,
+                html       => $page_html,
+                vars       => %page_vars,
+                out_ext    => $out_ext,
+                target_dir => $target_dir });
         }
     }, templates(exts => $exts, dir => $config<pages_dir>);
 
     # All available partials
     my Promise @partial_load_queue;
     map -> $path { 
+        next unless $path.IO.f;
         push @partial_load_queue, start {
             my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
-            next unless $path.IO.f;
             my $partial_raw = slurp($path, :r);
 
             # Extract header yaml if available
@@ -377,6 +381,10 @@ our sub build(
     # Append nested i18n directories
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
+    my Str $layout_template =
+        slurp grep( / 'layout.' @$exts $ /,
+              templates(exts => $exts, dir => $config<theme_dir>)).head, :r;
+
     # One per language
     my Promise @language_queue;
     map -> $language { 
@@ -387,6 +395,7 @@ our sub build(
                     i18n_dir         => $config<i18n_dir>)
                 ==> render(
                     $config<template_engine>,
+                    layout_template  => $layout_template,
                     theme_dir        => $config<theme_dir>,
                     default_language => $config<language>[0],
                     language         => $language,
