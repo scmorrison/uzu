@@ -64,6 +64,18 @@ sub i18n-context-vars(
                          ( $context{$i18n_key}.defined ?? |$context{$i18n_key}<i18n> !! %() )));
 }
 
+sub extract-file-parts(
+    IO::Path $path,
+    Str      $pages_dir
+    --> List
+) {
+    my $relative_path         = S/ $pages_dir // given $path.IO.path;
+    my $file_name             = S/'.tt'|'.mustache'$// given (S/^\/// given $relative_path);
+    my ($page_name, $out_ext) = split('.', $file_name);
+    my $target_dir            = $relative_path.IO.parent.path;
+    return $page_name, ($out_ext||'html'), $target_dir;
+}
+
 
 sub write-generated-files(
     Hash     $content,
@@ -72,11 +84,10 @@ sub write-generated-files(
 ) {
     # IO write to disk
     for $content.kv -> $template_name, %meta {
-        my $file       = %meta<path>.Str.split('pages')[1];
         my $html       = %meta<html>;
-        my $target_dir = $build_dir.IO.child($file.IO.dirname);
+        my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
         mkdir $target_dir;
-        spurt $target_dir.IO.child("$template_name.html"), $html;
+        spurt $build_dir.IO.child("{$template_name}.{%meta<out_ext>}"), $html;
     };
 }
 
@@ -109,7 +120,9 @@ sub prepare-html-output(
     Str      :$language,
     Str      :$layout_contents,
     Bool     :$no_livereload,
-    IO::Path :$path
+    IO::Path :$path,
+    Str      :$target_dir,
+    Str      :$out_ext
     --> Pair
 ) {
     # Default file_name without prefix
@@ -120,14 +133,16 @@ sub prepare-html-output(
             language         => $language;
 
     # Return processed HTML
-    my Str $processed_html =
+    my Str $html =
         process-livereload
             content          => $layout_contents,
             no_livereload    => $no_livereload;
 
     return $file_name => %{ 
-        path => $path,
-        html => $processed_html
+        :$path,
+        :$html,
+        :$target_dir,
+        :$out_ext
     }
 }
 
@@ -176,11 +191,17 @@ multi sub render(
                 %meta<html>, %( |%layout_vars, |%page_context, |%meta<vars>, category => $categories ), from => [%partials];
 
             # Append page content to $context
-            my Str $layout_contents =
-                decode-entities Template::Mustache.render:
-                    $layout_template,
-                    %( |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents ),
-                    from => [%partials];
+            my Str $layout_contents = do given %meta<out_ext> {
+                when 'html' {
+                    decode-entities Template::Mustache.render:
+                        $layout_template,
+                        %( |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents ),
+                        from => [%partials]
+                }
+
+                # Do not wrap non-html files with layout
+                default { $page_contents  }
+            }
 
             take prepare-html-output
                 :$page_name,
@@ -188,7 +209,9 @@ multi sub render(
                 :$language,
                 :$layout_contents,
                 :$no_livereload,
-                path => %meta<path>
+                path => %meta<path>,
+                target_dir => %meta<target_dir>,
+                out_ext    => %meta<out_ext>;
         }, kv $pages;
     }
 }
@@ -235,8 +258,14 @@ multi sub render(
             my Str $page_contents   = $t6.process: "_{$page_name}_str", |%layout_vars, |%page_context, |%meta<vars>, categories => $categories;
 
             # Append page content to $context
-            my Str $layout_contents = $t6.process: 
-                'layout', |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents;
+            my Str $layout_contents = do given %meta<out_ext> {
+                when 'html' {
+                    $t6.process: 'layout', |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents;
+                }
+
+                # Do not wrap non-html files with layout
+                default { $page_contents  }
+            }
 
             take prepare-html-output
                 :$page_name,
@@ -244,7 +273,9 @@ multi sub render(
                 :$language,
                 :$layout_contents,
                 :$no_livereload,
-                path => %meta<path>
+                path       => %meta<path>,
+                target_dir => %meta<target_dir>,
+                out_ext    => %meta<out_ext>;
         }
     }
 }
@@ -259,7 +290,8 @@ our sub build(
 
     # All available pages
     my %pages = map -> $path { 
-        my Str $page_name = ( split '.', IO::Path.new($path).basename )[0]; 
+
+        my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
         next unless $path.IO.f;
         my $page_raw = slurp $path, :r;
 
@@ -277,7 +309,7 @@ our sub build(
         #    }, build-category-uri(%page_vars<categories>);
         #}
 
-        %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars } );
+        %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars, out_ext => $out_ext, target_dir => $target_dir } );
     }, templates(exts => $exts, dir => $config<pages_dir>);
 
     # All available partials
