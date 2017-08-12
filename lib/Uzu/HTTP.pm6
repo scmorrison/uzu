@@ -136,7 +136,7 @@ our sub web-server(
         }    
     }
 
-    say 'uzu serves';
+    say "uzu serves [http://localhost:{$config<port>}]";
     $server.listen(True);
 }
 
