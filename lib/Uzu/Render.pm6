@@ -314,40 +314,49 @@ our sub build(
     my %categories;
 
     # All available pages
-    my %pages = map -> $path { 
+    my Promise @page_load_queue;
+    map -> $path { 
+        push @page_load_queue, start {
+            my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
+            next unless $path.IO.f;
+            my $page_raw = slurp $path, :r;
 
-        my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
-        next unless $path.IO.f;
-        my $page_raw = slurp $path, :r;
+            # Extract header yaml if available
+            my ($page_html, %page_vars) = parse-template path => $path;
 
-        # Extract header yaml if available
-        my ($page_html, %page_vars) = parse-template path => $path;
+            # Append page to categories hash if available
+            #with %page_vars<categories> {
+            #    await map -> $category {
+            #        my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
+            #        my $title          = %page_vars<title>||$uri;
+            #        my $category_label = S/'/categories/'// given $category;
+            #        push %categories<labels>, { name => $category_label };
+            #        push %categories{$category}, { :$title, :$uri };
+            #    }, build-category-uri(%page_vars<categories>);
+            #}
 
-        # Append page to categories hash if available
-        #with %page_vars<categories> {
-        #    await map -> $category {
-        #        my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
-        #        my $title          = %page_vars<title>||$uri;
-        #        my $category_label = S/'/categories/'// given $category;
-        #        push %categories<labels>, { name => $category_label };
-        #        push %categories{$category}, { :$title, :$uri };
-        #    }, build-category-uri(%page_vars<categories>);
-        #}
-
-        %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars, out_ext => $out_ext, target_dir => $target_dir } );
+            %( $page_name => %{ path => $path, html => $page_html, vars => %page_vars, out_ext => $out_ext, target_dir => $target_dir } );
+        }
     }, templates(exts => $exts, dir => $config<pages_dir>);
 
     # All available partials
-    my %partials = map -> $path { 
-        my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
-        next unless $path.IO.f;
-        my $partial_raw = slurp($path, :r);
+    my Promise @partial_load_queue;
+    map -> $path { 
+        push @partial_load_queue, start {
+            my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
+            next unless $path.IO.f;
+            my $partial_raw = slurp($path, :r);
 
-        # Extract header yaml if available
-        my ($partial_html, %partial_vars) = parse-template path => $path;
+            # Extract header yaml if available
+            my ($partial_html, %partial_vars) = parse-template path => $path;
 
-        %( $partial_name => %{ path => $path, html => $partial_html, vars => %partial_vars } );
+            %( $partial_name => %{ path => $path, html => $partial_html, vars => %partial_vars } );
+        }
     }, templates(exts => $exts, dir => $config<partials_dir>);
+
+    await Promise.allof: @page_load_queue, @partial_load_queue;
+    my Any %pages    = @page_load_queue».result;
+    my Any %partials = @partial_load_queue».result;
 
     # Clear out build
     logger "Clear old files";
