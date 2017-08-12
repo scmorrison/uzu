@@ -99,10 +99,17 @@ our sub web-server(
         $res.headers<Content-Type> = 'text/plain';
         $res.close("Invalid path") if $file.match('..');
 
-        my IO::Path $path =
-            $file ~~ '/'
-            ?? $build_dir.IO.child('index.html')
-            !! $build_dir.IO.child($file.split('?')[0]);
+        my IO::Path $path = do given $file {
+            when '/' {
+                $build_dir.IO.child('index.html')
+            }
+            when so * ~~ / '/' $ / {
+                $build_dir.IO.child($file.split('?')[0].IO.child('index.html'))
+            }
+            default {
+                $build_dir.IO.child($file.split('?')[0])
+            }
+        }
 
         given $path {
         
