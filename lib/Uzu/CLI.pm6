@@ -25,6 +25,8 @@ sub USAGE is export {
 
         --no-livereload   - Disable livereload when
                             running uzu watch.
+        --clear           - Delete build directory before 
+                            render when running with build.
       END
 }
 
@@ -51,12 +53,15 @@ multi MAIN(
     Bool :$clear  = False
 ) is export {
 
-    my $uzu_config = Uzu::Config::from-file(
+    Uzu::Config::from-file(
         config_file   => $config.IO,
-        no_livereload => True);
-
-    Uzu::Render::clear($uzu_config) when $clear;
-    Uzu::Render::build($uzu_config);
+        no_livereload => True
+    ).&{
+        if $clear {
+            Uzu::Render::clear($_);
+        }
+        Uzu::Render::build($_);
+    };
 }
 
 multi MAIN(
