@@ -334,7 +334,6 @@ our sub build(
     my Any %pages = map -> $path { 
         next unless $path.IO.f;
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
-        my Str $page_raw = slurp $path, :r;
 
         # Extract header yaml if available
         my ($page_html, %page_vars) = parse-template :$path;
@@ -363,16 +362,18 @@ our sub build(
     # All available partials
     my Any %partials = map -> $path { 
         next unless $path.IO.f;
-        my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
-        my Str $partial_raw  = slurp $path, :r;
+        my Str ($partial_name, $out_ext, $target_dir) = extract-file-parts($path, $config<partials_dir>.IO.path);
 
         # Extract header yaml if available
         my ($partial_html, %partial_vars) = parse-template :$path;
 
         %( $partial_name => %{
-            path => $path,
-            html => $partial_html,
-            vars => %partial_vars });
+            path       => $path,
+            html       => $partial_html,
+            vars       => %partial_vars,
+            out_ext    => $out_ext,
+            target_dir => $target_dir,
+            modified   => $path.modified });
 
     }, templates(exts => $exts, dir => $config<partials_dir>);
 
