@@ -465,7 +465,7 @@ our sub build(
     logger "Compile complete";
 }
 
-our sub clear-build(
+our sub clear(
     Map $config,
     ::D :&logger = Uzu::Logger::start()
 ) {
