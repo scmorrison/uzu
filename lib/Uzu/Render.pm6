@@ -251,8 +251,6 @@ multi sub render(
                 build_dir     => $build_dir);
         }
     };
-
-    $iorunner.send: 'exit';
 }
 
 multi sub render(
@@ -316,9 +314,6 @@ multi sub render(
                 build_dir     => $build_dir);
         }
     };
-
-    $iorunner.send: 'exit';
-
 }
 
 our sub build(
@@ -418,6 +413,10 @@ our sub build(
             partials         => %partials,
             categories       => %categories,
             no_livereload    => $config<no_livereload>);
+
+        LAST {
+            $iorunner.send: 'exit';
+        }
          
     }, $config<language>;
 
