@@ -12,7 +12,7 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    find(dir => $dir, name => /'.' @$exts $/);
+    sort { $^a.modified < $^b.modified }, find( :$dir, name => /'.' @$exts $/ );
 }
 
 sub i18n-files(
@@ -20,7 +20,7 @@ sub i18n-files(
     IO::Path :$dir!
     --> Seq
 ) {
-    find(:$dir, name => / $language '.yml' $/, type => 'file');
+    find :$dir, name => / $language '.yml' $/, type => 'file';
 }
 
 sub i18n-from-yaml(
@@ -75,6 +75,33 @@ sub extract-file-parts(
     return $page_name, ($out_ext||'html'), $target_dir;
 }
 
+sub io-runner(
+    Channel $queue
+    --> Promise
+) {
+  start {
+    $queue.list.map: -> $action {
+      last if $action ~~ Str && $action ~~ 'exit';
+      # else, run action
+      &$action();
+    }
+  }
+}
+
+sub write-generated-file(
+    Pair      $content,
+    IO::Path :$build_dir
+    --> Bool()
+) {
+    # IO write to disk
+    my $page_name  = $content.key;
+    my %meta       = $content.values[0];
+    my $html       = %meta<html>;
+    my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
+    mkdir $target_dir when !$target_dir.IO.d;
+    spurt $build_dir.IO.child("{$page_name}.{%meta<out_ext>}"), $html;
+}
+
 sub write-generated-files(
     Hash     $content,
     IO::Path :$build_dir
@@ -84,9 +111,9 @@ sub write-generated-files(
     for kv $content -> $template_name, %meta {
         my $html       = %meta<html>;
         my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
-        mkdir $target_dir;
+        mkdir $target_dir when !$target_dir.IO.d;
         spurt $build_dir.IO.child("{$template_name}.{%meta<out_ext>}"), $html;
-    }
+    };
 }
 
 sub html-file-name(
@@ -126,9 +153,9 @@ sub prepare-html-output(
     # Default file_name without prefix
     my Str $file_name = 
         html-file-name
-            page_name        => $page_name,
-            default_language => $default_language, 
-            language         => $language;
+            :$page_name,
+            :$default_language, 
+            :$language;
 
     # Return processed HTML
     my Str $html =
@@ -167,6 +194,8 @@ sub parse-template(
 multi sub render(
     'mustache',
     Hash      $context,
+    Channel  :$iorunner,
+    IO::Path :$build_dir,
     Str      :$layout_template,
     IO::Path :$theme_dir,
     Str      :$default_language,
@@ -175,13 +204,11 @@ multi sub render(
     Hash     :$partials,
     Hash     :$categories,
     Bool     :$no_livereload
-    --> Hash()
 ) {
-
     use Template::Mustache;
     my Any %layout_vars = :$language, |$context{$language};
 
-    return map -> $page_name, %meta {
+    for kv $pages -> $page_name, %meta {
 
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
@@ -210,21 +237,29 @@ multi sub render(
             default { $page_contents  }
         }
 
-        prepare-html-output
-            :$page_name,
-            :$default_language,
-            :$language,
-            :$layout_contents,
-            :$no_livereload,
-            path       => %meta<path>,
-            target_dir => %meta<target_dir>,
-            out_ext    => %meta<out_ext>;
-    }, kv $pages;
+        $iorunner.send: {
+            prepare-html-output(
+                :$page_name,
+                :$default_language,
+                :$language,
+                :$layout_contents,
+                :$no_livereload,
+                path          => %meta<path>,
+                target_dir    => %meta<target_dir>,
+                out_ext       => %meta<out_ext>)
+            ==> write-generated-file(
+                build_dir     => $build_dir);
+        }
+    };
+
+    $iorunner.send: 'exit';
 }
 
 multi sub render(
     'tt',
     Hash      $context,
+    Channel  :$iorunner,
+    IO::Path :$build_dir,
     Str      :$layout_template,
     IO::Path :$theme_dir,
     Str      :$default_language,
@@ -233,13 +268,12 @@ multi sub render(
     Hash     :$partials,
     Hash     :$categories,
     Bool     :$no_livereload
-    --> Hash()
 ) {
-
     use Template6;
     my Any %layout_vars     = language => $language, |$context{$language};
 
-    return map -> $page_name, %meta {
+    for kv $pages -> $page_name, %meta {
+
         my Template6 $t6 .= new;
         $t6.add-template: 'layout', $layout_template;
         
@@ -247,44 +281,50 @@ multi sub render(
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
         # Render the partials content
-        map -> $partial_name, %p {
+        for kv $partials -> $partial_name, %p {
             $t6.add-template: "{$partial_name}_", %p<html>;
             $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
-        }, kv $partials;
+        };
 
         # Cache template
         $t6.add-template: "_{$page_name}_", %meta<html>;
 
         # Render the page content
-        my Str $page_contents   = $t6.process: "_{$page_name}_", |%layout_vars, |%page_context, |%meta<vars>, categories => $categories;
+        my Str $page_contents   = $t6.process: "_{$page_name}_", |%layout_vars, |%page_context, |%meta<vars>, :$categories;
 
         # Append page content to $context
         my Str $layout_contents = do given %meta<out_ext> {
             when 'html' {
-                $t6.process: 'layout', |%layout_vars, |%meta<vars>, categories => $categories, content => $page_contents;
+                $t6.process: 'layout', |%layout_vars, |%meta<vars>, :$categories, content => $page_contents;
             }
 
             # Do not wrap non-html files with layout
             default { $page_contents }
         }
 
-        prepare-html-output
-            :$page_name,
-            :$default_language,
-            :$language,
-            :$layout_contents,
-            :$no_livereload,
-            path       => %meta<path>,
-            target_dir => %meta<target_dir>,
-            out_ext    => %meta<out_ext>;
+        $iorunner.send: &{
+            prepare-html-output(
+                :$page_name,
+                :$default_language,
+                :$language,
+                :$layout_contents,
+                :$no_livereload,
+                path          => %meta<path>,
+                target_dir    => %meta<target_dir>,
+                out_ext       => %meta<out_ext>)
+            ==> write-generated-file(
+                build_dir     => $build_dir);
+        }
+    };
 
-    }, kv $pages;
+    $iorunner.send: 'exit';
+
 }
 
 our sub build(
     Map $config,
     ::D :&logger = Uzu::Logger::start()
-    --> Bool
+    --> Promise
 ) {
     my List $exts = $config<template_extensions>{$config<template_engine>};
     my %categories;
@@ -293,7 +333,7 @@ our sub build(
     my Any %pages = map -> $path { 
         next unless $path.IO.f;
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
-        my $page_raw = slurp $path, :r;
+        my Str $page_raw = slurp $path, :r;
 
         # Extract header yaml if available
         my ($page_html, %page_vars) = parse-template :$path;
@@ -316,13 +356,13 @@ our sub build(
             out_ext    => $out_ext,
             target_dir => $target_dir });
 
-    }, templates(exts => $exts, dir => $config<pages_dir>);
+    }, templates(:$exts, dir => $config<pages_dir>);
 
     # All available partials
     my Any %partials = map -> $path { 
         next unless $path.IO.f;
         my Str $partial_name = ( split '.', IO::Path.new($path).basename )[0]; 
-        my $partial_raw = slurp $path, :r;
+        my Str $partial_raw  = slurp $path, :r;
 
         # Extract header yaml if available
         my ($partial_html, %partial_vars) = parse-template :$path;
@@ -356,14 +396,20 @@ our sub build(
     my Str $layout_template =
         slurp grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head, :r;
 
+    my Channel $iorunner = Channel.new;
+
     # One per language
     map -> $language { 
+
         logger "Compile templates [$language]";
+
         i18n-from-yaml(
             language         => $language,
             i18n_dir         => $config<i18n_dir>)
         ==> render(
             $config<template_engine>,
+            iorunner         => $iorunner,
+            build_dir        => $config<build_dir>,
             layout_template  => $layout_template,
             theme_dir        => $config<theme_dir>,
             default_language => $config<language>[0],
@@ -371,10 +417,10 @@ our sub build(
             pages            => %pages,
             partials         => %partials,
             categories       => %categories,
-            no_livereload    => $config<no_livereload>)
-        ==> write-generated-files(
-            build_dir        => $config<build_dir>);
+            no_livereload    => $config<no_livereload>);
+         
     }, $config<language>;
 
+    await io-runner($iorunner);
     logger "Compile complete";
 }
