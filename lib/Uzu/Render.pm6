@@ -12,7 +12,7 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    sort { $^a.modified < $^b.modified }, find( :$dir, name => /'.' @$exts $/ );
+    find( :$dir, name => /'.' @$exts $/ );
 }
 
 sub i18n-files(
@@ -208,7 +208,10 @@ multi sub render(
     use Template::Mustache;
     my Any %layout_vars = :$language, |$context{$language};
 
-    for kv $pages -> $page_name, %meta {
+    for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
+
+        my Str $page_name = $page.key;
+        my Any %meta      = $page.values[0];
 
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
@@ -270,7 +273,10 @@ multi sub render(
     use Template6;
     my Any %layout_vars     = language => $language, |$context{$language};
 
-    for kv $pages -> $page_name, %meta {
+    for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
+
+        my Str $page_name = $page.key;
+        my Any %meta      = $page.values[0];
 
         my Template6 $t6 .= new;
         $t6.add-template: 'layout', $layout_template;
@@ -349,7 +355,8 @@ our sub build(
             html       => $page_html,
             vars       => %page_vars,
             out_ext    => $out_ext,
-            target_dir => $target_dir });
+            target_dir => $target_dir,
+            modified   => $path.modified });
 
     }, templates(:$exts, dir => $config<pages_dir>);
 
