@@ -197,6 +197,7 @@ multi sub render(
     Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
+    Instant  :$layout_modified,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -205,6 +206,7 @@ multi sub render(
     Hash     :$categories,
     Bool     :$no_livereload
 ) {
+
     use Template::Mustache;
     my Any %layout_vars = :$language, |$context{$language};
 
@@ -213,15 +215,31 @@ multi sub render(
         my Str $page_name = $page.key;
         my Any %meta      = $page.values[0];
 
+        # When was this page last rendered?
+        my $last_render_time = "{$build_dir}/{$page_name}.{%meta<out_ext>}".IO.modified||0;
+
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
+
+        # Capture template, layout, and partial modified timestamps
+        my @modified_timestamps = [$layout_modified, %meta<modified>];
+        my @partial_render_queue;
 
         # Render the partials content
         my Any %partials;
         for kv $partials -> $partial_name, %p {
-            %partials{$partial_name} = Template::Mustache.render:
-                %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            push @partial_render_queue, &{
+                %partials{$partial_name} = Template::Mustache.render:
+                    %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            }
         };
+
+        # Skip rendering if layout, page, or partial templates
+        # have not been modified
+        next when max(@modified_timestamps) < $last_render_time;
+
+        # Continue... render partials
+        @partial_render_queue>>.();
 
         # Render the page content
         my Str $page_contents = Template::Mustache.render:
@@ -262,6 +280,7 @@ multi sub render(
     Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
+    Instant  :$layout_modified,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -278,17 +297,34 @@ multi sub render(
         my Str $page_name = $page.key;
         my Any %meta      = $page.values[0];
 
+        # When was this page last rendered?
+        my $last_render_time = "{$build_dir}/{$page_name}.{%meta<out_ext>}".IO.modified||0;
+
         my Template6 $t6 .= new;
         $t6.add-template: 'layout', $layout_template;
         
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
+        # Capture template, layout, and partial modified timestamps
+        my @modified_timestamps = [$layout_modified, %meta<modified>];
+        my @partial_render_queue;
+
         # Render the partials content
         for kv $partials -> $partial_name, %p {
-            $t6.add-template: "{$partial_name}_", %p<html>;
-            $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            push @modified_timestamps, %p<modified>;
+            push @partial_render_queue, &{
+                $t6.add-template: "{$partial_name}_", %p<html>;
+                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+            }
         };
+
+        # Skip rendering if layout, page, or partial templates
+        # have not been modified
+        next when max(@modified_timestamps) < $last_render_time;
+
+        # Continue... render partials
+        @partial_render_queue>>.();
 
         # Cache template
         $t6.add-template: "_{$page_name}_", %meta<html>;
@@ -377,10 +413,6 @@ our sub build(
 
     }, templates(exts => $exts, dir => $config<partials_dir>);
 
-    # Clear out build
-    logger "Clear old files";
-    rm-dir $config<build_dir>;
-
     # Create build dir
     if !$config<build_dir>.IO.d { 
         logger "Create build directory";
@@ -396,8 +428,8 @@ our sub build(
     # Append nested i18n directories
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
-    my Str $layout_template =
-        slurp grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head, :r;
+    my IO::Path $layout_path = grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head;
+    my Str $layout_template  = slurp $layout_path;
 
     my Channel $iorunner = Channel.new;
 
@@ -414,6 +446,7 @@ our sub build(
             iorunner         => $iorunner,
             build_dir        => $config<build_dir>,
             layout_template  => $layout_template,
+            layout_modified  => $layout_path.modified,
             theme_dir        => $config<theme_dir>,
             default_language => $config<language>[0],
             language         => $language,
@@ -430,4 +463,13 @@ our sub build(
 
     await io-runner($iorunner);
     logger "Compile complete";
+}
+
+our sub clear-build(
+    Map $config,
+    ::D :&logger = Uzu::Logger::start()
+) {
+    # Clear out build
+    logger "Deleting build directory";
+    rm-dir $config<build_dir>;
 }
