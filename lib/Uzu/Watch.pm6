@@ -53,10 +53,17 @@ sub user-input(
     --> Bool
 ) {
     loop {
-        logger colored "Press `r enter` to [rebuild], `q enter` to [quit]", "bold green on_blue";
+        logger colored "`r enter` to [rebuild]\n" ~ \
+                       "`c enter` to [clear] build directory and rebuild\n" ~ \
+                       "`q enter` to [quit]", "bold green on_blue";
         given prompt('') {
             when 'r' {
                 logger colored "Rebuild triggered", "bold green on_blue";
+                build-and-reload($config, logger => &logger);
+            }
+            when 'c' {
+                logger colored "Clear build directory and rebuild triggered", "bold green on_blue";
+                Uzu::Render::clear($config, logger => &logger);
                 build-and-reload($config, logger => &logger);
             }
             when 'q'|'quit' {
