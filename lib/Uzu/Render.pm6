@@ -248,6 +248,7 @@ multi sub render(
     IO::Path :$build_dir,
     Str      :$layout_template,
     Instant  :$layout_modified,
+    Str      :$theme,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -259,7 +260,8 @@ multi sub render(
 ) {
 
     use Template::Mustache;
-    my Any %layout_vars   = :$language, |$context{$language};
+    
+    my Any %layout_vars   = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
 
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
@@ -294,6 +296,7 @@ multi sub render(
         # Render the partials content
         my Any %partials;
         for kv $partials -> $partial_name, %p {
+            push @modified_timestamps, %p<modified>;
             push @partial_render_queue, &{
                 %partials{$partial_name} = Template::Mustache.render:
                     %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars>, |%linked_pages );
@@ -347,6 +350,7 @@ multi sub render(
     IO::Path :$build_dir,
     Str      :$layout_template,
     Instant  :$layout_modified,
+    Str      :$theme,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
@@ -357,7 +361,7 @@ multi sub render(
     ::D      :&logger
 ) {
     use Template6;
-    my Any %layout_vars   = language => $language, |$context{$language};
+    my Any %layout_vars   = language => $language, "lang_{$language}" => True,|$context{$language}, "theme_{$theme}" => True;
 
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
@@ -552,6 +556,7 @@ our sub build(
             $config<template_engine>,
             iorunner         => $iorunner,
             build_dir        => $config<build_dir>,
+            theme            => $config<theme>,
             layout_template  => $layout_template,
             layout_modified  => $layout_path.modified,
             theme_dir        => $config<theme_dir>,
