@@ -16,7 +16,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Mustache](#mustache)
     + [Examples](#examples-mustache)
   * [Template variables](#template-variables)
-  * [Related / linked pages](#related-linked-pages)
+  * [Related / linked pages](#related--linked-pages)
 - [Installation](#installation)
 - [Todo](#todo)
 - [Requirements](#requirements)
@@ -471,7 +471,6 @@ Uzu will append any yaml dict ending with `_pages` with additional page-related 
 ---
 related_pages:
     - page: about
-      title: Let's use this title
     - page: blog/fiji
     - page: https://www.perl6.org
       title: The Perl 6 Programming Language
@@ -486,7 +485,7 @@ related_pages:
 </ul>
 ```
 
-The above produces the following HTML:
+The above produces the following HTML. Note that the `author` and `title` values are pulled from the related page's template yaml variables: 
 
 ```
 <ul>
