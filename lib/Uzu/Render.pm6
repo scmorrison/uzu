@@ -77,7 +77,6 @@ sub linked-pages(
     for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
         for @pages -> %vars {
             my $key = %vars<page>;
-
             push %linked_pages{$block_key}, grep({ .value }, [
                 |$site_index{$key}.Hash,
                 # use the variables defined in the _pages block if set
@@ -432,7 +431,7 @@ our sub build(
 
         # Add to site index
         %site_index{$page_name}           = %page_vars;
-        %site_index{$page_name}<uri>      = "{$page_name}.{$out_ext}";
+        %site_index{$page_name}<uri>      = "/{$page_name}.{$out_ext}";
         %site_index{$page_name}<modified> = $path.modified;
 
         # Append page to categories hash if available
