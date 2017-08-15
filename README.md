@@ -15,7 +15,8 @@ Uzu is a static site generator with built-in web server, file modification watch
     + [Examples](#examples-template6)
   * [Mustache](#mustache)
     + [Examples](#examples-mustache)
-  * [Page variables](#page-variables)
+  * [Template variables](#template-variables)
+  * [Related / linked pages](#related-linked-pages)
 - [Installation](#installation)
 - [Todo](#todo)
 - [Requirements](#requirements)
@@ -34,7 +35,7 @@ Features
 * **Templating**: Supports [Template6](#template6) and [Mustache](#mustache) template engines.
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
-* **YAML page variables**: Create page-specific variables as a [YAML block](#page-variables) at the top of any page template.
+* **YAML variables**: Create page-specific and partial-specific variables as a [YAML block](#page-variables) at the top of any page or partial template.
 * **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.mustache`, or `.yml` files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
@@ -221,7 +222,7 @@ You can separate out the content text to YAML files located in a project-root fo
   ├── blog
   │   └── vacation     # Page specific i18n variables
   │       ├── en.yml   # en i18n variables for page pages/blog/vacation.tt
-          └── ja.yml   # ja i18n variables for page pages/blog/vacation.tt
+  │       └── ja.yml   # ja i18n variables for page pages/blog/vacation.tt
   ├── en.yml           # Main en i18n variables
   ├── fr.yml           # Main fr i18n variables
   └── ja.yml           # Main ja i18n variables
@@ -425,9 +426,9 @@ Partials are stored in the `partials` directory. You can include these in layout
 </html>
 ```
 
-### Page variables
+### Template variables
 
-You can define page-specific variables using a yaml block at the top of any page (`pages/`):
+You can define variables using a yaml block at the top of any page or partial (`pages/`, `partials/`):
 
 `pages/index.tt`
 
@@ -460,6 +461,45 @@ For `Template6`:
     <meta charset="utf-8">
     <title>{{ title }} - {{ date }}</title>
 </head>
+```
+
+### Related / linked pages
+
+Uzu will append any yaml dict ending with `_pages` with additional page-related variables if the variables are defined in the associated page template.
+
+```html
+---
+related_pages:
+    - page: about
+      title: Let's use this title
+    - page: blog/fiji
+    - page: https://www.perl6.org
+      title: The Perl 6 Programming Language
+      author: Perl 6
+---
+<ul>
+{{#related_pages}}
+    <li>
+        <a href="/{{ page }}">{{ title }}</a> [{{ author }}]
+    </li>
+{{/related_pages}}
+</ul>
+```
+
+The above produces the following HTML:
+
+```
+<ul>
+    <li>
+        <a href="/about.html">About Us</a> [Camelia]
+    </li>
+    <li>
+        <a href="/blog/fiji.html">Fiji Vacation</a> [Camelia]
+    </li>
+    <li>
+        <a href="https://www.perl6.org">The Perl 6 Programming Language</a> [Perl 6]
+    </li>
+</ul>
 ```
 
 Installation

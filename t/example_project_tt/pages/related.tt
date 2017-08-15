@@ -1,0 +1,30 @@
+---
+related_pages:
+    - page: about
+      title: Let's use this title
+    - page: blog/fiji
+    - page: https://www.perl6.org
+      title: The Perl 6 Programming Language
+      author: Perl 6
+other_pages:
+    - page: blog/fiji
+    - page: https://modules.perl6.org
+      title:  Perl 6 Modules Directory
+      author: Perl 6
+    - page: about
+---
+<ul>
+[% for link in related_pages %]
+    <li>
+        <a href="[% link.page %]">[% link.title %]</a> [[% link.author %]]
+    </li>
+[% end %]
+</ul>
+
+<ul>
+[% for link in other_pages %]
+    <li>
+        <a href="[% link.page %]">[% link.title %]</a> [[% link.author %]]
+    </li>
+[% end %]
+</ul>

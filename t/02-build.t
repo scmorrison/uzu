@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 5;
+    plan 6;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -38,29 +38,32 @@ subtest {
 
     # Did we generate the build directory?
     my $tmp_build_path = $tmp_root.IO.child('build').path;
-    is $tmp_build_path.IO.e, True, 'render 1/5: build directory created';
+    is $tmp_build_path.IO.e, True, 'render 1/6: build directory created';
 
     # Did we copy the assets folder contents?
-    is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/5: assets folder contents copied';
+    is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/6: assets folder contents copied';
 
     # Did we copy the pulic folder contents?
-    is $tmp_build_path.IO.child('robots.txt').IO.e, True, 'render 3/5: public folder contents copied';
+    is $tmp_build_path.IO.child('robots.txt').IO.e, True, 'render 3/6: public folder contents copied';
 
     # Generated HTML looks good?
-    my $t3_expected_html  = slurp $test_root.IO.child('expected_tt').child('index.html');
-    my $t3_generated_html = slurp $tmp_build_path.IO.child('index.html');
-    spurt "t3.html", $t3_generated_html;
-    is $t3_generated_html, $t3_expected_html, 'render 4/5: [Template6] rendered HTML matches test';
+    my $t4_expected_html  = slurp $test_root.IO.child('expected_tt').child('index.html');
+    my $t4_generated_html = slurp $tmp_build_path.IO.child('index.html');
+    is $t4_generated_html, $t4_expected_html, 'render 4/6: [Template6] rendered HTML matches test';
 
     # Generated nested HTML looks good?
-    my $t4_expected_html  = slurp $test_root.IO.child('expected_tt').child('blog').child('fiji.html');
-    my $t4_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
+    my $t5_expected_html  = slurp $test_root.IO.child('expected_tt').child('blog').child('fiji.html');
+    my $t5_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
+    is $t5_generated_html, $t5_expected_html, 'render 5/6: [Template6] rendered nested HTML matches test';
 
-    is $t4_generated_html, $t4_expected_html, 'render 5/5: [Template6] rendered nested HTML matches test';
+    # Generated *_pages links exposed
+    my $t6_expected_html  = slurp $test_root.IO.child('expected_tt').child('related.html');
+    my $t6_generated_html = slurp $tmp_build_path.IO.child('related.html');
+    is $t6_generated_html, $t6_expected_html, 'render 6/6: [Template6] expose and utilize *_pages dict variables';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 2;
+    plan 3;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -83,16 +86,19 @@ subtest {
     my $tmp_build_path = $tmp_root.IO.child('build').path;
 
     # Generated HTML looks good?
-    my $t3_expected_html  = slurp $test_root.IO.child('expected_mustache').child('index.html');
-    my $t3_generated_html = slurp $tmp_build_path.IO.child('index.html');
-    spurt "tester.html", $t3_generated_html;
-    is $t3_generated_html, $t3_expected_html, 'render 1/2: [Mustache] rendered HTML matches test';
+    my $t1_expected_html  = slurp $test_root.IO.child('expected_mustache').child('index.html');
+    my $t1_generated_html = slurp $tmp_build_path.IO.child('index.html');
+    is $t1_generated_html, $t1_expected_html, 'render 1/3: [Mustache] rendered HTML matches test';
 
     # Generated nested HTML looks good?
-    my $t4_expected_html  = slurp $test_root.IO.child('expected_mustache').child('blog').child('fiji.html');
-    my $t4_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
+    my $t2_expected_html  = slurp $test_root.IO.child('expected_mustache').child('blog').child('fiji.html');
+    my $t2_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
+    is $t2_generated_html, $t2_expected_html, 'render 2/3: [Mustache] rendered nested HTML matches test';
 
-    is $t4_generated_html, $t4_expected_html, 'render 2/2: [Mustache] rendered nested HTML matches test';
+    # Generated *_pages links exposed
+    my $t3_expected_html  = slurp $test_root.IO.child('expected_mustache').child('related.html');
+    my $t3_generated_html = slurp $tmp_build_path.IO.child('related.html');
+    is $t3_generated_html, $t3_expected_html, 'render 3/3: [Mustache] expose and utilize *_pages dict variables';
 }, 'Rendering [Mustache]';
 
 subtest {
