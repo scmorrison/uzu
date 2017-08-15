@@ -67,20 +67,54 @@ sub i18n-context-vars(
                          ( $context{$i18n_key}.defined ?? |$context{$i18n_key}<i18n> !! %() )));
 }
 
+sub html-file-name(
+    Str :$page_name,
+    Str :$default_language,
+    Str :$language
+    --> Str
+) {
+    return "{$page_name}-{$language}" when $language !~~ $default_language;
+    return $page_name;
+}
+
+sub page-uri(
+    Str :$page_name,
+    Str :$out_ext,
+    Str :$default_language,
+    Str :$language,
+    Str :$i18n_format = 'default'
+    --> Str
+) {
+    return do given $i18n_format {
+        when 'subfolder' {
+            "/{$language}/{$page_name}.{$out_ext}";
+        }
+        default {
+            '/' ~ html-file-name(:$page_name, :$default_language, :$language) ~ ".{$out_ext}";
+        }
+    }
+}
+
 sub linked-pages(
-    :$page_vars,
-    Hash  :$site_index
+    Hash :$page_vars,
+    Hash :$site_index,
+    Str  :$default_language,
+    Str  :$language,
+    Str  :$i18n_format = 'default'
     --> Hash
 ) {
     my %linked_pages;
-
     for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
         for @pages -> %vars {
-            my $key = %vars<page>;
+            my $key  = %vars<page>;
+            my $page = ($key ~~ / '://' / || !$site_index{$key})
+                ?? $key
+                !! page-uri page_name => $key, :$default_language, :$language, out_ext => $site_index{$key}<out_ext>;
+
             push %linked_pages{$block_key}, grep({ .value }, [
                 |$site_index{$key}.Hash,
                 # use the variables defined in the _pages block if set
-                page     => $site_index{$key}<uri>      ||%vars<page>,
+                page     => $page,
                 title    => $site_index{$key}<title>    ||%vars<title>,
                 author   => $site_index{$key}<author>   ||%vars<author>||'',
                 date     => $site_index{$key}<date>     ||'',
@@ -136,16 +170,6 @@ sub write-generated-file(
     my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
     mkdir $target_dir when !$target_dir.IO.d;
     spurt $build_dir.IO.child("{$page_name}.{%meta<out_ext>}"), $html;
-}
-
-sub html-file-name(
-    Str :$page_name,
-    Str :$default_language,
-    Str :$language
-    --> Str
-) {
-    return "{$page_name}-{$language}" when $language !~~ $default_language;
-    return $page_name;
 }
 
 our sub process-livereload(
@@ -250,7 +274,7 @@ multi sub render(
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
-        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index;
+        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index, :$default_language, :$language;
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
@@ -343,7 +367,7 @@ multi sub render(
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
-        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index;
+        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index, :$default_language, :$language;
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
@@ -431,8 +455,8 @@ our sub build(
 
         # Add to site index
         %site_index{$page_name}           = %page_vars;
-        %site_index{$page_name}<uri>      = "/{$page_name}.{$out_ext}";
         %site_index{$page_name}<modified> = $path.modified;
+        %site_index{$page_name}<out_ext>  = $out_ext;
 
         # Append page to categories hash if available
         #with %page_vars<categories> {
