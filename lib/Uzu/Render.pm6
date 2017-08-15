@@ -107,7 +107,7 @@ sub linked-pages(
     for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
         for @pages -> %vars {
             my $key  = %vars<page>;
-            my $page = $key ~~ / '://'  /
+            my $page = ($key ~~ / '://' / || !$site_index{$key})
                 ?? $key
                 !! page-uri page_name => $key, :$default_language, :$language, out_ext => $site_index{$key}<out_ext>;
 
