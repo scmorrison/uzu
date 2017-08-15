@@ -110,5 +110,6 @@ multi MAIN(
 }
 
 multi MAIN('version') is export {
+    use Uzu;
     say "uzu {Uzu.^ver}";
 }
