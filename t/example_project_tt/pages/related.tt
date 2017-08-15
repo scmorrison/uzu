@@ -14,17 +14,17 @@ other_pages:
     - page: about
 ---
 <ul>
-[% for link in related_pages %]
+[% for page in related_pages %]
     <li>
-        <a href="[% link.page %]">[% link.title %]</a> [[% link.author %]]
+        <a href="[% page.url %]">[% page.title %]</a> [[% page.author %]]
     </li>
 [% end %]
 </ul>
 
 <ul>
-[% for link in other_pages %]
+[% for page in other_pages %]
     <li>
-        <a href="[% link.page %]">[% link.title %]</a> [[% link.author %]]
+        <a href="[% page.url %]">[% page.title %]</a> [[% page.author %]]
     </li>
 [% end %]
 </ul>

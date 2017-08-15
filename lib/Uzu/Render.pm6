@@ -109,16 +109,17 @@ sub linked-pages(
     for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
         for @pages -> %vars {
             my $key  = %vars<page>;
-            my $page = ($key ~~ / '://' / || !$site_index{$key})
+            my $url = ($key ~~ / '://' / || !$site_index{$key})
                 ?? $key
                 !! page-uri page_name => $key, :$default_language, :$language, out_ext => $site_index{$key}<out_ext>;
 
-            logger "Related page template [$key] not found for page [$base_page]" when $key !~~ /'://'/ && !$site_index{$key};
+            logger "Broken link in template [$base_page]: page [$key] referenced in [$block_key] not found" when $key !~~ /'://'/ && !$site_index{$key};
 
             push %linked_pages{$block_key}, grep({ .value }, [
                 |$site_index{$key}.Hash,
                 # use the variables defined in the _pages block if set
-                page     => $page,
+                page     => $key,
+                url      => $url,
                 title    => $site_index{$key}<title>    ||%vars<title>,
                 author   => $site_index{$key}<author>   ||%vars<author>||'',
                 date     => $site_index{$key}<date>     ||'',
