@@ -487,7 +487,7 @@ related_pages:
 
 The above produces the following HTML. Note that the `author` and `title` values are pulled from the related page's template yaml variables: 
 
-```
+```html
 <ul>
     <li>
         <a href="/about.html">About Us</a> [Camelia]
