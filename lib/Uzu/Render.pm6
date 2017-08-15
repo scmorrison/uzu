@@ -96,11 +96,13 @@ sub page-uri(
 }
 
 sub linked-pages(
+    Str  :$base_page,
     Hash :$page_vars,
     Hash :$site_index,
     Str  :$default_language,
     Str  :$language,
-    Str  :$i18n_format = 'default'
+    Str  :$i18n_format = 'default',
+    ::D  :&logger
     --> Hash
 ) {
     my %linked_pages;
@@ -110,6 +112,8 @@ sub linked-pages(
             my $page = ($key ~~ / '://' / || !$site_index{$key})
                 ?? $key
                 !! page-uri page_name => $key, :$default_language, :$language, out_ext => $site_index{$key}<out_ext>;
+
+            logger "Related page template [$key] not found for page [$base_page]" when $key !~~ /'://'/ && !$site_index{$key};
 
             push %linked_pages{$block_key}, grep({ .value }, [
                 |$site_index{$key}.Hash,
@@ -249,7 +253,8 @@ multi sub render(
     Hash     :$pages,
     Hash     :$partials,
     Hash     :$site_index,
-    Bool     :$no_livereload
+    Bool     :$no_livereload,
+    ::D      :&logger
 ) {
 
     use Template::Mustache;
@@ -274,7 +279,14 @@ multi sub render(
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
-        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index, :$default_language, :$language;
+        my %linked_pages = linked-pages
+            base_page => $page_name,
+            page_vars => %meta<vars>,
+            :$site_index,
+            :$default_language,
+            :$language,
+            :&logger;
+
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
@@ -340,7 +352,8 @@ multi sub render(
     Hash     :$pages,
     Hash     :$partials,
     Hash     :$site_index,
-    Bool     :$no_livereload
+    Bool     :$no_livereload,
+    ::D      :&logger
 ) {
     use Template6;
     my Any %layout_vars   = language => $language, |$context{$language};
@@ -367,7 +380,14 @@ multi sub render(
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
-        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index, :$default_language, :$language;
+        my %linked_pages = linked-pages
+            base_page => $page_name,
+            page_vars => %meta<vars>,
+            :$site_index,
+            :$default_language,
+            :$language,
+            :&logger;
+
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
@@ -539,7 +559,8 @@ our sub build(
             pages            => %pages,
             partials         => %partials,
             site_index       => %site_index,
-            no_livereload    => $config<no_livereload>);
+            no_livereload    => $config<no_livereload>,
+            logger           => &logger);
 
         LAST {
             $iorunner.send: 'exit';
