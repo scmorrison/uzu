@@ -2,6 +2,7 @@
 name: uzu-testing
 language:
   - en
+  - ja
 theme: default
 url: https://gitlab.com/samcns/uzu
 author: Sam Morrison
