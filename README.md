@@ -6,6 +6,7 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Features](#features)
 - [Usage](#usage)
 - [Config](#config)
+  * [Config variables](#config-variabbles)
 - [Project folder structure (Template6)](#project-folder-structure-template6)
 - [Project folder structure (Mustache)](#project-folder-structure-mustache)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
@@ -15,6 +16,7 @@ Uzu is a static site generator with built-in web server, file modification watch
     + [Examples](#examples-template6)
   * [Mustache](#mustache)
     + [Examples](#examples-mustache)
+  * [Global variables](#global-variables)
   * [Template variables](#template-variables)
   * [Related / linked pages](#related--linked-pages)
 - [Installation](#installation)
@@ -120,9 +122,9 @@ author: Sam Morrison
 
 ```
 
-### Core variables
+### Config variables
 
-Core variables are dynamically set by `uzu` or defined / overridden in `config.yml`:
+Config variables are defined in `config.yml`:
 
 * `name`: Project name
 * `language`: List of languages to render for site. First item is default language. When rendering, the `language` variable is set to the current rendering language and can be referenced in templates. For example, if `uzu` is rendering an `en` version of a page, then the `language` variable will be set to `en`.
@@ -425,6 +427,28 @@ Partials are stored in the `partials` directory. You can include these in layout
     </body>
 </html>
 ```
+
+### Global variables
+
+Some variables are generated dynamically and exposed to templates for use:
+
+* **language**: The current language as a string (e.g. `en`, `ja`, etc.)
+* **lang_**: The `lang_CURRENT_LANG` variable provides the current rendering language. This is useful if you want to display certain content depending on the i18n language.
+    ```html
+    {{lang_en}}
+    <a href='/index-ja.html'>日本語</a>
+    {{/lang_en}}
+    {{lang_ja}}
+    <a href='/'>English</a>
+    {{/lang_ja}}
+
+    ```
+* **theme_**: The current theme is exposed to the templates as `theme_NAME_OF_THEM`. For example, the variable `theme_default` will be available if the `default` theme is being used:
+    ```html
+    {{#theme_default}}
+    {{> default_header }}
+    {{/theme_default}}
+    ```
 
 ### Template variables
 
