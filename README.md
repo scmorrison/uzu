@@ -479,7 +479,7 @@ related_pages:
 <ul>
 {{#related_pages}}
     <li>
-        <a href="{{ page }}">{{ title }}</a> [{{ author }}]
+        <a href="{{ url }}">{{ title }}</a> [{{ author }}]
     </li>
 {{/related_pages}}
 </ul>
