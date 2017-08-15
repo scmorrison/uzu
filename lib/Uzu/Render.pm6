@@ -67,6 +67,39 @@ sub i18n-context-vars(
                          ( $context{$i18n_key}.defined ?? |$context{$i18n_key}<i18n> !! %() )));
 }
 
+sub linked-pages(
+    :$page_vars,
+    Hash  :$site_index
+    --> Hash
+) {
+    my %linked_pages;
+
+    for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
+        for @pages -> %vars {
+            my $key = %vars<page>;
+
+            push %linked_pages{$block_key}, grep({ .value }, [
+                |$site_index{$key}.Hash,
+                # use the variables defined in the _pages block if set
+                page     => $site_index{$key}<uri>      ||%vars<page>,
+                title    => $site_index{$key}<title>    ||%vars<title>,
+                author   => $site_index{$key}<author>   ||%vars<author>||'',
+                date     => $site_index{$key}<date>     ||'',
+                modified => $site_index{$key}<modified>
+            ]).Hash;
+        }
+    }
+
+    return %linked_pages;
+}
+
+sub linked-page-timestamps(
+    Hash $pages
+    --> List
+) {
+    |grep { .defined }, flat map({ .values>><modified> }, values $pages);
+}
+
 sub extract-file-parts(
     IO::Path $path,
     Str      $pages_dir
@@ -192,7 +225,7 @@ multi sub render(
     Str      :$language, 
     Hash     :$pages,
     Hash     :$partials,
-    Hash     :$categories,
+    Hash     :$site_index,
     Bool     :$no_livereload
 ) {
 
@@ -217,32 +250,37 @@ multi sub render(
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
+        # Prepare page links from *_pages yaml blocks
+        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index;
+        # Linked pages file timestamps
+        push @modified_timestamps, linked-page-timestamps %linked_pages;
+
         # Render the partials content
         my Any %partials;
         for kv $partials -> $partial_name, %p {
             push @partial_render_queue, &{
                 %partials{$partial_name} = Template::Mustache.render:
-                    %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                    %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars>, |%linked_pages );
             }
         };
 
         # Skip rendering if layout, page, or partial templates
         # have not been modified
-        next when max(@modified_timestamps) < $last_render_time;
+        next when max(flat @modified_timestamps) < $last_render_time;
 
         # Continue... render partials
         @partial_render_queue>>.();
 
         # Render the page content
         my Str $page_contents = Template::Mustache.render:
-            %meta<html>, %( |%layout_vars, |%page_context, |%meta<vars>, :$categories ), from => [%partials];
+            %meta<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%linked_pages, :$site_index ), from => [%partials];
 
         # Append page content to $context
         my Str $layout_contents = do given %meta<out_ext> {
             when 'html' {
                 decode-entities Template::Mustache.render:
                     $layout_template,
-                    %( |%layout_vars, |%meta<vars>, :$categories, content => $page_contents ),
+                    %( |%layout_vars, |%meta<vars>, |%linked_pages, :$site_index, content => $page_contents ),
                     from => [%partials]
             }
 
@@ -278,7 +316,7 @@ multi sub render(
     Str      :$language, 
     Hash     :$pages,
     Hash     :$partials,
-    Hash     :$categories,
+    Hash     :$site_index,
     Bool     :$no_livereload
 ) {
     use Template6;
@@ -305,12 +343,25 @@ multi sub render(
         # Append page-specific i18n vars if available
         my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
 
+        # Prepare page links from *_pages yaml blocks
+        my %linked_pages = linked-pages page_vars => %meta<vars>, :$site_index;
+        # Linked pages file timestamps
+        push @modified_timestamps, linked-page-timestamps %linked_pages;
+
         # Render the partials content
         for kv $partials -> $partial_name, %p {
             push @modified_timestamps, %p<modified>;
             push @partial_render_queue, &{
                 $t6.add-template: "{$partial_name}_", %p<html>;
-                $t6.add-template: $partial_name, $t6.process( "{$partial_name}_", |%layout_vars, |%page_context, |%meta<vars>, |%p<vars> );
+                $t6.add-template:
+                    $partial_name,
+                    $t6.process(
+                        "{$partial_name}_",
+                        |%layout_vars,
+                        |%page_context,
+                        |%meta<vars>,
+                        |%p<vars>,
+                        |%linked_pages);
             }
         };
 
@@ -325,12 +376,18 @@ multi sub render(
         $t6.add-template: "_{$page_name}_", %meta<html>;
 
         # Render the page content
-        my Str $page_contents   = $t6.process: "_{$page_name}_", |%layout_vars, |%page_context, |%meta<vars>, :$categories;
+        my Str $page_contents = $t6.process: 
+            "_{$page_name}_",
+            |%layout_vars,
+            |%page_context,
+            |%meta<vars>,
+            |%linked_pages,
+            :$site_index;
 
         # Append page content to $context
         my Str $layout_contents = do given %meta<out_ext> {
             when 'html' {
-                $t6.process: 'layout', |%layout_vars, |%meta<vars>, :$categories, content => $page_contents;
+                $t6.process: 'layout', |%layout_vars, |%meta<vars>, |%linked_pages, :$site_index, content => $page_contents;
             }
 
             # Do not wrap non-html files with layout
@@ -359,7 +416,11 @@ our sub build(
     --> Promise
 ) {
     my List $exts = $config<template_extensions>{$config<template_engine>};
-    my %categories;
+
+    # Capture page meta
+    # data for related,
+    # categories, and sitemaps
+    my %site_index;
 
     # All available pages
     my Any %pages = map -> $path { 
@@ -367,11 +428,16 @@ our sub build(
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
 
         # Extract header yaml if available
-        my ($page_html, %page_vars) = parse-template :$path;
+        my ($page_html, %page_vars)  = parse-template :$path;
+
+        # Add to site index
+        %site_index{$page_name}           = %page_vars;
+        %site_index{$page_name}<uri>      = "{$page_name}.{$out_ext}";
+        %site_index{$page_name}<modified> = $path.modified;
 
         # Append page to categories hash if available
         #with %page_vars<categories> {
-        #    await map -> $category {
+        #    map -> $category {
         #        my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
         #        my $title          = %page_vars<title>||$uri;
         #        my $category_label = S/'/categories/'// given $category;
@@ -449,7 +515,7 @@ our sub build(
             language         => $language,
             pages            => %pages,
             partials         => %partials,
-            categories       => %categories,
+            site_index       => %site_index,
             no_livereload    => $config<no_livereload>);
 
         LAST {
