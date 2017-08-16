@@ -403,7 +403,7 @@ Mustache is a 'logic-less' templating system, but you can test for the existence
 
 ## Partials 
 
-Partials are stored in the `partials` and `themes/THEME_NAME/partials` directories. Any theme partial will override any partial found in the top-level `partials` directory. Partials can be include in layouts, pages, and other partials.
+Partials are stored in the `partials` and `themes/THEME_NAME/partials` directories. Any theme partial will override any partial found in the top-level `partials` directory with the same file name. Partials can be include in layouts, pages, and other partials.
 
 For `Template6`:
 
