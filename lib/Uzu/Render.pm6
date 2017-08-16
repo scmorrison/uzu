@@ -241,6 +241,28 @@ sub parse-template(
     }
 }
 
+sub build-partials-hash(
+    IO::Path :$source,
+    List     :$exts
+) {
+    map -> $path { 
+        next unless $path.IO.f;
+        my Str ($partial_name, $out_ext, $target_dir) = extract-file-parts($path, $source.IO.path);
+
+        # Extract header yaml if available
+        my ($partial_html, %partial_vars) = parse-template :$path;
+
+        %( $partial_name => %{
+            path       => $path,
+            html       => $partial_html,
+            vars       => %partial_vars,
+            out_ext    => $out_ext,
+            target_dir => $target_dir,
+            modified   => $path.modified });
+
+    }, templates(exts => $exts, dir => $source);
+}
+
 multi sub render(
     'mustache',
     Hash      $context,
@@ -505,22 +527,10 @@ our sub build(
     }, templates(:$exts, dir => $config<pages_dir>);
 
     # All available partials
-    my Any %partials = map -> $path { 
-        next unless $path.IO.f;
-        my Str ($partial_name, $out_ext, $target_dir) = extract-file-parts($path, $config<partials_dir>.IO.path);
-
-        # Extract header yaml if available
-        my ($partial_html, %partial_vars) = parse-template :$path;
-
-        %( $partial_name => %{
-            path       => $path,
-            html       => $partial_html,
-            vars       => %partial_vars,
-            out_ext    => $out_ext,
-            target_dir => $target_dir,
-            modified   => $path.modified });
-
-    }, templates(exts => $exts, dir => $config<partials_dir>);
+    my Any %partials       = build-partials-hash source => $config<partials_dir>, :$exts;
+    my Any %theme_partials =
+        $config<theme_dir>.IO.child('partials').IO.d
+        ?? build-partials-hash source => $config<theme_dir>.IO.child('partials'), :$exts !! %();
 
     # Create build dir
     if !$config<build_dir>.IO.d { 
@@ -563,7 +573,7 @@ our sub build(
             default_language => $config<language>[0],
             language         => $language,
             pages            => %pages,
-            partials         => %partials,
+            partials         => %( |%partials, |%theme_partials  ),
             site_index       => %site_index,
             no_livereload    => $config<no_livereload>,
             logger           => &logger);

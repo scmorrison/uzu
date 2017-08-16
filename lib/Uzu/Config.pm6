@@ -59,7 +59,7 @@ our sub from-file(
     my IO::Path $pages_dir    = $project_root.IO.child('pages');
     my IO::Path $partials_dir = $project_root.IO.child('partials');
     my IO::Path $public_dir   = $project_root.IO.child('public');
-    my List $template_dirs    = [$layout_dir, $theme_dir, $pages_dir, $partials_dir, $i18n_dir];
+    my List $template_dirs    = [$layout_dir, $theme_dir, $theme_dir.IO.child('partials'), $pages_dir, $partials_dir, $i18n_dir];
     my List %template_exts    = tt => ['tt'], mustache => ['ms', 'mustache'];
     my Str $template_engine   = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
     my List $extensions       = [ |%template_exts{$template_engine}, 'html', 'yml'];
