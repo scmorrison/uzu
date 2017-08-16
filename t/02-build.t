@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 7;
+    plan 8;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -38,37 +38,42 @@ subtest {
 
     # Did we generate the build directory?
     my $tmp_build_path = $tmp_root.IO.child('build').path;
-    is $tmp_build_path.IO.e, True, 'render 1/7: build directory created';
+    is $tmp_build_path.IO.e, True, 'render 1/8: build directory created';
 
     # Did we copy the assets folder contents?
-    is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/7: assets folder contents copied';
+    is $tmp_build_path.IO.child('img').child('logo.png').IO.e, True, 'render 2/8: assets folder contents copied';
 
     # Did we copy the pulic folder contents?
-    is $tmp_build_path.IO.child('robots.txt').IO.e, True, 'render 3/7: public folder contents copied';
+    is $tmp_build_path.IO.child('robots.txt').IO.e, True, 'render 3/8: public folder contents copied';
 
     # Generated HTML looks good?
     my $t4_expected_html  = slurp $test_root.IO.child('expected_tt').child('index.html');
     my $t4_generated_html = slurp $tmp_build_path.IO.child('index.html');
-    is $t4_generated_html, $t4_expected_html, 'render 4/7: [Template6] rendered HTML matches test';
+    is $t4_generated_html, $t4_expected_html, 'render 4/8: [Template6] rendered HTML matches test';
 
     # Generated nested HTML looks good?
     my $t5_expected_html  = slurp $test_root.IO.child('expected_tt').child('blog').child('fiji.html');
     my $t5_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
-    is $t5_generated_html, $t5_expected_html, 'render 5/7: [Template6] rendered nested HTML matches test';
+    is $t5_generated_html, $t5_expected_html, 'render 5/8: [Template6] rendered nested HTML matches test';
 
     # Generated *_pages links exposed
     my $t6_expected_html  = slurp $test_root.IO.child('expected_tt').child('related.html');
     my $t6_generated_html = slurp $tmp_build_path.IO.child('related.html');
-    is $t6_generated_html, $t6_expected_html, 'render 6/7: [Template6] expose and utilize *_pages dict variables';
+    is $t6_generated_html, $t6_expected_html, 'render 6/8: [Template6] expose and utilize *_pages dict variables';
 
     # Use i18n language in uri for non-default languages
     my $t7_expected_html  = slurp $test_root.IO.child('expected_tt').child('related-ja.html');
     my $t7_generated_html = slurp $tmp_build_path.IO.child('related-ja.html');
-    is $t7_generated_html, $t7_expected_html, 'render 7/7: [Template6] i18n language in uri for non-default languages';
+    is $t7_generated_html, $t7_expected_html, 'render 7/8: [Template6] i18n language in uri for non-default languages';
+
+    # Use theme partial
+    my $t8_expected_html  = slurp $test_root.IO.child('expected_tt').child('themepartial.html');
+    my $t8_generated_html = slurp $tmp_build_path.IO.child('themepartial.html');
+    is $t8_generated_html, $t8_expected_html, 'render 8/8: [Template6] use theme partial';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 4;
+    plan 5;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -93,22 +98,27 @@ subtest {
     # Generated HTML looks good?
     my $t1_expected_html  = slurp $test_root.IO.child('expected_mustache').child('index.html');
     my $t1_generated_html = slurp $tmp_build_path.IO.child('index.html');
-    is $t1_generated_html, $t1_expected_html, 'render 1/4: [Mustache] rendered HTML matches test';
+    is $t1_generated_html, $t1_expected_html, 'render 1/5: [Mustache] rendered HTML matches test';
 
     # Generated nested HTML looks good?
     my $t2_expected_html  = slurp $test_root.IO.child('expected_mustache').child('blog').child('fiji.html');
     my $t2_generated_html = slurp $tmp_build_path.IO.child('blog').child('fiji.html');
-    is $t2_generated_html, $t2_expected_html, 'render 2/4: [Mustache] rendered nested HTML matches test';
+    is $t2_generated_html, $t2_expected_html, 'render 2/5: [Mustache] rendered nested HTML matches test';
 
     # Generated *_pages links exposed
     my $t3_expected_html  = slurp $test_root.IO.child('expected_mustache').child('related.html');
     my $t3_generated_html = slurp $tmp_build_path.IO.child('related.html');
-    is $t3_generated_html, $t3_expected_html, 'render 3/4: [Mustache] expose and utilize *_pages dict variables';
+    is $t3_generated_html, $t3_expected_html, 'render 3/5: [Mustache] expose and utilize *_pages dict variables';
 
     # Use i18n language in uri for non-default languages
     my $t4_expected_html  = slurp $test_root.IO.child('expected_mustache').child('related-ja.html');
     my $t4_generated_html = slurp $tmp_build_path.IO.child('related-ja.html');
-    is $t4_generated_html, $t4_expected_html, 'render 4/4: [Mustache] i18n language in uri for non-default languages';
+    is $t4_generated_html, $t4_expected_html, 'render 4/5: [Mustache] i18n language in uri for non-default languages';
+
+    # Use theme partial
+    my $t5_expected_html  = slurp $test_root.IO.child('expected_mustache').child('themepartial.html');
+    my $t5_generated_html = slurp $tmp_build_path.IO.child('themepartial.html');
+    is $t5_generated_html, $t5_expected_html, 'render 5/5: [Mustache] use theme partial';
 }, 'Rendering [Mustache]';
 
 subtest {
