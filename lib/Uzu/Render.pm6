@@ -394,14 +394,14 @@ multi sub render(
                                 decode-entities render-template
                                     'mustache',
                                      context  => %context,
-                                     content  => %partial<html>;
+                                     content  => $partials{$embedded_partial_name}<html>;
                         }
                         when 'tt' {
                             render-template
                                 'tt',
                                  context       => %context,
                                  template_name => $embedded_partial_name,
-                                 content       => %partial<html>,
+                                 content       => $partials{$embedded_partial_name}<html>,
                                  t6            => $t6;
                         }
                     }
@@ -426,7 +426,8 @@ multi sub render(
                             render-template
                                'mustache',
                                 context  => %context,
-                                content  => %partial<html>;
+                                content  => %partial<html>,
+                                from     => [%partials];
                     }
                     when 'tt' {
                         render-template

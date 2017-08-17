@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 11;
+    plan 12;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -91,10 +91,15 @@ subtest {
     my $t11_expected_html  = slurp $test_root.IO.child('expected_tt').child('nolayout.html');
     my $t11_generated_html = slurp $tmp_build_path.IO.child('nolayout.html');
     is $t11_generated_html, $t11_expected_html, '[Template6] disable theme layout from page yaml';
+
+    # Embedded partials can access page vars
+    my $t12_expected_html  = slurp $test_root.IO.child('expected_tt').child('embedded.html');
+    my $t12_generated_html = slurp $tmp_build_path.IO.child('embedded.html');
+    is $t12_generated_html, $t12_expected_html, '[Template6] embedded partials can access page vars';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 8;
+    plan 9;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -162,6 +167,11 @@ subtest {
     my $t8_expected_html  = slurp $test_root.IO.child('expected_mustache').child('nolayout.html');
     my $t8_generated_html = slurp $tmp_build_path.IO.child('nolayout.html');
     is $t8_generated_html, $t8_expected_html, '[Mustache] disable theme layout from page yaml';
+
+    # Embedded partials can access page vars
+    my $t9_expected_html  = slurp $test_root.IO.child('expected_mustache').child('embedded.html');
+    my $t9_generated_html = slurp $tmp_build_path.IO.child('embedded.html');
+    is $t9_generated_html, $t9_expected_html, '[Mustache] embedded partials can access page vars';
 }, 'Rendering [Mustache]';
 
 subtest {
