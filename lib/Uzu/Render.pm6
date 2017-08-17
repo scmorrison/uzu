@@ -377,6 +377,8 @@ multi sub render(
                         :$site_index
                     ), from => [%partials];
 
+            logger "No content found for page [$page_name] " when $page_contents ~~ '';
+
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
                 when 'html' {
@@ -393,7 +395,7 @@ multi sub render(
                 }
 
                 # Do not wrap non-html files with layout
-                default { $page_contents  }
+                default { $page_contents }
             }
 
             prepare-html-output(
@@ -524,6 +526,8 @@ multi sub render(
                 |%page<vars>,
                 |%linked_pages,
                 :$site_index;
+
+            logger "No content found for page [$page_name] " when $page_contents ~~ '';
 
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {

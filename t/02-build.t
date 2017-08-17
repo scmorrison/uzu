@@ -160,11 +160,11 @@ subtest {
     # Disable theme layout from page yaml
     my $t8_expected_html  = slurp $test_root.IO.child('expected_mustache').child('nolayout.html');
     my $t8_generated_html = slurp $tmp_build_path.IO.child('nolayout.html');
-    is $t8_generated_html, $t8_expected_html, '[Mustach] disable theme layout from page yaml';
+    is $t8_generated_html, $t8_expected_html, '[Mustache] disable theme layout from page yaml';
 }, 'Rendering [Mustache]';
 
 subtest {
-    plan 1;
+    plan 2;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -181,6 +181,9 @@ subtest {
 
     # Set config file path
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
+
+    # Complain about empty page template
+    stdout-like { Uzu::Render::build $config }, / "No content found for page" /, 'empty page template warning to stdout';
 
     # Expect a warning when i18n yaml is invalid
     my $t5_yaml = q:to/END/;
