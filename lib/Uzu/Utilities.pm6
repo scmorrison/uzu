@@ -18,6 +18,7 @@ our sub copy-dir(
     IO::Path $target
     --> Bool
 ) is export {
+    return unless $source.IO.d && $target.IO.d;
     given $*SPEC {
         when 'Win32' {
             shell "copy $source $target /O /X /E /H /K /Y";
@@ -33,6 +34,7 @@ our sub rm-dir(
     IO::Path $dir
     --> Bool
 ) is export {
+    return unless $dir.IO.d;
     if $*SPEC ~~ 'Win32' {
         so shell "rmdir $dir /s /q";
     } else {
