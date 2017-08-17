@@ -228,7 +228,7 @@ sub parse-template(
 ) {
     # Extract header yaml if available
     try {
-        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) (.*) / );
+        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
         my %yaml = $template_yaml ?? load-yaml $template_yaml !! %();
 
         CATCH {
