@@ -535,6 +535,16 @@ The above produces the following HTML. Note that the `author` and `title` values
 </ul>
 ```
 
+### Disable layout rendering for page template
+
+To disable layout rendering for specific pages add the `nolayout` variable to the page's yaml variables:
+
+```yaml
+---
+nolayout: true
+---
+```
+
 # Page render conditions
 
 In order to reduce build times Uzu will try to avoid rerendering a page if it hasn't been modified.
@@ -542,7 +552,8 @@ In order to reduce build times Uzu will try to avoid rerendering a page if it ha
 Pages will only be rendered under the following conditions:
 
 * Rendered page does not exist in `build` directory
-* A partial file included in the page's layout, the page itself, or a partial included in the page have been modified
+* The page template has been modified
+* A partial file included in the layout, page, or any partial included in the page has been modified
 * The page includes a related / linked pages `_pages` yaml dict and one of the linked pages templates has been modified
 * Running `uzu --clear build` will rebuild all pages
 * Pressing `c enter` while running `uzu watch` will rebuild all pages
