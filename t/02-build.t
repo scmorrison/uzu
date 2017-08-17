@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 10;
+    plan 11;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -86,10 +86,15 @@ subtest {
     stdout-from { Uzu::Render::build $config }
     my $t10_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t10_generated_post_modified == $t10_generated_pre_modified, '[Template6] modifying an unrelated partial does not trigger page rebuild';
+
+    # Disable theme layout from page yaml
+    my $t11_expected_html  = slurp $test_root.IO.child('expected_tt').child('nolayout.html');
+    my $t11_generated_html = slurp $tmp_build_path.IO.child('nolayout.html');
+    is $t11_generated_html, $t11_expected_html, '[Template6] disable theme layout from page yaml';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 7;
+    plan 8;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -145,12 +150,17 @@ subtest {
     ok $t6_generated_post_modified > $t6_generated_pre_modified, '[Mustache] modifying a related page triggers page rebuild';
 
     # Modifying an unrelated partial does not trigger page rebuild
-    my $t10_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
-    my $t10_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.mustache');
-    spurt $t10_unrelated_partial, slurp($t10_unrelated_partial);
+    my $t7_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
+    my $t7_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.mustache');
+    spurt $t7_unrelated_partial, slurp($t7_unrelated_partial);
     stdout-from { Uzu::Render::build $config }
-    my $t10_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
-    ok $t10_generated_post_modified == $t10_generated_pre_modified, '[Mustache] modifying an unrelated partial does not trigger page rebuild';
+    my $t7_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
+    ok $t7_generated_post_modified == $t7_generated_pre_modified, '[Mustache] modifying an unrelated partial does not trigger page rebuild';
+
+    # Disable theme layout from page yaml
+    my $t8_expected_html  = slurp $test_root.IO.child('expected_mustache').child('nolayout.html');
+    my $t8_generated_html = slurp $tmp_build_path.IO.child('nolayout.html');
+    is $t8_generated_html, $t8_expected_html, '[Mustach] disable theme layout from page yaml';
 }, 'Rendering [Mustache]';
 
 subtest {

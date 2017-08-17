@@ -185,7 +185,11 @@ our sub process-livereload(
     unless $no_livereload {
         # Add livejs if live-reload enabled (default)
         my Str $livejs = '<script src="/uzu/js/live.js"></script>';
-        return S/'</body>'/$livejs\n<\/body>/ given $content;
+        if $content ~~ /'</body>'/ {
+            return S/'</body>'/$livejs\n<\/body>/ given $content;
+        } else {
+            return $content  ~ "\n$livejs";
+        }
     }
     return $content;
 }
@@ -269,7 +273,7 @@ multi sub render(
     Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
-    Instant  :$layout_modified,
+    Numeric  :$layout_modified,
     Str      :$theme,
     IO::Path :$theme_dir,
     Str      :$default_language,
@@ -282,8 +286,8 @@ multi sub render(
 ) {
 
     use Template::Mustache;
-    
-    my Any %layout_vars   = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
+
+    my Any %layout_vars  = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
     my &partial-names    = -> $template { ~<< ( $template ~~ m:g/ '{{>' \h* <( \N*? )> \h* '}}' / )};
     my @layout_partials  = partial-names $layout_template;
 
@@ -292,6 +296,7 @@ multi sub render(
         my Str $page_name = $page.key;
         my Any %page      = $page.values[0];
         my @page_partials = partial-names %page<html>;
+        my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
         # When was this page last rendered?
         my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
@@ -328,7 +333,7 @@ multi sub render(
                 push @partial_render_queue, &{
                     %partials{$embedded_partial_name} =
                         Template::Mustache.render:
-                            |%layout_vars,
+                            |($nolayout ?? %() !! %layout_vars),
                             |%i18n_vars,
                             |%page<vars>,
                             |$partials{$embedded_partial_name}<vars>,
@@ -344,7 +349,7 @@ multi sub render(
                 %partials{$partial_name} =
                     Template::Mustache.render:
                         %partial<html>, %(
-                            |%layout_vars,
+                            |($nolayout ?? %() !! %layout_vars),
                             |%i18n_vars,
                             |%page<vars>,
                             |%partial<vars>,
@@ -365,7 +370,7 @@ multi sub render(
             my Str $page_contents =
                 Template::Mustache.render:
                     %page<html>, %(
-                        |%layout_vars,
+                        |($nolayout ?? %() !! %layout_vars),
                         |%i18n_vars,
                         |%page<vars>,
                         |%linked_pages,
@@ -375,7 +380,9 @@ multi sub render(
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
                 when 'html' {
-                    decode-entities Template::Mustache.render:
+                    $nolayout
+                    ?? $page_contents
+                    !! decode-entities Template::Mustache.render:
                         $layout_template, %(
                             |%layout_vars,
                             |%page<vars>,
@@ -411,7 +418,7 @@ multi sub render(
     Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
-    Instant  :$layout_modified,
+    Numeric  :$layout_modified,
     Str      :$theme,
     IO::Path :$theme_dir,
     Str      :$default_language,
@@ -431,12 +438,13 @@ multi sub render(
         my Str $page_name = $page.key;
         my Any %page      = $page.values[0];
         my @page_partials = partial-names %page<html>;
+        my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
         # When was this page last rendered?
         my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
 
         my Template6 $t6 .= new;
-        $t6.add-template: 'layout', $layout_template;
+        $t6.add-template: 'layout', $layout_template unless $nolayout;
         
         # Capture i18n, template, layout, and partial modified timestamps
         my @modified_timestamps = [$layout_modified, %page<modified>];
@@ -470,7 +478,7 @@ multi sub render(
                         $embedded_partial_name,
                         $t6.process(
                             "{$embedded_partial_name}_",
-                            |%layout_vars,
+                            |($nolayout ?? %() !! %layout_vars),
                             |%i18n_vars,
                             |%page<vars>,
                             |$partials{$embedded_partial_name}<vars>,
@@ -488,7 +496,7 @@ multi sub render(
                     $partial_name,
                     $t6.process(
                         "{$partial_name}_",
-                        |%layout_vars,
+                        |($nolayout ?? %() !! %layout_vars),
                         |%i18n_vars,
                         |%page<vars>,
                         |%partial<vars>,
@@ -511,7 +519,7 @@ multi sub render(
             # Render the page content
             my Str $page_contents = $t6.process: 
                 "_{$page_name}_",
-                |%layout_vars,
+                |($nolayout ?? %() !! %layout_vars),
                 |%i18n_vars,
                 |%page<vars>,
                 |%linked_pages,
@@ -520,7 +528,9 @@ multi sub render(
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
                 when 'html' { 
-                    $t6.process:
+                    $nolayout
+                    ?? $page_contents
+                    !! $t6.process:
                         'layout',
                         |%layout_vars,
                         |%page<vars>,
@@ -617,7 +627,7 @@ our sub build(
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
     my IO::Path $layout_path = grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head;
-    my Str $layout_template  = slurp $layout_path;
+    my Str $layout_template  = $layout_path.defined ?? slurp $layout_path !! '';
 
     my Channel $iorunner .= new;
     my Promise $iorunner_manager = io-runner($iorunner);
@@ -637,7 +647,7 @@ our sub build(
             build_dir        => $config<build_dir>,
             theme            => $config<theme>,
             layout_template  => $layout_template,
-            layout_modified  => $layout_path.modified,
+            layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
             theme_dir        => $config<theme_dir>,
             default_language => $config<language>[0],
             language         => $language,
