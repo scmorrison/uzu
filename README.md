@@ -20,6 +20,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Global variables](#global-variables)
   * [Template variables](#template-variables)
   * [Related / linked pages](#related--linked-pages)
+- [Page render conditions](#page-render-conditions)
 - [Installation](#installation)
 - [Todo](#todo)
 - [Requirements](#requirements)
@@ -534,6 +535,18 @@ The above produces the following HTML. Note that the `author` and `title` values
 </ul>
 ```
 
+# Page render conditions
+
+In order to reduce build times Uzu will try to avoid rerendering a page if it hasn't been modified.
+
+Pages will only be rendered under the following conditions:
+
+* Rendered page does not exist in `build` directory
+* A partial file included in the page's layout, the page itself, or a partial included in the page have been modified
+* The page includes a related / linked pages `_pages` yaml dict and one of the linked pages templates has been modified
+* Running `uzu --clear build` will rebuild all pages
+* Pressing `c enter` while running `uzu watch` will rebuild all pages
+
 Installation
 ============
 
@@ -569,6 +582,8 @@ Troubleshooting
   # directory.
   rm -rf ~/.zef/store/uzu.git ~/.zef/tmp/uzu.git 
   ```
+
+  In some instances it might help to delete your local `~/.perl6/precomp` directory. 
 
 Authors
 =======

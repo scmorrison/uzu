@@ -284,29 +284,32 @@ multi sub render(
     use Template::Mustache;
     
     my Any %layout_vars   = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
+    my &partial-names    = -> $template { ~<< ( $template ~~ m:g/ '{{>' \h* <( \N*? )> \h* '}}' / )};
+    my @layout_partials  = partial-names $layout_template;
 
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
         my Str $page_name = $page.key;
-        my Any %meta      = $page.values[0];
+        my Any %page      = $page.values[0];
+        my @page_partials = partial-names %page<html>;
 
         # When was this page last rendered?
-        my $last_render_time = "{$build_dir}/{$page_name}.{%meta<out_ext>}".IO.modified||0;
+        my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
 
         # Capture i18n, template, layout, and partial modified timestamps
-        my @modified_timestamps = [$layout_modified, %meta<modified>];
+        my @modified_timestamps = [$layout_modified, %page<modified>];
         my @partial_render_queue;
 
         # i18n file timestamps
         push @modified_timestamps, |($context.map: { $_.values[0]<modified> });
 
         # Append page-specific i18n vars if available
-        my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
+        my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
         my %linked_pages = linked-pages
             base_page => $page_name,
-            page_vars => %meta<vars>,
+            page_vars => %page<vars>,
             :$site_index,
             :$default_language,
             :$language,
@@ -315,13 +318,37 @@ multi sub render(
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
-        # Render the partials content
+        # Cache rendered top-level and embedded partials
         my Any %partials;
-        for kv $partials -> $partial_name, %p {
-            push @modified_timestamps, %p<modified>;
+
+        # Prerender any embedded partials
+        for $partials{|@layout_partials, |@page_partials}:kv -> $partial_name, %partial {
+            for partial-names %partial<html> -> $embedded_partial_name {
+                push @modified_timestamps, %partial<modified>;
+                push @partial_render_queue, &{
+                    %partials{$embedded_partial_name} =
+                        Template::Mustache.render:
+                            |%layout_vars,
+                            |%i18n_vars,
+                            |%page<vars>,
+                            |$partials{$embedded_partial_name}<vars>,
+                            |%linked_pages;
+                }
+            }
+        }
+
+        # Render top-level partials content
+        for $partials{|@layout_partials, |@page_partials}:kv -> $partial_name, %partial {
+            push @modified_timestamps, %partial<modified>;
             push @partial_render_queue, &{
-                %partials{$partial_name} = Template::Mustache.render:
-                    %p<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%p<vars>, |%linked_pages );
+                %partials{$partial_name} =
+                    Template::Mustache.render:
+                        %partial<html>, %(
+                            |%layout_vars,
+                            |%i18n_vars,
+                            |%page<vars>,
+                            |%partial<vars>,
+                            |%linked_pages );
             }
         };
 
@@ -329,40 +356,53 @@ multi sub render(
         # have not been modified
         next when max(flat @modified_timestamps) < $last_render_time;
 
-        # Continue... render partials
-        @partial_render_queue>>.();
+        $iorunner.send: {
 
-        # Render the page content
-        my Str $page_contents = Template::Mustache.render:
-            %meta<html>, %( |%layout_vars, |%page_context, |%meta<vars>, |%linked_pages, :$site_index ), from => [%partials];
+            # Continue... render partials
+            @partial_render_queue>>.();
 
-        # Append page content to $context
-        my Str $layout_contents = do given %meta<out_ext> {
-            when 'html' {
-                decode-entities Template::Mustache.render:
-                    $layout_template,
-                    %( |%layout_vars, |%meta<vars>, |%linked_pages, :$site_index, content => $page_contents ),
-                    from => [%partials]
+            # Render the page content
+            my Str $page_contents =
+                Template::Mustache.render:
+                    %page<html>, %(
+                        |%layout_vars,
+                        |%i18n_vars,
+                        |%page<vars>,
+                        |%linked_pages,
+                        :$site_index
+                    ), from => [%partials];
+
+            # Append page content to $context
+            my Str $layout_contents = do given %page<out_ext> {
+                when 'html' {
+                    decode-entities Template::Mustache.render:
+                        $layout_template, %(
+                            |%layout_vars,
+                            |%page<vars>,
+                            |%linked_pages,
+                            :$site_index,
+                            content => $page_contents
+                        ), from => [%partials]
+                }
+
+                # Do not wrap non-html files with layout
+                default { $page_contents  }
             }
 
-            # Do not wrap non-html files with layout
-            default { $page_contents  }
-        }
-
-        $iorunner.send: {
             prepare-html-output(
                 :$page_name,
                 :$default_language,
                 :$language,
                 :$layout_contents,
                 :$no_livereload,
-                path          => %meta<path>,
-                target_dir    => %meta<target_dir>,
-                out_ext       => %meta<out_ext>)
+                path          => %page<path>,
+                target_dir    => %page<target_dir>,
+                out_ext       => %page<out_ext>)
             ==> write-generated-file(
                 build_dir     => $build_dir);
+
         }
-    };
+    }
 }
 
 multi sub render(
@@ -383,33 +423,35 @@ multi sub render(
     ::D      :&logger
 ) {
     use Template6;
-    my Any %layout_vars   = language => $language, "lang_{$language}" => True,|$context{$language}, "theme_{$theme}" => True;
-
+    my Any %layout_vars  = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
+    my &partial-names    = -> $template { ~<< ( $template ~~ m:g/ '[% INCLUDE' \h* '"' <( \N*? )> '"' \h* '%]' / )};
+    my @layout_partials  = partial-names $layout_template;
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
         my Str $page_name = $page.key;
-        my Any %meta      = $page.values[0];
+        my Any %page      = $page.values[0];
+        my @page_partials = partial-names %page<html>;
 
         # When was this page last rendered?
-        my $last_render_time = "{$build_dir}/{$page_name}.{%meta<out_ext>}".IO.modified||0;
+        my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
 
         my Template6 $t6 .= new;
         $t6.add-template: 'layout', $layout_template;
         
         # Capture i18n, template, layout, and partial modified timestamps
-        my @modified_timestamps = [$layout_modified, %meta<modified>];
+        my @modified_timestamps = [$layout_modified, %page<modified>];
         my @partial_render_queue;
 
         # i18n file timestamps
         push @modified_timestamps, |($context.map: { $_.values[0]<modified> });
 
         # Append page-specific i18n vars if available
-        my Any %page_context = i18n-context-vars path => %meta<path>, :$context, :$language;
+        my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
 
         # Prepare page links from *_pages yaml blocks
         my %linked_pages = linked-pages
             base_page => $page_name,
-            page_vars => %meta<vars>,
+            page_vars => %page<vars>,
             :$site_index,
             :$default_language,
             :$language,
@@ -418,66 +460,93 @@ multi sub render(
         # Linked pages file timestamps
         push @modified_timestamps, linked-page-timestamps %linked_pages;
 
-        # Render the partials content
-        for kv $partials -> $partial_name, %p {
-            push @modified_timestamps, %p<modified>;
+        # Prerender any embedded partials
+        for $partials{|@layout_partials, |@page_partials}:kv -> $partial_name, %partial {
+            for partial-names %partial<html> -> $embedded_partial_name {
+                push @modified_timestamps, %partial<modified>;
+                push @partial_render_queue, &{
+                    $t6.add-template: "{$embedded_partial_name}_", %partial<html>;
+                    $t6.add-template:
+                        $embedded_partial_name,
+                        $t6.process(
+                            "{$embedded_partial_name}_",
+                            |%layout_vars,
+                            |%i18n_vars,
+                            |%page<vars>,
+                            |$partials{$embedded_partial_name}<vars>,
+                            |%linked_pages);
+                }
+            }
+        }
+
+        # Render top-level partials content
+        for $partials{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
+            push @modified_timestamps, %partial<modified>;
             push @partial_render_queue, &{
-                $t6.add-template: "{$partial_name}_", %p<html>;
+                $t6.add-template: "{$partial_name}_", %partial<html>;
                 $t6.add-template:
                     $partial_name,
                     $t6.process(
                         "{$partial_name}_",
                         |%layout_vars,
-                        |%page_context,
-                        |%meta<vars>,
-                        |%p<vars>,
+                        |%i18n_vars,
+                        |%page<vars>,
+                        |%partial<vars>,
                         |%linked_pages);
             }
-        };
+        }
 
         # Skip rendering if layout, page, or partial templates
         # have not been modified
         next when max(@modified_timestamps) < $last_render_time;
 
-        # Continue... render partials
-        @partial_render_queue>>.();
+        $iorunner.send: &{
 
-        # Cache template
-        $t6.add-template: "_{$page_name}_", %meta<html>;
+            # Continue... render partials
+            @partial_render_queue>>.();
 
-        # Render the page content
-        my Str $page_contents = $t6.process: 
-            "_{$page_name}_",
-            |%layout_vars,
-            |%page_context,
-            |%meta<vars>,
-            |%linked_pages,
-            :$site_index;
+            # Cache template
+            $t6.add-template: "_{$page_name}_", %page<html>;
 
-        # Append page content to $context
-        my Str $layout_contents = do given %meta<out_ext> {
-            when 'html' {
-                $t6.process: 'layout', |%layout_vars, |%meta<vars>, |%linked_pages, :$site_index, content => $page_contents;
+            # Render the page content
+            my Str $page_contents = $t6.process: 
+                "_{$page_name}_",
+                |%layout_vars,
+                |%i18n_vars,
+                |%page<vars>,
+                |%linked_pages,
+                :$site_index;
+
+            # Append page content to $context
+            my Str $layout_contents = do given %page<out_ext> {
+                when 'html' { 
+                    $t6.process:
+                        'layout',
+                        |%layout_vars,
+                        |%page<vars>,
+                        |%linked_pages,
+                        :$site_index,
+                        content => $page_contents;
+                }
+
+                # Do not wrap non-html files with layout
+                default { $page_contents }
             }
 
-            # Do not wrap non-html files with layout
-            default { $page_contents }
-        }
-
-        $iorunner.send: &{
             prepare-html-output(
                 :$page_name,
                 :$default_language,
                 :$language,
                 :$layout_contents,
                 :$no_livereload,
-                path          => %meta<path>,
-                target_dir    => %meta<target_dir>,
-                out_ext       => %meta<out_ext>)
+                path          => %page<path>,
+                target_dir    => %page<target_dir>,
+                out_ext       => %page<out_ext>)
             ==> write-generated-file(
                 build_dir     => $build_dir);
+
         }
-    };
+    }
 }
 
 our sub build(
