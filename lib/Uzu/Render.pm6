@@ -286,28 +286,28 @@ multi sub partial-names(
 }
 
 multi sub render-template(
-	'mustache',
-	Hash  :$context,
+    'mustache',
+    Hash  :$context,
     Str   :$content,
     Array :$from = []
 ) {
-  	Template::Mustache.render: $content, $context, from => $from;
+      Template::Mustache.render: $content, $context, from => $from;
 }
 
 multi sub render-template(
-	'tt',
-	Hash      :$context,
-	Str       :$template_name,
-	Str       :$content,
-	Template6 :$t6
+    'tt',
+    Hash      :$context,
+    Str       :$template_name,
+    Str       :$content,
+    Template6 :$t6
 ) {
     if $content && $context {
-    	$t6.add-template: "{$template_name}_", $content;
-	    $t6.add-template: $template_name, $t6.process("{$template_name}_", |$context);
+        $t6.add-template: "{$template_name}_", $content;
+        $t6.add-template: $template_name, $t6.process("{$template_name}_", |$context);
     } elsif !$context {
-    	$t6.add-template: $template_name, $content;
+        $t6.add-template: $template_name, $content;
     } else {
-    	$t6.add-template: $template_name, $t6.process($template_name, |$context);
+        $t6.add-template: $template_name, $t6.process($template_name, |$context);
     }
 }
 
@@ -380,11 +380,11 @@ multi sub render(
             for partial-names($template_engine, %partial<html>) -> $embedded_partial_name {
 
                 my %context = 
-					|($nolayout ?? %() !! %layout_vars),
-					|%i18n_vars,
-					|%page<vars>,
-					|$partials{$embedded_partial_name}<vars>,
-					|%linked_pages;
+                    |($nolayout ?? %() !! %layout_vars),
+                    |%i18n_vars,
+                    |%page<vars>,
+                    |$partials{$embedded_partial_name}<vars>,
+                    |%linked_pages;
 
                 push @modified_timestamps, %partial<modified>;
                 push @partial_render_queue, &{
@@ -412,11 +412,11 @@ multi sub render(
         # Render top-level partials content
         for $partials{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
             my %context = 
-				|($nolayout ?? %() !! %layout_vars),
-				|%i18n_vars,
-				|%page<vars>,
-				|%partial<vars>,
-				|%linked_pages;
+                |($nolayout ?? %() !! %layout_vars),
+                |%i18n_vars,
+                |%page<vars>,
+                |%partial<vars>,
+                |%linked_pages;
 
             push @modified_timestamps, %partial<modified>;
             push @partial_render_queue, &{
@@ -429,11 +429,11 @@ multi sub render(
                                 content  => %partial<html>;
                     }
                     when 'tt' {
-						render-template
-							'tt',
-							 context       => %( |%context ),
-							 template_name => $partial_name,
-							 content       => %partial<html>,
+                        render-template
+                            'tt',
+                             context       => %( |%context ),
+                             template_name => $partial_name,
+                             content       => %partial<html>,
                              t6            => $t6;
                     }
                 }
@@ -450,19 +450,19 @@ multi sub render(
             @partial_render_queue>>.();
 
             my %context =
-				|($nolayout ?? %() !! %layout_vars),
-				|%i18n_vars,
-				|%page<vars>,
-				|%linked_pages,
-				:$site_index;
+                |($nolayout ?? %() !! %layout_vars),
+                |%i18n_vars,
+                |%page<vars>,
+                |%linked_pages,
+                :$site_index;
 
             # Render the page content
             my Str $page_contents = do given $template_engine {
                 when 'mustache' {
-					render-template
-					   'mustache',
-						context  => %context,
-						content  => %page<html>,
+                    render-template
+                       'mustache',
+                        context  => %context,
+                        content  => %page<html>,
                         from     => [%partials];
                 }
                 when 'tt' {
