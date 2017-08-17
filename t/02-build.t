@@ -114,6 +114,7 @@ subtest {
 
     # Generate HTML from templates
     stdout-from { Uzu::Render::build $config }
+
     my $tmp_build_path = $tmp_root.IO.child('build').path;
 
     # Generated HTML looks good?
@@ -182,9 +183,6 @@ subtest {
     # Set config file path
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
 
-    # Complain about empty page template
-    stdout-like { Uzu::Render::build $config }, / "No content found for page" /, 'empty page template warning to stdout';
-
     # Expect a warning when i18n yaml is invalid
     my $t5_yaml = q:to/END/;
     ---
@@ -197,7 +195,12 @@ subtest {
 
     # Save to tmp_build_path i18n yaml file
     spurt $tmp_root.IO.child('i18n').child('en.yml'), $t5_yaml;
-    stderr-like { Uzu::Render::build $config }, / "Invalid i18n yaml file" /, 'invalid i18n yaml warning to stdout';
+    my $build_out = output-from { Uzu::Render::build $config };
+
+    # Test warnings
+    like $build_out, / "No content found for page" /, 'empty page template warning to stdout';
+    like $build_out, / "Invalid i18n yaml file" /, 'invalid i18n yaml warning to stdout';
+
 }, 'Warnings';
 
 # vim: ft=perl6
