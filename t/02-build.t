@@ -81,8 +81,8 @@ subtest {
 
     # Modifying an unrelated partial does not trigger page rebuild
     my $t10_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
-    my $t10_related_page            = $tmp_root.IO.child('pages').child('index.tt');
-    spurt $t10_related_page, slurp($t10_related_page);
+    my $t10_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.tt');
+    spurt $t10_unrelated_partial, slurp($t10_unrelated_partial);
     stdout-from { Uzu::Render::build $config }
     my $t10_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t10_generated_post_modified == $t10_generated_pre_modified, '[Template6] modifying an unrelated partial does not trigger page rebuild';
@@ -146,8 +146,8 @@ subtest {
 
     # Modifying an unrelated partial does not trigger page rebuild
     my $t10_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
-    my $t10_related_page            = $tmp_root.IO.child('pages').child('index.mustache');
-    spurt $t10_related_page, slurp($t10_related_page);
+    my $t10_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.mustache');
+    spurt $t10_unrelated_partial, slurp($t10_unrelated_partial);
     stdout-from { Uzu::Render::build $config }
     my $t10_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t10_generated_post_modified == $t10_generated_pre_modified, '[Mustache] modifying an unrelated partial does not trigger page rebuild';
