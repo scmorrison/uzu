@@ -9,6 +9,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Config variables](#config-variables)
 - [Project folder structure (Template6)](#project-folder-structure-template6)
 - [Project folder structure (Mustache)](#project-folder-structure-mustache)
+- [Public and Assets directories](#public-and-assets-directories)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
   * [Nested i18n variable files](#nested-i18n-variable-files)
 - [Template Features](#template-features)
@@ -220,8 +221,24 @@ Project folder structure (Mustache)
 ```
 See [uzu-starter](https://github.com/scmorrison/uzu-starter) for a full example.
 
-i18n YAML and Templating
-=========
+# Public and Assets directories
+
+* `public/` - The root public directory is where project-wide static assets are stored.
+* `themes/**/assets/` - The theme's assets directory is where theme-specific static assets are stored.
+
+Files found in either of these directories are copied wholesale to the root of the `build/` directory on successful build. For example:
+
+* `public/js/site.js` will be copied to `build/js/site.js`
+* `themes/default/assets/img/logo.png` will be copied to `build/img/logo.png`
+
+**Note:** Any tmp / swp files created by editors will also be copied into `build/`. Most editors provide options to configure this behavior. For example, you can have all `vim` `.swp` files saved into a central directory by adding something like this to `~/.vimrc`:
+
+```
+set backupdir=~/.vim/backup//
+set directory=~/.vim/swp//
+```
+
+# i18n YAML and Templating
 
 You can separate out the content text to YAML files located in a project-root folder called `i18n`. Simply create a separate file for each language, like this:
 

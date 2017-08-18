@@ -10,7 +10,7 @@ our sub decode-entities(
         /'&quot;'/ => '"',
         /'&lt;'/   => '<',
         /'&gt;'/   => '>',
-        /'&nbsp;'/ => ' ';
+        /'&nbsp;'/ => "\xA0";
 }
 
 our sub copy-dir(

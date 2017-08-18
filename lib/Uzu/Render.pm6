@@ -423,7 +423,7 @@ multi sub render(
                 given $template_engine {
                     when 'mustache' {
                         %partials{$partial_name} =
-                            render-template
+                            decode-entities render-template
                                'mustache',
                                 context  => %context,
                                 content  => %partial<html>,
@@ -460,7 +460,7 @@ multi sub render(
             # Render the page content
             my Str $page_contents = do given $template_engine {
                 when 'mustache' {
-                    decode-entities render-template
+                    render-template
                        'mustache',
                         context  => %context,
                         content  => %page<html>,
