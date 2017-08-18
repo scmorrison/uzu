@@ -302,7 +302,7 @@ sub embedded-partials(
         my @partial_keys = partial-names($template_engine, %partial<html>);
         for @partial_keys -> $embedded_partial_name {
 
-            my %context = |$context, |$partials_all{$embedded_partial_name}<vars>;
+            my %context = |$context, |%partial<vars>, |$partials_all{$embedded_partial_name}<vars>;
 
             ($modified_timestamps, $partial_render_queue, $embedded_partials) =
                 embedded-partials
@@ -315,7 +315,7 @@ sub embedded-partials(
                    :$partial_render_queue,
                    t6 => $t6||'';
 
-            push $modified_timestamps, %partial<modified>;
+            push $modified_timestamps, $partials_all{$embedded_partial_name}<modified>;
             push $partial_render_queue, &{
                 given $template_engine {
                     when 'mustache' {
@@ -440,7 +440,7 @@ multi sub render(
             |%page<vars>,
             |%linked_pages;
 
-         my ($modified_timestamps, $partial_render_queue) =
+        my ($modified_timestamps, $partial_render_queue) =
              embedded-partials
                 template_engine      => $template_engine,
                 partials_all         => $partials_all,

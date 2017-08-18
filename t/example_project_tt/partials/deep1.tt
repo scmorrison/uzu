@@ -1,1 +1,4 @@
+---
+bear: mountain
+---
 [% INCLUDE "deep2" %]
