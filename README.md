@@ -20,6 +20,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Partials](#partials)
   * [Global variables](#global-variables)
   * [Template variables](#template-variables)
+  * [Layout variables](#layout-variables)
   * [Related / linked pages](#related--linked-pages)
 - [Page render conditions](#page-render-conditions)
 - [Installation](#installation)
@@ -512,6 +513,38 @@ For `Template6`:
     <meta charset="utf-8">
     <title>{{ title }} - {{ date }}</title>
 </head>
+```
+
+### Layout variables
+
+You can define variables in the layout template and access them using the `layout.` prefix in templates;
+
+For example:
+
+Define yaml definitions in `themes/**/layout.tt` or `themes/**/layout.mustache`:
+
+```
+---
+root_url: https://www.perl6.org
+name: Dark Theme
+---
+<!doctype html>
+<html>
+...
+```
+
+Will be accessible in templates like this:
+
+For `Template6`:
+
+```
+<a href="[% layout.root_url %]/about-this-theme.html">[% layout.name %]</a>
+```
+
+...and for `Mustache`:
+
+```
+<a href="{{ layout.root_url }}/about-this-theme.html">{{ layout.name }}</a>
 ```
 
 ### Related / linked pages

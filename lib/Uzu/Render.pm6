@@ -375,6 +375,7 @@ multi sub render(
     Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
+    Hash     :$layout_vars,
     Numeric  :$layout_modified,
     Str      :$theme,
     IO::Path :$theme_dir,
@@ -387,7 +388,13 @@ multi sub render(
     ::D      :&logger
 ) {
 
-    my Any %layout_vars  = :$language, "lang_{$language}" => True, |$context{$language}, "theme_{$theme}" => True;
+    my Any %global_vars  = 
+        language           => $language,
+        "lang_{$language}" => True,
+        "theme_{$theme}"   => True,
+        layout             => $layout_vars,
+        |$context{$language};
+
     my @layout_partials  = partial-names $template_engine, $layout_template;
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
@@ -433,12 +440,13 @@ multi sub render(
 
         my Any %partials = %() when $template_engine ~~ 'mustache';
 
-        # Prepare embedded partials
-        my %context =
-            |($nolayout ?? %() !! %layout_vars),
+        # Prepare base context variables
+        my %base_context =
+            |%global_vars,
             |%i18n_vars,
             |%page<vars>,
             |%linked_pages;
+           # |($nolayout ?? %() !! %global_vars),
 
         my ($modified_timestamps, $partial_render_queue) =
              embedded-partials
@@ -446,7 +454,7 @@ multi sub render(
                 partials_all         => $partials_all,
                 embedded_partials    => %partials,
                 partial_keys         => [|@layout_partials, |@page_partials],
-                context              => %context,
+                context              => %base_context,
                 modified_timestamps  => @modified_timestamps,
                 partial_render_queue => @partial_render_queue,
                 t6 => $t6||'';
@@ -456,12 +464,6 @@ multi sub render(
         
         # Render top-level partials content
         for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
-            my %context = 
-                |($nolayout ?? %() !! %layout_vars),
-                |%i18n_vars,
-                |%page<vars>,
-                |%partial<vars>,
-                |%linked_pages;
 
             push @modified_timestamps, %partial<modified>;
             push @partial_render_queue, &{
@@ -470,14 +472,14 @@ multi sub render(
                         %partials{$partial_name} =
                             decode-entities render-template
                                'mustache',
-                                context  => %context,
+                                context  => %( |%base_context, |%partial<vars> ),
                                 content  => %partial<html>,
                                 from     => [%partials];
                     }
                     when 'tt' {
                         render-template
                             'tt',
-                             context       => %context,
+                             context       => %( |%base_context, |%partial<vars> ),
                              template_name => $partial_name,
                              content       => %partial<html>,
                              t6            => $t6;
@@ -495,12 +497,7 @@ multi sub render(
             # Continue... render partials
             @partial_render_queue>>.();
 
-            my %context =
-                |($nolayout ?? %() !! %layout_vars),
-                |%i18n_vars,
-                |%page<vars>,
-                |%linked_pages,
-                :$site_index;
+            my %context = |%base_context, :$site_index;
 
             # Render the page content
             my Str $page_contents = do given $template_engine {
@@ -530,12 +527,8 @@ multi sub render(
 
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
-                my %context = 
-                    |%layout_vars,
-                    |%page<vars>,
-                    |%linked_pages,
-                    :$site_index,
-                    content => $page_contents;
+
+                my %context = |%base_context, :$site_index, content => $page_contents;
 
                 when 'html' { 
                     $nolayout
@@ -551,7 +544,7 @@ multi sub render(
                         when 'tt' {
                             render-template
                                 'tt',
-                                 context       => %( |%context ),
+                                 context       => %context,
                                  template_name => 'layout',
                                  t6            => $t6;
                         }
@@ -577,6 +570,7 @@ multi sub render(
         }
     }
 }
+
 our sub build(
     Map $config,
     ::D :&logger = Uzu::Logger::start()
@@ -645,7 +639,14 @@ our sub build(
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
     my IO::Path $layout_path = grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head;
-    my Str $layout_template  = $layout_path.defined ?? slurp $layout_path !! '';
+
+    # Extract layout header yaml if available
+    my ($layout_template, $layout_vars) =
+        $layout_path.defined
+        ?? parse-template(path => $layout_path)
+        !! ["", %()];
+
+    logger "Theme [{$config<theme>}] does not contain a layout template" unless $layout_path.defined;
 
     my Channel $iorunner .= new;
     my Promise $iorunner_manager = io-runner($iorunner);
@@ -665,6 +666,7 @@ our sub build(
             build_dir        => $config<build_dir>,
             theme            => $config<theme>,
             layout_template  => $layout_template,
+            layout_vars      => $layout_vars,
             layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
             theme_dir        => $config<theme_dir>,
             default_language => $config<language>[0],
