@@ -639,12 +639,14 @@ our sub build(
     my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
     my IO::Path $layout_path = grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head;
-    #my Str $layout_content  = $layout_path.defined ?? slurp $layout_path !! '';
+
     # Extract layout header yaml if available
-    my ($layout_template, %layout_vars) =
+    my ($layout_template, $layout_vars) =
         $layout_path.defined
         ?? parse-template(path => $layout_path)
         !! ["", %()];
+
+    logger "Theme [{$config<theme>}] does not contain a layout template" unless $layout_path.defined;
 
     my Channel $iorunner .= new;
     my Promise $iorunner_manager = io-runner($iorunner);
@@ -664,7 +666,7 @@ our sub build(
             build_dir        => $config<build_dir>,
             theme            => $config<theme>,
             layout_template  => $layout_template,
-            layout_vars      => %layout_vars,
+            layout_vars      => $layout_vars,
             layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
             theme_dir        => $config<theme_dir>,
             default_language => $config<language>[0],
