@@ -285,6 +285,64 @@ multi sub partial-names(
     ~<< ( $template ~~ m:g/ '[% INCLUDE' \h* '"' <( \N*? )> '"' \h* '%]' / );
 }
 
+sub embedded-partials(
+    Str   :$template_engine,
+    Hash  :$partials_all,
+    Hash  :$embedded_partials    is copy,
+    Array :$partial_keys,
+    Hash  :$context,
+    List  :$modified_timestamps  is copy = [],
+    List  :$partial_render_queue is copy = [],
+    :$t6
+    --> List
+) {
+
+    # Prerender any embedded partials
+    for $partials_all{|@$partial_keys}:kv -> $partial_name, %partial {
+        my @partial_keys = partial-names($template_engine, %partial<html>);
+        for @partial_keys -> $embedded_partial_name {
+
+            my %context = |$context, |%partial<vars>, |$partials_all{$embedded_partial_name}<vars>;
+
+            ($modified_timestamps, $partial_render_queue, $embedded_partials) =
+                embedded-partials
+                   :$template_engine,
+                   :$partials_all,
+                   :$embedded_partials,
+                   :@partial_keys,
+                   :%context,
+                   :$modified_timestamps,
+                   :$partial_render_queue,
+                   t6 => $t6||'';
+
+            push $modified_timestamps, $partials_all{$embedded_partial_name}<modified>;
+            push $partial_render_queue, &{
+                given $template_engine {
+                    when 'mustache' {
+                        $embedded_partials{$embedded_partial_name} =
+                            decode-entities render-template
+                                'mustache',
+                                 context  => %context,
+                                 content  => $partials_all{$embedded_partial_name}<html>,
+                                 from     => [$embedded_partials];
+                    }
+                    when 'tt' {
+                        render-template
+                            'tt',
+                             context       => %context,
+                             template_name => $embedded_partial_name,
+                             content       => $partials_all{$embedded_partial_name}<html>,
+                             t6            => $t6;
+                    }
+                }
+            }
+        }
+    }
+
+    return [$modified_timestamps, $partial_render_queue, $embedded_partials];
+}
+
+
 multi sub render-template(
     'mustache',
     Hash  :$context,
@@ -323,7 +381,7 @@ multi sub render(
     Str      :$default_language,
     Str      :$language, 
     Hash     :$pages,
-    Hash     :$partials,
+    Hash     :$partials_all,
     Hash     :$site_index,
     Bool     :$no_livereload,
     ::D      :&logger
@@ -375,42 +433,29 @@ multi sub render(
 
         my Any %partials = %() when $template_engine ~~ 'mustache';
 
-        # Prerender any embedded partials
-        for $partials{|@layout_partials, |@page_partials}:kv -> $partial_name, %partial {
-            for partial-names($template_engine, %partial<html>) -> $embedded_partial_name {
+        # Prepare embedded partials
+        my %context =
+            |($nolayout ?? %() !! %layout_vars),
+            |%i18n_vars,
+            |%page<vars>,
+            |%linked_pages;
 
-                my %context = 
-                    |($nolayout ?? %() !! %layout_vars),
-                    |%i18n_vars,
-                    |%page<vars>,
-                    |$partials{$embedded_partial_name}<vars>,
-                    |%linked_pages;
+        my ($modified_timestamps, $partial_render_queue) =
+             embedded-partials
+                template_engine      => $template_engine,
+                partials_all         => $partials_all,
+                embedded_partials    => %partials,
+                partial_keys         => [|@layout_partials, |@page_partials],
+                context              => %context,
+                modified_timestamps  => @modified_timestamps,
+                partial_render_queue => @partial_render_queue,
+                t6 => $t6||'';
 
-                push @modified_timestamps, %partial<modified>;
-                push @partial_render_queue, &{
-                    given $template_engine {
-                        when 'mustache' {
-                            %partials{$embedded_partial_name} =
-                                decode-entities render-template
-                                    'mustache',
-                                     context  => %context,
-                                     content  => $partials{$embedded_partial_name}<html>;
-                        }
-                        when 'tt' {
-                            render-template
-                                'tt',
-                                 context       => %context,
-                                 template_name => $embedded_partial_name,
-                                 content       => $partials{$embedded_partial_name}<html>,
-                                 t6            => $t6;
-                        }
-                    }
-                }
-            }
-        }
-
+        @modified_timestamps  = @$modified_timestamps;
+        @partial_render_queue = @$partial_render_queue;
+        
         # Render top-level partials content
-        for $partials{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
+        for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
             my %context = 
                 |($nolayout ?? %() !! %layout_vars),
                 |%i18n_vars,
@@ -625,7 +670,7 @@ our sub build(
             default_language => $config<language>[0],
             language         => $language,
             pages            => %pages,
-            partials         => %( |%partials, |%theme_partials  ),
+            partials_all     => %( |%partials, |%theme_partials  ),
             site_index       => %site_index,
             no_livereload    => $config<no_livereload>,
             logger           => &logger);

@@ -1,0 +1,5 @@
+---
+hawaii: five-o
+---
+[% bear %] 
+[% INCLUDE "deep3" %]
