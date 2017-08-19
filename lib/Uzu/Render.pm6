@@ -320,7 +320,7 @@ sub embedded-partials(
                 given $template_engine {
                     when 'mustache' {
                         $embedded_partials{$embedded_partial_name} =
-                            decode-entities render-template
+                            render-template
                                 'mustache',
                                  context  => %context,
                                  content  => $partials_all{$embedded_partial_name}<html>,
@@ -407,14 +407,6 @@ multi sub render(
         my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
 
         my Template6 $t6 .= new when $template_engine ~~ 'tt';
-        with $t6 {
-            render-template(
-               'tt',
-                template_name => 'layout',
-                content       => $layout_template,
-                t6            => $t6
-            ) unless $nolayout;
-        }
         
         # Capture i18n, template, layout, and partial modified timestamps
         my @modified_timestamps = [$layout_modified, %page<modified>];
@@ -446,7 +438,6 @@ multi sub render(
             |%i18n_vars,
             |%page<vars>,
             |%linked_pages;
-           # |($nolayout ?? %() !! %global_vars),
 
         my ($modified_timestamps, $partial_render_queue) =
              embedded-partials
@@ -465,21 +456,23 @@ multi sub render(
         # Render top-level partials content
         for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
 
+            my %context = |%base_context, |%partial<vars>;
+
             push @modified_timestamps, %partial<modified>;
             push @partial_render_queue, &{
                 given $template_engine {
                     when 'mustache' {
                         %partials{$partial_name} =
-                            decode-entities render-template
+                            render-template
                                'mustache',
-                                context  => %( |%base_context, |%partial<vars> ),
+                                context  => %context,
                                 content  => %partial<html>,
                                 from     => [%partials];
                     }
                     when 'tt' {
                         render-template
                             'tt',
-                             context       => %( |%base_context, |%partial<vars> ),
+                             context       => %context,
                              template_name => $partial_name,
                              content       => %partial<html>,
                              t6            => $t6;
@@ -528,20 +521,33 @@ multi sub render(
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
 
-                my %context = |%base_context, :$site_index, content => $page_contents;
+                my %context = |%base_context, :$site_index;
 
                 when 'html' { 
                     $nolayout
                     ?? $page_contents
                     !! do given $template_engine {
                         when 'mustache' {
-                            decode-entities render-template
+                            render-template
                                'mustache',
                                 context  => %context,
                                 content  => $layout_template,
-                                from     => [%partials];
+                                from     => [%( |%partials, content => $page_contents )];
                         }
                         when 'tt' {
+                            # Cache layout template
+                            render-template
+                               'tt',
+                                template_name => 'layout',
+                                content       => $layout_template,
+                                t6            => $t6;
+                            # Cache page template
+                            render-template
+                                'tt',
+                                 template_name => 'content',
+                                 content       => $page_contents,
+                                 t6            => $t6;
+                            # Render layout
                             render-template
                                 'tt',
                                  context       => %context,
