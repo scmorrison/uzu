@@ -97,6 +97,26 @@ sub page-uri(
     }
 }
 
+multi sub find-linked-pages(
+    List $p
+) {
+    map {
+       find-linked-pages $_ when $_ ~~ Hash;
+    }, @$p;
+}
+
+multi sub find-linked-pages(
+    Hash $p,
+    --> Hash
+) {
+    state %page_sets;
+    map { 
+        find-linked-pages(.value) when .value ~~ Hash|List;
+        %page_sets{.key} = .values[0] when .key ~~  / '_pages' $/;
+    }, %$p;
+    %page_sets;
+}
+
 sub linked-pages(
     Str  :$base_page,
     Hash :$page_vars,
@@ -108,7 +128,8 @@ sub linked-pages(
     --> Hash
 ) {
     my %linked_pages;
-    for $page_vars{grep { / '_pages' $/ }, keys $page_vars}:kv -> $block_key, @pages {
+    for kv find-linked-pages($page_vars) -> $block_key, @pages {
+
         for @pages -> %vars {
             my $key  = %vars<page>;
             my $url = ($key ~~ / '://' / || !$site_index{$key})

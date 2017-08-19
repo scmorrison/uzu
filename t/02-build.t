@@ -34,7 +34,8 @@ subtest {
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
 
     # Generate HTML from templates
-    stdout-from { Uzu::Render::build $config }
+    #stdout-from { Uzu::Render::build $config }
+    Uzu::Render::build $config;
 
     # Did we generate the build directory?
     my $tmp_build_path = $tmp_root.IO.child('build').path;

@@ -13,6 +13,19 @@ other_pages:
       title:  Perl 6 Modules Directory
       author: Perl 6
     - page: about
+going_down:
+    - something: important
+    - deep_pages:
+        - page: blog/fiji
+        - page: about
+        - page: https://github.com/scmorrison/uzu/
+          author: Sam Morrison
+          title: Uzu is a static site generator
+    - deeper_still:
+        - deeper_pages:
+            - page: index
+            - page: about
+            - page: blog/fiji
 ---
 <ul>
 {{#related_pages}}
@@ -27,4 +40,18 @@ other_pages:
         <a href="{{ url }}">{{ title }}</a> [{{ author }}]
     </li>
 {{/other_pages}}
+</ul>
+<ul>
+{{#deep_pages}}
+    <li>
+        <a href="{{ url }}">{{ title }}</a> [{{ author }}]
+    </li>
+{{/deep_pages}}
+</ul>
+<ul>
+{{#deeper_pages}}
+    <li>
+        <a href="{{ url }}">{{ title }}</a> [{{ author }}]
+    </li>
+{{/deeper_pages}}
 </ul>
