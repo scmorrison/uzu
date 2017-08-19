@@ -3,7 +3,7 @@
     [% INCLUDE "head" %]
     <body>
             [% INCLUDE "navigation" %]
-            [% content %]
+            [% INCLUDE "content" %]
             [% INCLUDE "footer" %]
             </div>
     </body>
