@@ -36,6 +36,7 @@ sub parse-config(
 
 our sub from-file(
     IO::Path :$config_file   = 'config.yml'.IO,
+    Str      :$path          = '',
     Bool     :$no_livereload = False
     --> Map
 ) {
@@ -49,20 +50,21 @@ our sub from-file(
     my Int  $port           = $config<port>||3000;
 
     # Paths
-    my IO::Path $project_root = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
-    my IO::Path $build_dir    = $project_root.IO.child('build');
-    my IO::Path $i18n_dir     = $project_root.IO.child('i18n');
-    my IO::Path $themes_dir   = $project_root.IO.child('themes');
-    my IO::Path $assets_dir   = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
-    my IO::Path $theme_dir    = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
-    my IO::Path $layout_dir   = $theme_dir.IO.child('layout');
-    my IO::Path $pages_dir    = $project_root.IO.child('pages');
-    my IO::Path $partials_dir = $project_root.IO.child('partials');
-    my IO::Path $public_dir   = $project_root.IO.child('public');
-    my List $template_dirs    = [$layout_dir, $theme_dir, $theme_dir.IO.child('partials'), $pages_dir, $partials_dir, $i18n_dir];
-    my List %template_exts    = tt => ['tt'], mustache => ['ms', 'mustache'];
-    my Str $template_engine   = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
-    my List $extensions       = [ |%template_exts{$template_engine}, 'html', 'yml'];
+    my IO::Path $project_root     = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
+    my IO::Path $build_dir        = $project_root.IO.child('build');
+    my IO::Path $i18n_dir         = $project_root.IO.child('i18n');
+    my IO::Path $themes_dir       = $project_root.IO.child('themes');
+    my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
+    my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
+    my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
+    my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($path)||$project_root.IO.child('pages');
+    my IO::Path $pages_dir        = $project_root.IO.child('pages');
+    my IO::Path $partials_dir     = $project_root.IO.child('partials');
+    my IO::Path $public_dir       = $project_root.IO.child('public');
+    my List $template_dirs        = [$layout_dir, $theme_dir, $theme_dir.IO.child('partials'), $pages_watch_dir, $partials_dir, $i18n_dir];
+    my List %template_exts        = tt => ['tt'], mustache => ['ms', 'mustache'];
+    my Str $template_engine       = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
+    my List $extensions           = [ |%template_exts{$template_engine}, 'html', 'yml'];
 
     # Confirm all template directories exist
     # before continuing.
