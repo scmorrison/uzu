@@ -417,12 +417,14 @@ multi sub render(
         |$context{$language};
 
     my @layout_partials  = partial-names $template_engine, $layout_template;
-    for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
+    $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }).hyper.map: -> $page {
 
         my Str $page_name = $page.key;
         my Any %page      = $page.values[0];
         my @page_partials = partial-names $template_engine, %page<html>;
         my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
+
+        next unless %page<render>;
 
         # When was this page last rendered?
         my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
@@ -634,13 +636,16 @@ our sub build(
         #    }, build-category-uri(%page_vars<categories>);
         #}
 
+        my $pages_watch_dir = $config<pages_watch_dir>.IO.path;
+
         %( $page_name => %{
             path       => $path,
             html       => $page_html,
             vars       => %page_vars,
             out_ext    => $out_ext,
             target_dir => $target_dir,
-            modified   => $path.modified });
+            modified   => $path.modified,
+            render     => so $path.IO.path ~~ /^ $pages_watch_dir /});
 
     }, templates(:$exts, dir => $config<pages_dir>);
 

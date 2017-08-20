@@ -36,7 +36,7 @@ sub parse-config(
 
 our sub from-file(
     IO::Path :$config_file   = 'config.yml'.IO,
-    Str      :$path          = '',
+    Str      :$page_filter   = '',
     Bool     :$no_livereload = False
     --> Map
 ) {
@@ -57,7 +57,7 @@ our sub from-file(
     my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
     my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
-    my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($path)||$project_root.IO.child('pages');
+    my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');
     my IO::Path $pages_dir        = $project_root.IO.child('pages');
     my IO::Path $partials_dir     = $project_root.IO.child('partials');
     my IO::Path $public_dir       = $project_root.IO.child('public');
@@ -82,6 +82,7 @@ our sub from-file(
         :assets_dir($assets_dir),
         :theme_dir($theme_dir),
         :layout_dir($layout_dir),
+        :pages_watch_dir($pages_watch_dir),
         :pages_dir($pages_dir),
         :public_dir($public_dir),
         :partials_dir($partials_dir),

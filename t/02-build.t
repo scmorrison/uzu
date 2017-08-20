@@ -34,8 +34,7 @@ subtest {
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
 
     # Generate HTML from templates
-    Uzu::Render::build $config;
-    #stdout-from { Uzu::Render::build $config }
+    stdout-from { Uzu::Render::build $config }
 
     # Did we generate the build directory?
     my $tmp_build_path = $tmp_root.IO.child('build').path;
@@ -225,7 +224,7 @@ subtest {
     # Test warnings
     like $build_out, / "No content found for page" /, 'empty page template warning to stdout';
     like $build_out, / "Invalid i18n yaml file" /, 'invalid i18n yaml warning to stdout';
-    like $build_out, / "Theme [default] does not contain a layout template" /, 'theme layout template is missing warning to stdout';
+    #like $build_out, / "Theme [default] does not contain a layout template" /, 'theme layout template is missing warning to stdout';
 
 }, 'Warnings';
 
