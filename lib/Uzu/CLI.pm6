@@ -27,7 +27,7 @@ sub USAGE is export {
                             running uzu watch.
         --clear           - Delete build directory before 
                             render when running with build.
-        --page_filter     - Restrict build to pages starting
+        --page-filter     - Restrict build to pages starting
                             from this directory
       END
 }
@@ -52,13 +52,13 @@ multi MAIN(
 multi MAIN(
     'build',
     Str  :$config      = 'config.yml',
-    Str  :$page_filter = '',
+    Str  :$page-filter = '',
     Bool :$clear       = False
 ) is export {
 
     Uzu::Config::from-file(
         config_file   => $config.IO,
-        page_filter   => $page_filter,
+        page_filter   => $page-filter,
         no_livereload => True
     ).&{
         if $clear {
@@ -81,12 +81,12 @@ multi MAIN(
 multi MAIN(
     'watch',
     Str  :$config        = 'config.yml',
-    Str  :$page_filter   = '',
+    Str  :$page-filter   = '',
     Bool :$no-livereload = False
 ) is export {
     Uzu::Config::from-file(
         config_file   => $config.IO,
-        page_filter   => $page_filter,
+        page_filter   => $page-filter,
         no_livereload => $no-livereload
     ).&Uzu::Watch::start();
 }
