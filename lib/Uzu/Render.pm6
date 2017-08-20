@@ -394,8 +394,8 @@ multi sub render-template(
 
 multi sub render(
     Hash      $context,
+    Supplier :$page_queue,
     Str      :$template_engine,
-    Channel  :$iorunner,
     IO::Path :$build_dir,
     Str      :$layout_template,
     Hash     :$layout_vars,
@@ -419,7 +419,7 @@ multi sub render(
         |$context{$language};
 
     my @layout_partials  = partial-names $template_engine, $layout_template;
-    ($pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }).hyper.map: -> $page {
+    for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
         my Str $page_name = $page.key;
         my Any %page      = $page.values[0];
@@ -428,89 +428,92 @@ multi sub render(
 
         next unless %page<render>;
 
-        # When was this page last rendered?
-        my $last_render_time = "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0;
+        $page_queue.emit: &{
 
-        my Template6 $t6 .= new when $template_engine ~~ 'tt';
-        
-        # Capture i18n, template, layout, and partial modified timestamps
-        my @modified_timestamps = [$layout_modified, %page<modified>];
-        my @partial_render_queue;
+            # When was this page last rendered?
+            my $last_render_time =
+                $language ~~ $default_language
+                ?? "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0
+                !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, out_ext => %page<out_ext>).IO.modified||0;
 
-        # i18n file timestamps
-        push @modified_timestamps, |($context.map: { $_.values[0]<modified> });
+            my Template6 $t6 .= new when $template_engine ~~ 'tt';
+            
+            # Capture i18n, template, layout, and partial modified timestamps
+            my @modified_timestamps = [$layout_modified, %page<modified>];
+            my @partial_render_queue;
 
-        # Append page-specific i18n vars if available
-        my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
+            # i18n file timestamps
+            push @modified_timestamps, |($context.map: { $_.values[0]<modified> });
 
-        # Prepare page links from *_pages yaml blocks
-        my %linked_pages = linked-pages
-            base_page => $page_name,
-            page_vars => %page<vars>,
-            :$site_index,
-            :$default_language,
-            :$language,
-            :&logger;
+            # Append page-specific i18n vars if available
+            my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
 
-        # Linked pages file timestamps
-        push @modified_timestamps, linked-page-timestamps %linked_pages;
+            # Prepare page links from *_pages yaml blocks
+            my %linked_pages = linked-pages
+                base_page => $page_name,
+                page_vars => %page<vars>,
+                :$site_index,
+                :$default_language,
+                :$language,
+                :&logger;
 
-        my Any %partials = %() when $template_engine ~~ 'mustache';
+            # Linked pages file timestamps
+            push @modified_timestamps, linked-page-timestamps %linked_pages;
 
-        # Prepare base context variables
-        my %base_context =
-            |%global_vars,
-            |%i18n_vars,
-            |%page<vars>,
-            |%linked_pages;
+            my Any %partials = %() when $template_engine ~~ 'mustache';
 
-        my ($modified_timestamps, $partial_render_queue) =
-             embedded-partials
-                template_engine      => $template_engine,
-                partials_all         => $partials_all,
-                embedded_partials    => %partials,
-                partial_keys         => [|@layout_partials, |@page_partials],
-                context              => %base_context,
-                modified_timestamps  => @modified_timestamps,
-                partial_render_queue => @partial_render_queue,
-                t6 => $t6||'';
+            # Prepare base context variables
+            my %base_context =
+                |%global_vars,
+                |%i18n_vars,
+                |%page<vars>,
+                |%linked_pages;
 
-        @modified_timestamps  = @$modified_timestamps;
-        @partial_render_queue = @$partial_render_queue;
-        
-        # Render top-level partials content
-        for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
+            my ($modified_timestamps, $partial_render_queue) =
+                 embedded-partials
+                    template_engine      => $template_engine,
+                    partials_all         => $partials_all,
+                    embedded_partials    => %partials,
+                    partial_keys         => [|@layout_partials, |@page_partials],
+                    context              => %base_context,
+                    modified_timestamps  => @modified_timestamps,
+                    partial_render_queue => @partial_render_queue,
+                    t6 => $t6||'';
 
-            my %context      = |%base_context, |%partial<vars>;
+            @modified_timestamps  = @$modified_timestamps;
+            @partial_render_queue = @$partial_render_queue;
+            
+            # Render top-level partials content
+            for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
 
-            push @modified_timestamps, %partial<modified>;
-            push @partial_render_queue, &{
-                given $template_engine {
-                    when 'mustache' {
-                        %partials{$partial_name} =
+                my %context = |%base_context, |%partial<vars>;
+
+                push @modified_timestamps, %partial<modified>;
+                push @partial_render_queue, &{
+                    given $template_engine {
+                        when 'mustache' {
+                            %partials{$partial_name} =
+                                render-template
+                                   'mustache',
+                                    context  => %context,
+                                    content  => %partial<html>,
+                                    from     => [%partials];
+                        }
+                        when 'tt' {
                             render-template
-                               'mustache',
-                                context  => %context,
-                                content  => %partial<html>,
-                                from     => [%partials];
-                    }
-                    when 'tt' {
-                        render-template
-                            'tt',
-                             context       => %context,
-                             template_name => $partial_name,
-                             content       => %partial<html>,
-                             t6            => $t6;
+                                'tt',
+                                 context       => %context,
+                                 template_name => $partial_name,
+                                 content       => %partial<html>,
+                                 t6            => $t6;
+                        }
                     }
                 }
             }
-        }
 
-        # Skip rendering if layout, page, or partial templates
-        # have not been modified
-        next when max(@modified_timestamps) < $last_render_time;
-
-        $iorunner.send: &{
+            # Skip rendering if layout, page, or partial templates
+            # have not been modified
+            next when max(@modified_timestamps) < $last_render_time;
 
             # Continue... render partials
             @partial_render_queue>>.();
@@ -598,8 +601,8 @@ multi sub render(
             ==> write-generated-file(
                 build_dir     => $build_dir);
 
-        }
-    });
+        } # end page_queue
+    };
 }
 
 our sub build(
@@ -682,11 +685,18 @@ our sub build(
 
     logger "Theme [{$config<theme>}] does not contain a layout template" unless $layout_path.defined;
 
-    my Channel $iorunner .= new;
-    my Promise $iorunner_manager = io-runner($iorunner);
+    # Queue for page renders
+    my $page_queue     = Supplier.new;
+    my $page_supply    = $page_queue.Supply;
+    my $rendered_pages = 0; 
+    my Promise $render_complete .= new;
+    $page_supply.tap( -> &render {
+        &render();
+        $render_complete when $rendered_pages == (%pages.elems * $config<language>.elems)
+    });
 
     # One per language
-    map -> $language { 
+    for $config<language> -> $language { 
 
         logger "Compile templates [$language]";
 
@@ -695,8 +705,8 @@ our sub build(
             i18n_dir         => $config<i18n_dir>,
             logger           => &logger)
         ==> render(
+            page_queue       => $page_queue,
             template_engine  => $config<template_engine>,
-            iorunner         => $iorunner,
             build_dir        => $config<build_dir>,
             theme            => $config<theme>,
             layout_template  => $layout_template,
@@ -711,13 +721,8 @@ our sub build(
             no_livereload    => $config<no_livereload>,
             logger           => &logger);
 
-        LAST {
-            $iorunner.send: 'exit';
-        }
-         
-    }, $config<language>;
+    }
 
-    await $iorunner_manager;
     logger "Compile complete";
 }
 
