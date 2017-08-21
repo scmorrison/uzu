@@ -1,4 +1,5 @@
 ---
+author: Page Author
 related_pages:
     - page: about
       title: Let's use this title
@@ -21,20 +22,30 @@ going_down:
           author: Sam Morrison
           title: Uzu is a static site generator
     - deeper_still:
-        - title: Deeper Pages
-          deeper_pages:
+        - title: Deeper title
+        - deeper_pages:
             - page: index
             - page: about
             - page: blog/fiji
 categories:
-  - title: General tasks
-    category_pages:
-      - page: http://www.perl6.org
-        title: The Perl 6 Programming Language
-        author: Perl 6
-      - page: index
-      - page: blog/fiji
-      - page: about
+  - general_tasks:
+      - title: General tasks
+        category_pages:
+          - page: http://www.perl6.org
+            title: Perl 6
+          - page: index
+          - page: blog/fiji
+          - page: about
+  - other_tasks:         
+      - title: Other tasks
+        category_pages:
+          - page: about
+          - page: index
+  - more_tasks:
+      - title: Even more tasks
+        category_pages:
+          - page: blog/fiji
+          - page: about
 ---
 related pages
 <ul>
@@ -77,9 +88,31 @@ deeper still
 
 categories
 <p>
-[% categories.title %]
+[% categories.general_tasks.title %]
 <ul>
-[% for page in categories.category_pages %]
+[% for page in categories.general_tasks.category_pages %]
+    <li>
+        <a href="[% page.url %]">[% page.title %]</a> [[% page.author %]]
+    </li>
+[% end %]
+</ul>
+</p>
+
+<p>
+[% categories.other_tasks.title %]
+<ul>
+[% for page in categories.other_tasks.category_pages %]
+    <li>
+        <a href="[% page.url %]">[% page.title %]</a> [[% page.author %]]
+    </li>
+[% end %]
+</ul>
+</p>
+
+<p>
+[% categories.more_tasks.title %]
+<ul>
+[% for page in categories.more_tasks.category_pages %]
     <li>
         <a href="[% page.url %]">[% page.title %]</a> [[% page.author %]]
     </li>
