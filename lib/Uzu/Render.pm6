@@ -108,15 +108,6 @@ sub page-uri(
 
 multi sub inject-linked-pages($p, :$template_engine, :&expand-linked-pages) {$p}
 multi sub inject-linked-pages(
-    Pair $p,
-    :$template_engine,
-    :&expand-linked-pages
-) { 
-    note "PAIR";
-    note $p.key;
-    %( $p.key => inject-linked-pages($p.value, $template_engine, :&expand-linked-pages))
-}
-multi sub inject-linked-pages(
     Iterable $p,
     :$template_engine,
     :&expand-linked-pages
