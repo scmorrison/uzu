@@ -34,6 +34,14 @@ categories:
       - page: index
       - page: blog/fiji
       - page: about
+  - title: Other tasks
+    category_pages:
+      - page: about
+      - page: index
+  - title: Even more tasks
+    category_pages:
+      - page: blog/fiji
+      - page: about
 ---
 related pages
 <ul>
@@ -70,7 +78,7 @@ deeper pages
 {{#deeper_still}}
 {{#deeper_pages}}
     <li>
-        <a href="{{ url }}">{{ title }}</a> [{{ author }}]
+        <a href="{{ url }}">{{ title }}</a> [{{ author }}
     </li>
 {{/deeper_pages}}
 {{/deeper_still}}
@@ -83,8 +91,8 @@ categories
 <em>{{ title }}</em>
 <ul>
 {{#category_pages}}
-<li>{{ title }} : {{ url }}</li>
+<li><a href="{{ url }}">{{ title }}</a> [{{ author }}</li>
 {{/category_pages}}
-</li>
+</ul>
 {{/categories}}
 </p>

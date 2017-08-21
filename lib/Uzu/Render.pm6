@@ -106,30 +106,47 @@ sub page-uri(
     }
 }
 
-multi sub inject-linked-pages($p, :&expand-linked-pages) {$p}
+multi sub inject-linked-pages($p, :$template_engine, :&expand-linked-pages) {$p}
 multi sub inject-linked-pages(
     Pair $p,
+    :$template_engine,
     :&expand-linked-pages
 ) { 
-    %( $p.key => %( inject-linked-pages($p.value, :&expand-linked-pages) ))
+    note "PAIR";
+    note $p.key;
+    %( $p.key => inject-linked-pages($p.value, $template_engine, :&expand-linked-pages))
 }
 multi sub inject-linked-pages(
     Iterable $p,
+    :$template_engine,
     :&expand-linked-pages
 ) {
-    my $n = $p.flatmap({ .&inject-linked-pages(:&expand-linked-pages)});
-    $n.cache.values.all ~~ Pair ?? $n.cache.Hash !! $n.cache
+    my $n = $p.map({
+        .&inject-linked-pages(:$template_engine, :&expand-linked-pages);
+    }).map({
+        .&inject-linked-pages(:$template_engine, :&expand-linked-pages);
+    });
+    if $n.cache.values.all ~~ Pair { 
+        $n.cache.Hash;
+    } elsif $n.cache.values.any ~~ Hash|Pair {
+        $template_engine ~~ 'mustache'
+        ?? $n.cache.List
+        !! $n.cache.Hash;
+    } else {
+        $n.cache;
+    }
 }
 multi sub inject-linked-pages(
     Hash $p,
+    :$template_engine,
     :&expand-linked-pages
+    --> Hash()
 ) {
     map -> $k, $v {
         if $k ~~ /'_pages'$/ {
-            expand-linked-pages(block_key => $k, pages => $v).Hash;
+           expand-linked-pages(block_key => $k, pages => $v).Hash;
         } else {
-            my $n = inject-linked-pages($v, :&expand-linked-pages);
-            $k => $n;
+            $k => inject-linked-pages($v, :$template_engine, :&expand-linked-pages);
         }
     }, kv $p;
 }
@@ -453,8 +470,6 @@ multi sub render(
                 ?? "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0
                 !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, out_ext => %page<out_ext>).IO.modified||0;
 
-            my Template6 $t6 .= new when $template_engine ~~ 'tt';
-            
             # Capture i18n, template, layout, and partial modified timestamps
             my @modified_timestamps = [$layout_modified, %page<modified>];
             my @partial_render_queue;
@@ -467,7 +482,7 @@ multi sub render(
 
             # Prepare page links from *_pages yaml blocks
             my $page_vars = inject-linked-pages(
-                %page<vars>, expand-linked-pages => ->
+                %page<vars>, :$template_engine, expand-linked-pages => ->
                     :$base_page           = $page_name,
                     :$block_key,
                     :$pages,
@@ -483,9 +498,11 @@ multi sub render(
                             language         => $r_language,
                             timestamps       => @modified_timestamps)
                     }
-            ).List;
+            );
 
-            my Any %partials = %() when $template_engine ~~ 'mustache';
+            # Render engine storage
+            my Template6 $t6 .= new when $template_engine ~~ 'tt';
+            my Any %partials  = %() when $template_engine ~~ 'mustache';
 
             # Prepare base context variables
             my %base_context =
