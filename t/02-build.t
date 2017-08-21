@@ -34,7 +34,8 @@ subtest {
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
 
     # Generate HTML from templates
-    stdout-from { Uzu::Render::build $config }
+    my $stdout = stdout-from { Uzu::Render::build $config };
+    say $stdout if %*ENV<UZUSTDOUT>;
 
     # Did we generate the build directory?
     my $tmp_build_path = $tmp_root.IO.child('build').path;
@@ -75,7 +76,8 @@ subtest {
     my $t9_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
     my $t9_related_page            = $tmp_root.IO.child('pages').child('about.tt');
     spurt $t9_related_page, slurp($t9_related_page);
-    stdout-from { Uzu::Render::build $config }
+    my $stdout9 = stdout-from { Uzu::Render::build $config };
+    say $stdout9 if %*ENV<UZUSTDOUT>;
     my $t9_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t9_generated_post_modified > $t9_generated_pre_modified, '[Template6] modifying a related page triggers page rebuild';
 
@@ -83,7 +85,8 @@ subtest {
     my $t10_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
     my $t10_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.tt');
     spurt $t10_unrelated_partial, slurp($t10_unrelated_partial);
-    stdout-from { Uzu::Render::build $config }
+    my $stdout10 = stdout-from { Uzu::Render::build $config };
+    say $stdout10 if %*ENV<UZUSTDOUT>;
     my $t10_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t10_generated_post_modified == $t10_generated_pre_modified, '[Template6] modifying an unrelated partial does not trigger page rebuild';
 
@@ -123,7 +126,8 @@ subtest {
     my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
 
     # Generate HTML from templates
-    stdout-from { Uzu::Render::build $config }
+    my $stdout = stdout-from { Uzu::Render::build $config };
+    say $stdout if %*ENV<UZUSTDOUT>;
 
     my $tmp_build_path = $tmp_root.IO.child('build').path;
 
@@ -156,7 +160,8 @@ subtest {
     my $t6_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
     my $t6_related_page            = $tmp_root.IO.child('pages').child('about.mustache');
     spurt $t6_related_page, slurp($t6_related_page);
-    stdout-from { Uzu::Render::build $config }
+    my $stdout6 = stdout-from { Uzu::Render::build $config };
+    say $stdout6 if %*ENV<UZUSTDOUT>;
     my $t6_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t6_generated_post_modified > $t6_generated_pre_modified, '[Mustache] modifying a related page triggers page rebuild';
 
@@ -164,7 +169,8 @@ subtest {
     my $t7_generated_pre_modified  = $tmp_build_path.IO.child('related.html').modified;
     my $t7_unrelated_partial       = $tmp_root.IO.child('partials').child('usetheme.mustache');
     spurt $t7_unrelated_partial, slurp($t7_unrelated_partial);
-    stdout-from { Uzu::Render::build $config }
+    my $stdout7 = stdout-from { Uzu::Render::build $config };
+    say $stdout7 if %*ENV<UZUSTDOUT>;
     my $t7_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t7_generated_post_modified == $t7_generated_pre_modified, '[Mustache] modifying an unrelated partial does not trigger page rebuild';
 
@@ -220,6 +226,7 @@ subtest {
     unlink $tmp_root.IO.child('themes').child('default').child('layout.tt');
 
     my $build_out = output-from { Uzu::Render::build $config };
+    say $build_out if %*ENV<UZUSTDOUT>;
 
     # Test warnings
     like $build_out, / "No content found for page" /, 'empty page template warning to stdout';

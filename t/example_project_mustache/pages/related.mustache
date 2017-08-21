@@ -30,10 +30,12 @@ categories:
   - title: General tasks
     category_pages:
       - page: http://www.perl6.org
+        title: Perl 6
       - page: index
       - page: blog/fiji
       - page: about
 ---
+related pages
 <ul>
 {{#related_pages}}
     <li>
@@ -41,6 +43,8 @@ categories:
     </li>
 {{/related_pages}}
 </ul>
+
+other pages
 <ul>
 {{#other_pages}}
     <li>
@@ -48,17 +52,39 @@ categories:
     </li>
 {{/other_pages}}
 </ul>
+
+deep pages
 <ul>
+{{#going_down}}
 {{#deep_pages}}
     <li>
         <a href="{{ url }}">{{ title }}</a> [{{ author }}]
     </li>
 {{/deep_pages}}
+{{/going_down}}
 </ul>
+
+deeper pages
 <ul>
+{{#going_down}}
+{{#deeper_still}}
 {{#deeper_pages}}
     <li>
         <a href="{{ url }}">{{ title }}</a> [{{ author }}]
     </li>
 {{/deeper_pages}}
+{{/deeper_still}}
+{{/going_down}}
 </ul>
+
+categories
+<p>
+{{#categories}}
+<em>{{ title }}</em>
+<ul>
+{{#category_pages}}
+<li>{{ title }} : {{ url }}</li>
+{{/category_pages}}
+</li>
+{{/categories}}
+</p>
