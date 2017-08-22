@@ -496,10 +496,7 @@ multi sub render(
             my Any %partials  = %() when $template_engine ~~ 'mustache';
 
             # Prepare base context variables
-            my %base_context =
-                |%global_vars,
-                |%i18n_vars,
-                |$page_vars;
+            my %base_context = |%global_vars, |%i18n_vars, |$page_vars;
 
             my ($modified_timestamps, $partial_render_queue) =
                  embedded-partials
