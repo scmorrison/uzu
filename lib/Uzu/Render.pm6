@@ -701,7 +701,7 @@ our sub build(
     }
 
     logger "Copy public, assets";
-    map { copy-dir $_, $config<build_dir> }, hyper [$config<public_dir>, $config<assets_dir>];
+    map { copy-dir $_, $config<build_dir> }, [$config<public_dir>, $config<assets_dir>];
 
     # Append nested pages directories
     my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
