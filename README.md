@@ -56,6 +56,7 @@ Usage:
   uzu init          - Initialize new project
   uzu webserver     - Start local web server
   uzu build         - Render all templates to build
+  uzu clear         - Delete build directory and all of its contents
   uzu watch         - Start web server and re-render
                       build on template modification
   uzu version       - Print uzu version and exit
@@ -69,6 +70,10 @@ Optional arguments:
 
   --no-livereload   - Disable livereload when
                       running uzu watch.
+  --clear           - Delete build directory before 
+                      render when running with build.
+  --page-filter     - Restrict build to pages starting
+                      from this directory
 ```
 
 Config

@@ -2,34 +2,6 @@ use v6.c;
 
 unit module Uzu::HTTP;
 
-our sub serve(
-    IO::Path :$config_file
-    --> Proc::Async
-) {
-    my @args = "--config={$config_file}", "webserver";
-
-    # Use the library path if running from test
-    my $p = "bin/uzu".IO.f
-            ?? Proc::Async.new: $*EXECUTABLE, "-I{$?FILE.IO.parent.parent}",
-               $?FILE.IO.parent.parent.parent.child('bin').child('uzu'), @args
-            !! Proc::Async.new: "uzu", @args;
-
-    my Promise $server_up .= new;
-    $p.stdout.tap: -> $v {
-        # Wait until server started
-        $server_up.keep when $server_up.status ~~ Planned && $v ~~ / 'uzu serves' /;
-        $*OUT.print: $v; 
-    }
-    $p.stderr.tap: -> $v { $*ERR.print: $v }
-
-    # Start web server
-    $p.start;
-
-    # Wait for server to come online
-    await $server_up;
-    return $p;
-}
-
 our sub web-server(
     Map $config
 #    --> Bool
@@ -148,7 +120,7 @@ our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) 
 
             CATCH { default { sleep $sleep; next LOOP } }
         }
-        return;
+        return True;
     }
 
     die "$host:$port doesn't open in {$sleep*$times} sec.";

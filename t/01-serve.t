@@ -2,20 +2,25 @@ use v6;
 use lib 'lib';
 
 use Test;
+use Uzu::Config;
 use Uzu::HTTP;
 
 plan 3;
 
 my $root = $*CWD;
-my $server = Uzu::HTTP::serve(config_file => $root.IO.child('t').child('serve').child('config.yml'));
-is $server.WHAT, Proc::Async, 'serve 1/3: spawned server as proc async';
+my $app = start {
+    Uzu::Config::from-file(
+        config_file   => $root.IO.child('t').child('serve').child('config.yml'),
+        no_livereload => True).&Uzu::HTTP::web-server();
+}
+
 say "Waiting for web server to start serving";
 
 my $host = '127.0.0.1';
 my $port = 3333;
 
 # Wait for server to come online
-Uzu::HTTP::wait-port($port, times => 600);
+is Uzu::HTTP::wait-port($port, times => 600), True, 'spawned development web server';
 
 subtest {
     plan 1;
@@ -32,7 +37,7 @@ subtest {
     END
 
     my $results = Uzu::HTTP::inet-request("GET /index.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port);
-    ok $results ~~ / $html_test /, 'serve 2/3: served HTML match';
+    ok $results ~~ / $html_test /, 'served HTML match';
 }, 'Top-level page';
 
 subtest {
@@ -51,10 +56,7 @@ subtest {
     END
 
     my $results = Uzu::HTTP::inet-request("GET /blog/fiji.html HTTP/1.0\r\nContent-length: 0\r\n\r\n", $port);
-    ok $results ~~ / $html_test /, 'serve 3/3: served nested page HTML match';
+    ok $results ~~ / $html_test /, 'served nested page HTML match';
 }, 'Nested page';
-
-# Clean up
-$server.kill(SIGKILL);
 
 # vim: ft=perl6

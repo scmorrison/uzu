@@ -47,9 +47,8 @@ sub build-and-reload(
 }
 
 sub user-input(
-    Map         $config,
-    Proc::Async :$app,
-    ::D         :&logger
+    Map     $config,
+    ::D     :&logger
     --> Bool
 ) {
     loop {
@@ -67,7 +66,6 @@ sub user-input(
                 build-and-reload($config, logger => &logger);
             }
             when 'q'|'quit' {
-                $app.kill(SIGKILL);
                 exit 1;
             }
         }
@@ -94,7 +92,7 @@ our sub start(
     });
 
     # Start server
-    my Proc::Async $app = Uzu::HTTP::serve config_file => $config<path>;
+    my $app = start { Uzu::HTTP::web-server $config }
 
     # Keep track of the last render timestamp
     state Instant $last_run = now;
@@ -115,6 +113,6 @@ our sub start(
     }
 
     # Listen for keyboard input
-    user-input($config, app => $app, logger => &logger);
+    user-input($config, logger => &logger);
 }
 
