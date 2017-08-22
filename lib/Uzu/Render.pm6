@@ -439,9 +439,9 @@ multi sub render(
         "lang_{$language}" => True,
         "theme_{$theme}"   => True,
         layout             => $layout_vars,
-        |%( $context{$language}.values.all ~~ Pair ?? $context{$language} !! %() );
+        |%( $context{$language}.defined ?? |$context{$language} !! %() );
 
-    my @layout_partials  = partial-names $template_engine, $layout_template;
+    my @layout_partials   = partial-names $template_engine, $layout_template;
     for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
         my Str $page_name = $page.key;
