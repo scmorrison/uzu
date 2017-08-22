@@ -155,8 +155,7 @@ sub linked-pages(
     ::D  :&logger
 ) {
     my %linked_pages;
-
-    for @pages -> %vars {
+    map -> %vars {
         my $key  = %vars<page>;
         my $url = ($key ~~ / '://' / || !$site_index{$key})
             ?? $key
@@ -175,9 +174,9 @@ sub linked-pages(
             date     => $site_index{$key}<date>     ||'',
             modified => $site_index{$key}<modified>
         ]).Hash;
-    }
+    }, @pages;
 
-    return %linked_pages
+    return %linked_pages;
 }
 
 sub extract-file-parts(
@@ -327,11 +326,10 @@ sub embedded-partials(
     :$t6
     --> List
 ) {
-
     # Prerender any embedded partials
     for $partials_all{|@$partial_keys}:kv -> $partial_name, %partial {
         my @partial_keys = partial-names($template_engine, %partial<html>);
-        (@partial_keys.hyper.map: -> $embedded_partial_name {
+        @partial_keys.hyper.map: -> $embedded_partial_name {
 
             my %context = |$context, |%partial<vars>, |$partials_all{$embedded_partial_name}<vars>;
 
@@ -367,7 +365,7 @@ sub embedded-partials(
                     }
                 }
             }
-        });
+        }
     }
 
     return [$modified_timestamps, $partial_render_queue, $embedded_partials];
@@ -466,7 +464,7 @@ multi sub render(
             my @partial_render_queue;
 
             # i18n file timestamps
-            push @modified_timestamps, |($context.map: { $_.values[0]<modified> });
+            push @modified_timestamps, |(map { .values[0]<modified> }, $context);
 
             # Append page-specific i18n vars if available
             my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
@@ -513,7 +511,7 @@ multi sub render(
             @partial_render_queue = @$partial_render_queue;
             
             # Render top-level partials content
-            for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
+            map -> $partial_name, %partial {
 
                 my %context = |%base_context, |%partial<vars>;
 
@@ -540,7 +538,7 @@ multi sub render(
                         }
                     }
                 }
-            }
+            }, $partials_all{|@page_partials, |@layout_partials}:kv;
 
             # Skip rendering if layout, page, or partial templates
             # have not been modified
@@ -653,7 +651,8 @@ our sub build(
     my %site_index;
 
     # All available pages
-    my Any %pages = map -> $path { 
+    my Any %pages = templates(:$exts, dir => $config<pages_dir>).map: -> $path { 
+
         next unless $path.IO.f;
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
 
@@ -687,7 +686,7 @@ our sub build(
             modified   => $path.modified,
             render     => so $path.IO.path ~~ /^ $pages_watch_dir /});
 
-    }, templates(:$exts, dir => $config<pages_dir>);
+    }
 
     # All available partials
     my Any %partials       = build-partials-hash source => $config<partials_dir>, :$exts, :&logger;
@@ -702,7 +701,7 @@ our sub build(
     }
 
     logger "Copy public, assets";
-    map { copy-dir $_, $config<build_dir> }, [$config<public_dir>, $config<assets_dir>];
+    map { copy-dir $_, $config<build_dir> }, hyper [$config<public_dir>, $config<assets_dir>];
 
     # Append nested pages directories
     my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
@@ -725,13 +724,10 @@ our sub build(
     my $page_supply    = $page_queue.Supply;
     my $rendered_pages = 0; 
     my Promise $render_complete .= new;
-    $page_supply.tap( -> &render {
-        &render();
-        $render_complete when $rendered_pages == (%pages.elems * $config<language>.elems)
-    });
+    $page_supply.tap({ .() });
 
     # One per language
-    for $config<language> -> $language { 
+    map -> $language { 
 
         logger "Compile templates [$language]";
 
@@ -755,8 +751,7 @@ our sub build(
             site_index       => %site_index,
             no_livereload    => $config<no_livereload>,
             logger           => &logger);
-
-    }
+   }, $config<language>;
 
     logger "Compile complete";
 }
