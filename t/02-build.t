@@ -129,7 +129,7 @@ subtest {
     my $stdout = stdout-from { Uzu::Render::build $config };
     say $stdout if %*ENV<UZUSTDOUT>;
 
-    my $tmp_build_path = $tmp_root.IO.child('build').path;
+    my $tmp_build_path = $tmp_root.IO.child('build').child('default').path;
 
     # Generated HTML looks good?
     my $t1_expected_html  = slurp $test_root.IO.child('expected_mustache').child('index.html');

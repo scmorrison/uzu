@@ -3,7 +3,24 @@ name: uzu-tests
 language:
   - en
   - ja
+# Valid theme configs
 theme: default
+#themes:
+#   - default
+#   - website
+#   - catalog
+themes:
+  - default:
+      port: 4441
+      exclude_pages:
+        - about
+        - blog/fiji
+  - summer2017:
+      build_dir: 'build'
+      #      port: 4442
+      exclude_pages:
+        - index
+
 template_engine: mustache
 url: https://gitlab.com/samcns/uzu
 author: Sam Morrison

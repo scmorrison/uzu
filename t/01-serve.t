@@ -8,11 +8,9 @@ use Uzu::HTTP;
 plan 3;
 
 my $root = $*CWD;
-my $app = start {
-    Uzu::Config::from-file(
-        config_file   => $root.IO.child('t').child('serve').child('config.yml'),
-        no_livereload => True).&Uzu::HTTP::web-server();
-}
+my $app = Uzu::Config::from-file(
+    config_file   => $root.IO.child('t').child('serve').child('config.yml'),
+    no_livereload => True).&Uzu::HTTP::web-server();
 
 say "Waiting for web server to start serving";
 

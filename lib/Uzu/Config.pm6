@@ -25,13 +25,108 @@ sub parse-config(
         exit 1;
     }
 
-    my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
+    try {
 
-    # Collect non-core variables into :site
-    my $core_vars = 'host'|'language'|'port'|'project_root'|'site'|'theme'|'url';
-    %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
+        CATCH {
+            default {
+                note "Invalid config yaml file [$config_file]";
+                note .Str;
+                exit 1;
+            }
+        }
 
-    return %global_config;
+        my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
+
+        # Collect non-core variables into :site
+        my $core_vars = 'host'|'language'|'port'|'project_root'|'site'|'theme'|'url';
+        %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
+
+        return %global_config;
+    }
+}
+
+sub build-dir-exists(@seen, $dir) {
+    if so @seen (cont) $dir {
+        note "Cannot render multiple themes to the same build directory [{$dir}]" when so @seen (cont) $dir;
+        exit 1;
+    }
+}
+
+sub safe-build-dir-check($dir, :$project_root) {
+    if $dir.IO ~~ $*HOME.IO|$project_root.IO {
+        note "Build directory [{$dir.IO.path}] cannot be {$*HOME} or project root [{$project_root}].";
+        exit 1;
+    }
+}
+
+sub themes-config(
+    IO::Path :$themes_dir,
+    Str      :$theme,
+    Array    :$themes,
+    IO::Path :$build_dir,
+    Int      :$port,
+    List     :$excluded_pages,
+    IO::Path :$project_root
+) {
+    # Always use single theme if yaml `theme:` variable set
+    return ("{$theme||'default'}" => %(
+                theme_dir      => $themes_dir.IO.child("$theme"||'default'),
+                build_dir      => $build_dir,
+                port           => $port,
+                excluded_pages => $excluded_pages),) when $themes ~~ [];
+
+    my @seen_build_dirs;
+    my $working_port = $port;
+
+    # ... otherwise use hash
+    return map -> %theme {
+         my $theme_name = %theme.keys.head;
+         my $theme      = %theme.values.head;
+         my $theme_dir  = $themes_dir.IO.child($theme_name);
+
+         do {
+             note "Theme directory [{$theme_name}] does not exist. Skipping.";
+             next;
+         } unless $theme_dir.IO.e;
+
+         my $theme_build_dir = do {
+             if $themes.elems ~~ 1 {
+                 $build_dir;
+             } elsif $theme<build_dir> {
+                 build-dir-exists(@seen_build_dirs, $theme<build_dir>);
+                 push @seen_build_dirs, $theme<build_dir>;
+                 safe-build-dir-check($theme<build_dir>.IO, :$project_root);
+                 $theme<build_dir>.IO;
+             } else {
+                 my $nested_build_dir = $build_dir.IO.child($theme_name); 
+                 build-dir-exists(@seen_build_dirs, $nested_build_dir);
+                 push @seen_build_dirs, $build_dir.IO.child($theme_name);
+                 $build_dir.IO.child($theme_name);
+             }
+         }
+
+         my $theme_port = do {
+             if $themes.elems ~~ 1 {
+                 $theme<port>||$working_port;
+             } else {
+                 if $theme<port> && $theme<port> > $working_port {
+                     $working_port = $theme<port>;
+                     $theme<port>;
+                 } else {
+                     $working_port;
+                 }
+             }
+         }
+
+         ++$working_port;
+
+         $theme_name => %(
+             theme_dir      => $theme_dir,
+             build_dir      => $theme_build_dir,
+             port           => $theme_port,
+             excluded_pages => ($theme<excluded_pages>||$excluded_pages))
+
+    }, $themes.values;
 }
 
 our sub from-file(
@@ -49,6 +144,9 @@ our sub from-file(
     my Str  $host           = $config<host>||'0.0.0.0';
     my Int  $port           = $config<port>||3000;
 
+    # Misc.
+    my List $excluded_pages = [$config<excluded_pages>];
+
     # Paths
     my IO::Path $project_root     = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
     my IO::Path $build_dir        = $project_root.IO.child('build');
@@ -56,12 +154,18 @@ our sub from-file(
     my IO::Path $themes_dir       = $project_root.IO.child('themes');
     my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
+    my          $themes           =
+        themes-config(
+           :$themes_dir, :$build_dir, :$port, :$excluded_pages, :$project_root,
+           theme  => ($config<theme>||''),
+           themes => ($config<themes> ~~ Array ?? $config<themes> !! [])).Array;
+
     my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
     my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');
     my IO::Path $pages_dir        = $project_root.IO.child('pages');
     my IO::Path $partials_dir     = $project_root.IO.child('partials');
     my IO::Path $public_dir       = $project_root.IO.child('public');
-    my List $template_dirs        = [$layout_dir, $theme_dir, $theme_dir.IO.child('partials'), $pages_watch_dir, $partials_dir, $i18n_dir];
+    my List $template_dirs        = [$pages_watch_dir, $partials_dir, $i18n_dir];
     my List %template_exts        = tt => ['tt'], mustache => ['ms', 'mustache'];
     my Str $template_engine       = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
     my List $extensions           = [ |%template_exts{$template_engine}, 'html', 'yml'];
@@ -78,6 +182,7 @@ our sub from-file(
         :project_root($project_root),
         :path($config_file),
         :build_dir($build_dir),
+        :themes($themes),
         :themes_dir($themes_dir),
         :assets_dir($assets_dir),
         :theme_dir($theme_dir),
@@ -95,10 +200,7 @@ our sub from-file(
 
     # We want to stop everything if the project root ~~ $*HOME or
     # the build dir ~~ project root. This would have bad side-effects
-    if $build_dir.IO ~~ $*HOME.IO|$project_root.IO {
-        note "Build directory [{$build_dir}] cannot be {$*HOME} or project root [{$project_root}].";
-        exit(1);
-    }
+    safe-build-dir-check($build_dir.IO, :$project_root);
 
     # Merged config as output
     return Map.new($config.pairs, $config_plus.pairs);
