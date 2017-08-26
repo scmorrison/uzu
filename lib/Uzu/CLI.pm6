@@ -25,10 +25,16 @@ sub USAGE is export {
 
         --no-livereload   - Disable livereload when
                             running uzu watch.
+
         --clear           - Delete build directory before 
                             render when running with build.
+
         --page-filter     - Restrict build to pages starting
                             from this directory
+
+        --theme           - Limit build / watch to single theme
+
+        e.g. uzu --theme=default build 
       END
 }
 
@@ -53,12 +59,13 @@ multi MAIN(
     'build',
     Str  :$config      = 'config.yml',
     Str  :$page-filter = '',
+    Str  :$theme,
     Bool :$clear       = False
 ) is export {
-
     Uzu::Config::from-file(
         config_file   => $config.IO,
         page_filter   => $page-filter,
+        theme         => $theme,
         no_livereload => True
     ).&{
         if $clear {
@@ -82,11 +89,13 @@ multi MAIN(
     'watch',
     Str  :$config        = 'config.yml',
     Str  :$page-filter   = '',
+    Str  :$theme,
     Bool :$no-livereload = False
 ) is export {
     Uzu::Config::from-file(
         config_file   => $config.IO,
         page_filter   => $page-filter,
+        theme         => $theme,
         no_livereload => $no-livereload
     ).&Uzu::Watch::start();
 }

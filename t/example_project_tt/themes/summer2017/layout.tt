@@ -1,0 +1,17 @@
+---
+root_url: "https://www.perl6.org"
+separator: ':::'
+url_postfix: '@-@'
+special: I am in the summer2017 layout
+---
+<!doctype html>
+<html lang="[% language %]">
+    [% INCLUDE "head" %]
+    <body>
+        <div>
+        [% INCLUDE "navigation" %]
+        [% INCLUDE "content" %]
+        [% INCLUD "footer" %]
+        </div>
+    </body>
+</html>

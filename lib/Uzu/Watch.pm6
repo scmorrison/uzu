@@ -48,6 +48,7 @@ sub build-and-reload(
 
 sub user-input(
     Map     $config,
+    Array   :$servers,
     ::D     :&logger
     --> Bool
 ) {
@@ -86,13 +87,17 @@ our sub start(
     # Some editors trigger more than one event per
     # edit. 
     my List $exts = $config<extensions>;
-    my List $dirs = |$config<template_dirs>.grep(*.IO.e);
+    my List $dirs = (
+        |$config<template_dirs>,
+        |$config<themes>.map({ $_.values.head<theme_dir>, $_.values.head<theme_dir>.IO.child('partials') }).flat
+    ).grep(*.IO.e).List;
+
     $dirs.map(-> $dir {
         logger "Starting watch on {$dir.subst("{$*CWD}/", '')}";
     });
 
     # Start server
-    my $app = start { Uzu::HTTP::web-server $config }
+    my @servers = Uzu::HTTP::web-server $config;
 
     # Keep track of the last render timestamp
     state Instant $last_run = now;
@@ -103,7 +108,7 @@ our sub start(
             whenever file-change-monitor($dirs) -> $e {
                 # Make sure the file change is a 
                 # known extension; don't re-render too fast
-                if so $e.path.IO.extension ∈ $exts and (now - $last_run) > 2 {
+                if so $exts (cont) $e.path.IO.extension and (now - $last_run) > 2 {
                     logger colored "Change detected [{$e.path()}]", "bold green on_blue";
                     build-and-reload($config, logger => &logger);
                     $last_run = now;
@@ -113,6 +118,6 @@ our sub start(
     }
 
     # Listen for keyboard input
-    user-input($config, logger => &logger);
+    user-input($config, :@servers, logger => &logger);
 }
 

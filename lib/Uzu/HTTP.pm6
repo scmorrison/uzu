@@ -4,112 +4,118 @@ unit module Uzu::HTTP;
 
 our sub web-server(
     Map $config
-#    --> Bool
+    --> Array
 ) {
-    use HTTP::Server::Async;
-    use HTTP::Server::Router;
+    use HTTP::Server::Tiny;
 
-    my HTTP::Server::Async $server .=new: port => $config<port>||3000;
-    serve $server;
+    my Promise @servers;
 
-    my $build_dir = $config<build_dir>;
+    for $config<themes> -> $theme_config {
 
-    # Use for triggering reload staging when reload is triggered
-    my $channel = Channel.new;
+        push @servers, start {
 
-    # When accessed, sets $reload to True
-    # Routes
-    route '/reload', -> $req, $res {
-        $channel.send(True);
-        say "GET /reload";
-        $res.headers<Content-Type> = 'application/json';
-        $res.close( '{ "reload": "Staged" }' );
-    }
+            my $theme_name = $theme_config.keys.head;
+            my %theme      = $theme_config.values.head;
+            my $build_dir  = %theme<build_dir>;
+            my $port       = %theme<port>;
 
-    # If $reload is True, return a JSON doc
-    # instructing uzu/js/live.js to reload the
-    # browser.
-    route '/live', -> $req, $res {
-        $res.headers<Content-Type> = 'application/json';
-        $res.close( '{ "reload": "True" }' ) if $channel.poll;
-        $res.close( '{ "reload": "False" }' );
-    }
+            # Use for triggering reload staging when reload is triggered
+            my $reload = Channel.new;
 
-    # Include live.js that starts polling /live
-    # for reload instructions
-    route '/uzu/js/live.js', -> $req, $res {
-        say "GET /uzu/js/live.js";
-        my Str $livejs = q:to|END|; 
-        // Uzu live-reload
-        function live() {
-            var xhttp = new XMLHttpRequest();
-            xhttp.onreadystatechange = function() {
-                if (xhttp.readyState == 4 && xhttp.status == 200) {
-                    var resp = JSON.parse(xhttp.responseText);
-                    if (resp.reload == 'True') {
-                        document.location.reload();
-                    };
-                };
-            };
-            xhttp.open("GET", "/live", true);
-            xhttp.send();
-            setTimeout(live, 1000);
+            HTTP::Server::Tiny.new(:$port).run(sub (%env) {
+
+                given %env<PATH_INFO> {
+                    # When accessed, sets $reload to True
+                    # Routes
+                    when  '/reload' {
+                        $reload.send(True);
+                        say "GET /reload [$theme_name]";
+                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "Staged" }'];
+                    }
+
+                    # If $reload is True, return a JSON doc
+                    # instructing uzu/js/live.js to reload the
+                    # browser.
+                    when '/live' {
+                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "True" }'] if $reload.poll;
+                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "False" }'];
+                    }
+
+                    # Include live.js that starts polling /live
+                    # for reload instructions
+                    when '/uzu/js/live.js' {
+                        say "GET /uzu/js/live.js [$theme_name]";
+                        my Str $livejs = q:to|END|; 
+                        // Uzu live-reload
+                        function live() {
+                            var xhttp = new XMLHttpRequest();
+                            xhttp.onreadystatechange = function() {
+                                if (xhttp.readyState == 4 && xhttp.status == 200) {
+                                    var resp = JSON.parse(xhttp.responseText);
+                                    if (resp.reload == 'True') {
+                                        document.location.reload();
+                                    };
+                                };
+                            };
+                            xhttp.open("GET", "/live", true);
+                            xhttp.send();
+                            setTimeout(live, 1000);
+                        }
+                        setTimeout(live, 1000);
+                        END
+
+                        return 200, ['Content-Type' => 'application/json'], [$livejs];
+                    }
+
+                    default {
+
+                        my $file = $_;
+
+                        # Trying to access files outside of build path
+                        return 400, ['Content-Type' => 'text/plain'], ['Invalid path'] if $file.match('..');
+
+                        my IO::Path $path = do given $file {
+                            when '/' {
+                                $build_dir.IO.child('index.html')
+                            }
+                            when so * ~~ / '/' $ / {
+                                $build_dir.IO.child($file.split('?')[0].IO.child('index.html'))
+                            }
+                            default {
+                                $build_dir.IO.child($file.split('?')[0])
+                            }
+                        }
+
+                        given $path {
+                        
+                            when !*.IO.e {
+                                # Invalid path
+                                say "GET $file (not found) [$theme_name]";
+                                return 400, ['Content-Type' => 'text/plain'], ['Invalid path'];
+                            }
+
+                            default {
+                                # Return any valid paths
+                                my Str $type = detect-content-type($path);
+
+                                say "GET $file [$theme_name]";
+
+                                # UTF-8 text
+                                return 200, ['Content-Type' => $type ], [slurp($path)] unless $type ~~ / image|ttf|woff|octet\-stream /;
+
+                                # Binary
+                                return 200, ['Content-Type' => $type ], [slurp($path, :bin)];
+                            }
+                        }    
+                    }
+
+                    say "uzu serves [http://localhost:{$port}] for theme [$theme_name]";
+                }
+            });
         }
-        setTimeout(live, 1000);
-        END
-
-        $res.headers<Content-Type> = 'application/javascript';
-        $res.close( $livejs );
     }
 
-    route / .+ /, -> $req, $res {
-
-        my $file = $req.uri;
-
-        # Trying to access files outside of build path
-        $res.status = 404;
-        $res.headers<Content-Type> = 'text/plain';
-        $res.close("Invalid path") if $file.match('..');
-
-        my IO::Path $path = do given $file {
-            when '/' {
-                $build_dir.IO.child('index.html')
-            }
-            when so * ~~ / '/' $ / {
-                $build_dir.IO.child($file.split('?')[0].IO.child('index.html'))
-            }
-            default {
-                $build_dir.IO.child($file.split('?')[0])
-            }
-        }
-
-        given $path {
-        
-            when !*.IO.e {
-                # Invalid path
-                say "GET $file (not found)";
-                $res.close("Invalid path: $path");
-            }
-
-            default {
-                # Return any valid paths
-                $res.status  = 200;
-                my Str $type = detect-content-type($path);
-                $res.headers<Content-Type> = $type;
-
-                say "GET $file";
-
-                # UTF-8 text
-                $res.close( slurp $path ) unless $type ~~ / image|ttf|woff|octet\-stream /;
-
-                # Binary
-                $res.close( slurp $path, :bin );
-            }
-        }    
-    }
-
-    say "uzu serves [http://localhost:{$config<port>}]";
-    $server.listen(True);
+    return @servers;
 }
 
 our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) is export {

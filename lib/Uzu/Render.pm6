@@ -424,10 +424,12 @@ multi sub render(
     Hash     :$layout_vars,
     Numeric  :$layout_modified,
     Str      :$theme,
+    List     :$themes,
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
     Hash     :$pages,
+    List     :$exclude_pages,
     Hash     :$partials_all,
     Hash     :$site_index,
     Bool     :$no_livereload,
@@ -449,7 +451,9 @@ multi sub render(
         my @page_partials = partial-names $template_engine, %page<html>;
         my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
-        next unless %page<render>;
+        # Skip rendering when this page hasn't been modified or is 
+        # specifically excluded in config.yml
+        next unless %page<render> && $exclude_pages !(cont) $page_name;
 
         $page_queue.emit: &{
 
@@ -663,18 +667,6 @@ our sub build(
         %site_index{$page_name}           = %page_vars;
         %site_index{$page_name}<modified> = $path.modified;
         %site_index{$page_name}<out_ext>  = $out_ext;
-
-        # Append page to categories hash if available
-        #with %page_vars<categories> {
-        #    map -> $category {
-        #        my $uri            = S/'.tt'|'.mustache'/.html/ given split('pages', $path.path).tail;
-        #        my $title          = %page_vars<title>||$uri;
-        #        my $category_label = S/'/categories/'// given $category;
-        #        push %categories<labels>, { name => $category_label };
-        #        push %categories{$category}, { :$title, :$uri };
-        #    }, build-category-uri(%page_vars<categories>);
-        #}
-
         my $pages_watch_dir = $config<pages_watch_dir>.IO.path;
 
         %( $page_name => %{
@@ -690,68 +682,83 @@ our sub build(
 
     # All available partials
     my Any %partials       = build-partials-hash source => $config<partials_dir>, :$exts, :&logger;
-    my Any %theme_partials =
-        $config<theme_dir>.IO.child('partials').IO.d
-        ?? build-partials-hash source => $config<theme_dir>.IO.child('partials'), :$exts, :&logger !! %();
 
-    # Create build dir
-    if !$config<build_dir>.IO.d { 
-        logger "Create build directory";
-        mkdir $config<build_dir>;
+    for $config<themes> -> $theme_config {
+
+        my $theme_name     = $theme_config.keys.head;
+        my %theme          = $theme_config.values.head;
+        my $build_dir      = %theme<build_dir>;
+        my $theme_dir      = %theme<theme_dir>;
+        my $exclude_pages  = %theme<exclude_pages>;
+
+        my Any %theme_partials =
+            $theme_dir.IO.child('partials').IO.d
+            ?? build-partials-hash source => $theme_dir.IO.child('partials'), :$exts, :&logger !! %();
+
+        # Create build dir
+        if !$build_dir.IO.d { 
+            logger "Create build directory";
+            mkdir $build_dir;
+        }
+
+        logger "Copy public, assets";
+        copy-dir($config<public_dir>, $build_dir) when $config<public_dir>.IO.d;
+        copy-dir($theme_dir.IO.child('assets'), $build_dir) when $theme_dir.IO.child('assets').IO.d;
+
+        # Append nested pages directories
+        my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
+
+        # Append nested i18n directories
+        my IO::Path @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
+
+        my IO::Path $layout_path = grep(/ 'layout.' @$exts $ /, templates(:$exts, dir => $theme_dir)).head;
+
+        # Extract layout header yaml if available
+        my ($layout_template, $layout_vars) =
+            $layout_path.defined
+            ?? parse-template(path => $layout_path, :&logger)
+            !! ["", %{}];
+
+        logger "Theme [{$theme_name}] does not contain a layout template" unless $layout_path.defined;
+
+        my @exclude_pages = [ |$config<exclude_pages>, |$exclude_pages ].grep(*.defined);
+
+        # Queue for page renders
+        my $page_queue     = Supplier.new;
+        my $page_supply    = $page_queue.Supply;
+        my $rendered_pages = 0; 
+        my Promise $render_complete .= new;
+        $page_supply.tap({ .() });
+
+        # One per language
+        for $config<language> -> $language { 
+
+            logger "Compile templates [$language]";
+
+            i18n-from-yaml(
+                language         => $language,
+                i18n_dir         => $config<i18n_dir>,
+                logger           => &logger)
+            ==> render(
+                page_queue       => $page_queue,
+                template_engine  => $config<template_engine>,
+                build_dir        => $build_dir,
+                theme            => $theme_name,
+                layout_template  => $layout_template,
+                layout_vars      => $layout_vars,
+                layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
+                theme_dir        => $theme_dir,
+                default_language => $config<language>[0],
+                language         => $language,
+                pages            => %pages,
+                exclude_pages    => @exclude_pages,
+                partials_all     => %( |%partials, |%theme_partials  ),
+                site_index       => %site_index,
+                no_livereload    => $config<no_livereload>,
+                logger           => &logger);
+       }
+
     }
-
-    logger "Copy public, assets";
-    map { copy-dir $_, $config<build_dir> }, [$config<public_dir>, $config<assets_dir>];
-
-    # Append nested pages directories
-    my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
-
-    # Append nested i18n directories
-    my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
-
-    my IO::Path $layout_path = grep( / 'layout.' @$exts $ /, templates(:$exts, dir => $config<theme_dir>)).head;
-
-    # Extract layout header yaml if available
-    my ($layout_template, $layout_vars) =
-        $layout_path.defined
-        ?? parse-template(path => $layout_path, :&logger)
-        !! ["", %{}];
-
-    logger "Theme [{$config<theme>}] does not contain a layout template" unless $layout_path.defined;
-
-    # Queue for page renders
-    my $page_queue     = Supplier.new;
-    my $page_supply    = $page_queue.Supply;
-    my $rendered_pages = 0; 
-    my Promise $render_complete .= new;
-    $page_supply.tap({ .() });
-
-    # One per language
-    map -> $language { 
-
-        logger "Compile templates [$language]";
-
-        i18n-from-yaml(
-            language         => $language,
-            i18n_dir         => $config<i18n_dir>,
-            logger           => &logger)
-        ==> render(
-            page_queue       => $page_queue,
-            template_engine  => $config<template_engine>,
-            build_dir        => $config<build_dir>,
-            theme            => $config<theme>,
-            layout_template  => $layout_template,
-            layout_vars      => $layout_vars,
-            layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
-            theme_dir        => $config<theme_dir>,
-            default_language => $config<language>[0],
-            language         => $language,
-            pages            => %pages,
-            partials_all     => %( |%partials, |%theme_partials  ),
-            site_index       => %site_index,
-            no_livereload    => $config<no_livereload>,
-            logger           => &logger);
-   }, $config<language>;
 
     logger "Compile complete";
 }
@@ -761,6 +768,8 @@ our sub clear(
     ::D :&logger = Uzu::Logger::start()
 ) {
     # Clear out build
-    logger "Deleting build directory";
-    rm-dir $config<build_dir>;
+    for $config<themes> {
+        logger "Deleting build directory";
+        rm-dir .values.head<build_dir>;
+    }
 }
