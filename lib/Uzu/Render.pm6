@@ -429,6 +429,7 @@ multi sub render(
     Str      :$default_language,
     Str      :$language, 
     Hash     :$pages,
+    List     :$exclude_pages,
     Hash     :$partials_all,
     Hash     :$site_index,
     Bool     :$no_livereload,
@@ -450,7 +451,9 @@ multi sub render(
         my @page_partials = partial-names $template_engine, %page<html>;
         my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
-        next unless %page<render>;
+        # Skip rendering when this page hasn't been modified or is 
+        # specifically excluded in config.yml
+        next unless %page<render> && $exclude_pages !(cont) $page_name;
 
         $page_queue.emit: &{
 
@@ -682,10 +685,11 @@ our sub build(
 
     for $config<themes> -> $theme_config {
 
-        my $theme_name = $theme_config.keys.head;
-        my %theme      = $theme_config.values.head;
-        my $build_dir  = %theme<build_dir>;
-        my $theme_dir  = %theme<theme_dir>;
+        my $theme_name     = $theme_config.keys.head;
+        my %theme          = $theme_config.values.head;
+        my $build_dir      = %theme<build_dir>;
+        my $theme_dir      = %theme<theme_dir>;
+        my $exclude_pages  = %theme<exclude_pages>;
 
         my Any %theme_partials =
             $theme_dir.IO.child('partials').IO.d
@@ -705,7 +709,7 @@ our sub build(
         my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
 
         # Append nested i18n directories
-        my @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
+        my IO::Path @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
 
         my IO::Path $layout_path = grep(/ 'layout.' @$exts $ /, templates(:$exts, dir => $theme_dir)).head;
 
@@ -716,6 +720,8 @@ our sub build(
             !! ["", %{}];
 
         logger "Theme [{$theme_name}] does not contain a layout template" unless $layout_path.defined;
+
+        my @exclude_pages = [ |$config<exclude_pages>, |$exclude_pages ].grep(*.defined);
 
         # Queue for page renders
         my $page_queue     = Supplier.new;
@@ -745,6 +751,7 @@ our sub build(
                 default_language => $config<language>[0],
                 language         => $language,
                 pages            => %pages,
+                exclude_pages    => @exclude_pages,
                 partials_all     => %( |%partials, |%theme_partials  ),
                 site_index       => %site_index,
                 no_livereload    => $config<no_livereload>,
@@ -761,6 +768,8 @@ our sub clear(
     ::D :&logger = Uzu::Logger::start()
 ) {
     # Clear out build
-    logger "Deleting build directory";
-    rm-dir $config<build_dir>;
+    for $config<themes> {
+        logger "Deleting build directory";
+        rm-dir .values.head<build_dir>;
+    }
 }

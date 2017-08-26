@@ -65,7 +65,7 @@ sub themes-config(
     Array    :$themes,
     IO::Path :$build_dir,
     Int      :$port,
-    List     :$excluded_pages,
+    List     :$exclude_pages,
     IO::Path :$project_root
 ) {
     # Always use single theme if yaml `theme:` variable set
@@ -73,58 +73,75 @@ sub themes-config(
                 theme_dir      => $themes_dir.IO.child("$theme"||'default'),
                 build_dir      => $build_dir,
                 port           => $port,
-                excluded_pages => $excluded_pages),) when $themes ~~ [];
+                exclude_pages  => $exclude_pages),) when $themes ~~ [];
 
     my @seen_build_dirs;
     my $working_port = $port;
 
     # ... otherwise use hash
-    return map -> %theme {
-         my $theme_name = %theme.keys.head;
-         my $theme      = %theme.values.head;
-         my $theme_dir  = $themes_dir.IO.child($theme_name);
+    return map -> $theme_config {
+        
+        if $theme_config ~~ Str {
 
-         do {
-             note "Theme directory [{$theme_name}] does not exist. Skipping.";
-             next;
-         } unless $theme_dir.IO.e;
+            my $theme_port = $working_port;
+            ++$working_port;
 
-         my $theme_build_dir = do {
-             if $themes.elems ~~ 1 {
-                 $build_dir;
-             } elsif $theme<build_dir> {
-                 build-dir-exists(@seen_build_dirs, $theme<build_dir>);
-                 push @seen_build_dirs, $theme<build_dir>;
-                 safe-build-dir-check($theme<build_dir>.IO, :$project_root);
-                 $theme<build_dir>.IO;
-             } else {
-                 my $nested_build_dir = $build_dir.IO.child($theme_name); 
-                 build-dir-exists(@seen_build_dirs, $nested_build_dir);
-                 push @seen_build_dirs, $build_dir.IO.child($theme_name);
-                 $build_dir.IO.child($theme_name);
-             }
-         }
+            "{$theme_config||'default'}" => %(
+                    theme_dir      => $themes_dir.IO.child($theme_config||'default'),
+                    build_dir      => $build_dir.IO.child($theme_config||'default'),
+                    port           => $theme_port,
+                    exclude_pages  => $exclude_pages);
 
-         my $theme_port = do {
-             if $themes.elems ~~ 1 {
-                 $theme<port>||$working_port;
-             } else {
-                 if $theme<port> && $theme<port> > $working_port {
-                     $working_port = $theme<port>;
-                     $theme<port>;
-                 } else {
-                     $working_port;
-                 }
-             }
-         }
+        } else {
 
-         ++$working_port;
+            my %theme      = $theme_config;
+            my $theme_name = %theme.keys.head;
+            my $theme      = %theme.values.head;
+            my $theme_dir  = $themes_dir.IO.child($theme_name);
 
-         $theme_name => %(
-             theme_dir      => $theme_dir,
-             build_dir      => $theme_build_dir,
-             port           => $theme_port,
-             excluded_pages => ($theme<excluded_pages>||$excluded_pages))
+            do {
+                note "Theme directory [{$theme_name}] does not exist. Skipping.";
+                next;
+            } unless $theme_dir.IO.e;
+
+            my $theme_build_dir = do {
+                if $themes.elems ~~ 1 {
+                    $build_dir;
+                } elsif $theme<build_dir> {
+                    build-dir-exists(@seen_build_dirs, $theme<build_dir>);
+                    push @seen_build_dirs, $theme<build_dir>;
+                    safe-build-dir-check($theme<build_dir>.IO, :$project_root);
+                    $theme<build_dir>.IO;
+                } else {
+                    my $nested_build_dir = $build_dir.IO.child($theme_name); 
+                    build-dir-exists(@seen_build_dirs, $nested_build_dir);
+                    push @seen_build_dirs, $build_dir.IO.child($theme_name);
+                    $build_dir.IO.child($theme_name);
+                }
+            }
+
+            my $theme_port = do {
+                if $themes.elems ~~ 1 {
+                    $theme<port>||$working_port;
+                } else {
+                    if $theme<port> && $theme<port> > $working_port {
+                        $working_port = $theme<port>;
+                        $theme<port>;
+                    } else {
+                        $working_port;
+                    }
+                }
+            }
+
+            ++$working_port;
+
+            $theme_name => %(
+                theme_dir      => $theme_dir,
+                build_dir      => $theme_build_dir,
+                port           => $theme_port,
+                exclude_pages => $theme<exclude_pages>)
+
+        }
 
     }, $themes.values;
 }
@@ -145,7 +162,7 @@ our sub from-file(
     my Int  $port           = $config<port>||3000;
 
     # Misc.
-    my List $excluded_pages = [$config<excluded_pages>];
+    my List $exclude_pages  = [$config<exclude_pages>];
 
     # Paths
     my IO::Path $project_root     = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
@@ -156,7 +173,7 @@ our sub from-file(
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
     my          $themes           =
         themes-config(
-           :$themes_dir, :$build_dir, :$port, :$excluded_pages, :$project_root,
+           :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
            theme  => ($config<theme>||''),
            themes => ($config<themes> ~~ Array ?? $config<themes> !! [])).Array;
 
@@ -189,6 +206,7 @@ our sub from-file(
         :layout_dir($layout_dir),
         :pages_watch_dir($pages_watch_dir),
         :pages_dir($pages_dir),
+        :exclude_pages($exclude_pages),
         :public_dir($public_dir),
         :partials_dir($partials_dir),
         :i18n_dir($i18n_dir),

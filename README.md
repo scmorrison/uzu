@@ -111,8 +111,20 @@ language:
 # - Mustache: mustache
 template_engine: mustache
 
-# Themes are stored in themes/[theme-name]
+# Stored theme directories under themes/[theme-name]
+#
+# Themes can be specified with either the single theme
+# variable:
 theme: default
+
+# .. or multiple themes:
+themes:
+  - default              # Specify a theme directory using the default options
+  - summer2017:          
+      build_dir: web2017 # Override build director
+      port: 4333         # Port to start watch on for this theme.
+      exclude_pages:     # List of page template names to ignore for this theme
+        - index
 
 # Optional parameters (also, comments like this are ok)
 
@@ -139,6 +151,28 @@ Config variables are defined in `config.yml`:
 * `name`: Project name
 * `language`: List of languages to render for site. First item is default language. When rendering, the `language` variable is set to the current rendering language and can be referenced in templates. For example, if `uzu` is rendering an `en` version of a page, then the `language` variable will be set to `en`.
 * `theme`: The theme to apply to the layout (themes/themename). `default` refers to the folder named `default` in the themes folder.
+* `themes`: Alternatively, using the `themes` yaml hash supports multiple themes. Themes will be rendered at the same time into their target build directories. By default the theme build directory is `build/[theme-name]`. This can be overridden with the `build_dir` variable. Relative and absolute paths are supported:
+  * `build_dir`: 
+     ```yaml
+     themes:
+       - summer2017:
+           build_dir: web2017
+     ```
+  * `port`: A dev web server will spawn for rach theme specified in the `themes` yaml dict. The default port for the first theme is `3000`, this port number is incremented by one for every subsequent theme listed in the `themes` dict. This variable will override that behavior.
+     ```yaml
+     themes:
+       - summer2017:
+           port: 4444
+     ```
+  * `exclude_pages`: List page templates that should not be rendered for the associated theme. 
+     ```yaml
+     themes:
+       - summer2017:
+           exclude_pages:
+             - about
+             - blog/fiji
+             - sitemap.xml
+     ```
 * `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
 * `port`: Host TCP port for dev server. Defaults to `3000`.
 * `project_root`: Project root folder. Defaults to `.`.

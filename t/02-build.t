@@ -38,7 +38,7 @@ subtest {
     say $stdout if %*ENV<UZUSTDOUT>;
 
     # Did we generate the build directory?
-    my $tmp_build_path = $tmp_root.IO.child('build').path;
+    my $tmp_build_path = $tmp_root.IO.child('build').child('default').path;
     is $tmp_build_path.IO.e, True, 'build directory created';
 
     # Did we copy the assets folder contents?
