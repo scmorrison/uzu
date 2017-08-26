@@ -1,0 +1,12 @@
+---
+name: uzu-tests
+language:
+  - en
+port: 3334
+themes:
+  - default
+  - summer2017:
+      port: 3335
+url: https://gitlab.com/samcns/uzu
+project_root: t/serve
+host: "127.0.0.1"
