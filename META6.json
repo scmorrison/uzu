@@ -23,8 +23,7 @@
         "Terminal::ANSIColor",
         "Template6",
         "Template::Mustache",
-        "HTTP::Server::Async",
-        "HTTP::Server::Router",
+        "HTTP::Server::Tiny",
         "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
