@@ -70,10 +70,16 @@ Optional arguments:
 
   --no-livereload   - Disable livereload when
                       running uzu watch.
+
   --clear           - Delete build directory before 
                       render when running with build.
+
   --page-filter     - Restrict build to pages starting
                       from this directory
+
+  --theme           - Limit build / watch to single theme
+
+  e.g. uzu --theme=default build 
 ```
 
 Config
@@ -135,13 +141,10 @@ port: 4040
 # default is .
 project_root: path/to/project/folder
 
-#
-# Non-core variables
-#
-
-url: https://github.com/scmorrison/uzu-starter
-author: Sam Morrison
-
+# List of page template names to ignore for all themes
+exclude_pages:
+  - about
+  - blog/fiji-scratch
 ```
 
 ### Config variables

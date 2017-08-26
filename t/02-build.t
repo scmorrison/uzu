@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 13;
+    plan 14;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -104,10 +104,14 @@ subtest {
     my $t13_expected_html  = slurp $test_root.IO.child('expected_tt').child('deepembed.html');
     my $t13_generated_html = slurp $tmp_build_path.IO.child('deepembed.html');
     is $t13_generated_html, $t13_expected_html, '[Template6] deeply embedded partials can access page vars';
+
+    my $t14_expected_html  = slurp $test_root.IO.child('expected_tt').child('summer2017').child('layout.html');
+    my $t14_generated_html = slurp $tmp_root.IO.child('build').child('summer2017').child('layout.html');
+    is $t14_generated_html, $t14_expected_html, '[Template6] multi-theme build with layout specific varibles';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 10;
+    plan 11;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -188,6 +192,10 @@ subtest {
     my $t10_expected_html  = slurp $test_root.IO.child('expected_mustache').child('deepembed.html');
     my $t10_generated_html = slurp $tmp_build_path.IO.child('deepembed.html');
     is $t10_generated_html, $t10_expected_html, '[Mustache] deeply embedded partials can access page vars';
+
+    my $t11_expected_html  = slurp $test_root.IO.child('expected_mustache').child('summer2017').child('layout.html');
+    my $t11_generated_html = slurp $tmp_root.IO.child('build').child('summer2017').child('layout.html');
+    is $t11_generated_html, $t11_expected_html, '[Mustache] multi-theme build with layout specific varibles';
 }, 'Rendering [Mustache]';
 
 subtest {

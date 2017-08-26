@@ -60,6 +60,7 @@ sub safe-build-dir-check($dir, :$project_root) {
 }
 
 sub themes-config(
+    Str      :$single_theme,
     IO::Path :$themes_dir,
     Str      :$theme,
     Array    :$themes,
@@ -83,6 +84,8 @@ sub themes-config(
         
         if $theme_config ~~ Str {
 
+            next when $single_theme.defined && $single_theme !~~ $theme_config;
+
             my $theme_port = $working_port;
             ++$working_port;
 
@@ -98,6 +101,8 @@ sub themes-config(
             my $theme_name = %theme.keys.head;
             my $theme      = %theme.values.head;
             my $theme_dir  = $themes_dir.IO.child($theme_name);
+
+            next when $single_theme.defined && $single_theme !~~ $theme_name;
 
             do {
                 note "Theme directory [{$theme_name}] does not exist. Skipping.";
@@ -149,6 +154,7 @@ sub themes-config(
 our sub from-file(
     IO::Path :$config_file   = 'config.yml'.IO,
     Str      :$page_filter   = '',
+    Str      :$theme,
     Bool     :$no_livereload = False
     --> Map
 ) {
@@ -171,11 +177,11 @@ our sub from-file(
     my IO::Path $themes_dir       = $project_root.IO.child('themes');
     my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
-    my          $themes           =
-        themes-config(
+    my          $themes           = themes-config(
            :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
-           theme  => ($config<theme>||''),
-           themes => ($config<themes> ~~ Array ?? $config<themes> !! [])).Array;
+           single_theme => $theme,
+           theme        => ($config<theme>||''),
+           themes       => ($config<themes> ~~ Array ?? $config<themes> !! [])).Array;
 
     my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
     my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');
