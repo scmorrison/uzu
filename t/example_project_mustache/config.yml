@@ -8,7 +8,7 @@ themes:
   - summer2017:
       port: 4333
       exclude_pages:
-        - index
+        - excludeme
 template_engine: mustache
 url: https://gitlab.com/samcns/uzu
 author: Sam Morrison

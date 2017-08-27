@@ -8,6 +8,6 @@ themes:
   - summer2017:
       port: 4333
       exclude_pages:
-        - index
+        - excludeme
 url: https://gitlab.com/samcns/uzu
 author: Sam Morrison
