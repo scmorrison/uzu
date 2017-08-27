@@ -15,7 +15,7 @@ plan 3;
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 14;
+    plan 15;
 
     my $source_root = $test_root.IO.child('example_project_tt');
 
@@ -108,10 +108,13 @@ subtest {
     my $t14_expected_html  = slurp $test_root.IO.child('expected_tt').child('summer2017').child('layout.html');
     my $t14_generated_html = slurp $tmp_root.IO.child('build').child('summer2017').child('layout.html');
     is $t14_generated_html, $t14_expected_html, '[Template6] multi-theme build with layout specific varibles';
+
+    my $t15_excluded_page = $tmp_root.IO.child('build').child('summer2017').child('excludeme.html').IO.e;
+    is $t15_excluded_page, False, '[Template6] multi-theme exclude page for theme via config';
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 11;
+    plan 12;
 
     my $source_root = $test_root.IO.child('example_project_mustache');
 
@@ -196,6 +199,9 @@ subtest {
     my $t11_expected_html  = slurp $test_root.IO.child('expected_mustache').child('summer2017').child('layout.html');
     my $t11_generated_html = slurp $tmp_root.IO.child('build').child('summer2017').child('layout.html');
     is $t11_generated_html, $t11_expected_html, '[Mustache] multi-theme build with layout specific varibles';
+
+    my $t12_excluded_page = $tmp_root.IO.child('build').child('summer2017').child('excludeme.html').IO.e;
+    is $t12_excluded_page, False, '[Mustache] multi-theme exclude page for theme via config';
 }, 'Rendering [Mustache]';
 
 subtest {
