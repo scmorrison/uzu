@@ -6,7 +6,7 @@ use Test::Output;
 use Uzu::Config;
 use Uzu::HTTP;
 
-plan 4;
+plan 5;
 
 my $root = $*CWD;
 my $host = '127.0.0.1';
@@ -64,7 +64,7 @@ subtest {
 }, 'Nested page';
 
 subtest {
-    plan 2;
+    plan 1;
 
     my $t1_output = output-from {
         Uzu::Config::from-file(
@@ -78,6 +78,10 @@ subtest {
     my $t1_summer2017_server = Uzu::HTTP::wait-port(3335, times => 600);
 
     is ($t1_default_server && $t1_summer2017_server), True, 'spawned development web server';
+}, 'Multi-theme 1';
+
+subtest {
+    plan 1;
 
     my $t2_output = output-from {
         Uzu::Config::from-file(
@@ -91,5 +95,5 @@ subtest {
     my $t2_summer2017_server = Uzu::HTTP::wait-port(4001, times => 600);
 
     is ($t2_default_server && $t2_summer2017_server), True, 'auto-increment port number when not defined in config';
-}, 'Multi-theme'
+}, 'Multi-theme 2'
 # vim: ft=perl6
