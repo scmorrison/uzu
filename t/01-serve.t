@@ -9,6 +9,9 @@ use Uzu::HTTP;
 plan 4;
 
 my $root = $*CWD;
+my $host = '127.0.0.1';
+my $port = 3333;
+
 my $output = output-from {
     Uzu::Config::from-file(
         config_file   => $root.IO.child('t').child('serve').child('config.yml'),
@@ -16,11 +19,12 @@ my $output = output-from {
 }
 say $output if %*ENV<UZUSTDOUT>;
 
-my $host = '127.0.0.1';
-my $port = 3333;
+subtest {
+    plan 1;
 
-# Wait for server to come online
-is Uzu::HTTP::wait-port($port, times => 600), True, 'spawned development web server  [single theme]';
+    # Wait for server to come online
+    is Uzu::HTTP::wait-port($port, times => 600), True, 'spawned development web server';
+}, 'Single theme';
 
 subtest {
     plan 1;
