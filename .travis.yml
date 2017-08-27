@@ -5,4 +5,3 @@ perl6:
 install:
   - rakudobrew build-zef
   - zef --depsonly --/test install . 
-  - prove -ve 'perl6 -Ilib' t/
