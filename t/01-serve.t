@@ -14,6 +14,7 @@ my $output = output-from {
         config_file   => $root.IO.child('t').child('serve').child('config.yml'),
         no_livereload => True).&Uzu::HTTP::web-server()
 }
+say $output if %*ENV<UZUSTDOUT>;
 
 my $host = '127.0.0.1';
 my $port = 3333;
@@ -59,19 +60,32 @@ subtest {
 }, 'Nested page';
 
 subtest {
-    plan 1;
+    plan 2;
 
-    my $out = output-from {
+    my $t1_output = output-from {
         Uzu::Config::from-file(
             config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
             no_livereload => True).&Uzu::HTTP::web-server();
     }
+    say $t1_output if %*ENV<UZUSTDOUT>;
 
     # Wait for server to come online
-    my $default_server    = Uzu::HTTP::wait-port(3333, times => 600);
-    my $summer2017_server = Uzu::HTTP::wait-port(3335, times => 600);
+    my $t1_default_server    = Uzu::HTTP::wait-port(3333, times => 600);
+    my $t1_summer2017_server = Uzu::HTTP::wait-port(3335, times => 600);
 
-    is ($default_server && $summer2017_server), True, 'spawned development web server [multi-theme]';
+    is ($t1_default_server && $t1_summer2017_server), True, 'spawned development web server';
 
-}
+    my $t2_output = output-from {
+        Uzu::Config::from-file(
+            config_file   => $root.IO.child('t').child('serve').child('config-multi-port-increment.yml'),
+            no_livereload => True).&Uzu::HTTP::web-server();
+    }
+    say $t2_output if %*ENV<UZUSTDOUT>;
+
+    # Wait for server to come online
+    my $t2_default_server    = Uzu::HTTP::wait-port(4000, times => 600);
+    my $t2_summer2017_server = Uzu::HTTP::wait-port(4001, times => 600);
+
+    is ($t2_default_server && $t2_summer2017_server), True, 'auto-increment port number when not defined in config';
+}, 'Multi-theme'
 # vim: ft=perl6

@@ -60,14 +60,15 @@ sub safe-build-dir-check($dir, :$project_root) {
 }
 
 sub themes-config(
-    Str      :$single_theme,
-    IO::Path :$themes_dir,
-    Str      :$theme,
-    Array    :$themes,
-    IO::Path :$build_dir,
-    Int      :$port,
-    List     :$exclude_pages,
-    IO::Path :$project_root
+    Str      :$single_theme,   # optional, only config this theme
+    IO::Path :$themes_dir,     # project themes dir
+    Str      :$theme,          # yaml theme:
+    Array    :$themes,         # yaml themes:
+    IO::Path :$build_dir,      # default build dir
+    Int      :$port,           # default port
+    List     :$exclude_pages,  # default exclude pages
+    IO::Path :$project_root    # project root
+    --> List()
 ) {
     # Always use single theme if yaml `theme:` variable set
     return ("{$theme||'default'}" => %(
@@ -76,75 +77,85 @@ sub themes-config(
                 port           => $port,
                 exclude_pages  => $exclude_pages),) when $themes ~~ [];
 
-    my @seen_build_dirs;
-    my $working_port = $port;
+    # Keep track of build dirs to avoid
+    # reusing the same build dir for
+    # multiple themes.
+    my IO::Path @seen_build_dirs;
+
+    # We can to keep incrementing the 
+    # port to assign to the next theme
+    # if a port is not defined for the
+    # theme or the defined port is 
+    # already used.
+    my Int $working_port = $port;
 
     # ... otherwise use hash
-    return map -> $theme_config {
+    return map -> $theme {
         
-        if $theme_config ~~ Str {
+        given $theme {
 
-            next when $single_theme.defined && $single_theme !~~ $theme_config;
+            # Single theme, $theme = theme name
+            when Str {
 
-            my $theme_port = $working_port;
-            ++$working_port;
+                # When user passes --theme to cli only configure that theme or skip
+                next when $single_theme.defined && $single_theme !~~ $theme;
 
-            "{$theme_config||'default'}" => %(
-                    theme_dir      => $themes_dir.IO.child($theme_config||'default'),
-                    build_dir      => $build_dir.IO.child($theme_config||'default'),
-                    port           => $theme_port,
-                    exclude_pages  => $exclude_pages);
+                my Int $theme_port = $working_port;
+                ++$working_port;
 
-        } else {
+                "{$theme||'default'}" => %(
+                        theme_dir      => $themes_dir.IO.child($theme||'default'),
+                        build_dir      => $build_dir.IO.child($theme||'default'),
+                        port           => $theme_port,
+                        exclude_pages  => $exclude_pages);
+            } 
+            
+            default {
 
-            my %theme      = $theme_config;
-            my $theme_name = %theme.keys.head;
-            my $theme      = %theme.values.head;
-            my $theme_dir  = $themes_dir.IO.child($theme_name);
+                my Str  $theme_name    = $theme.keys.head;
+                my Hash $theme_config  = $theme.values.head;
+                my IO::Path $theme_dir = $themes_dir.IO.child($theme_name);
 
-            next when $single_theme.defined && $single_theme !~~ $theme_name;
+                # When user passes --theme to cli only configure that theme or skip
+                next when $single_theme.defined && $single_theme !~~ $theme_name;
 
-            do {
-                note "Theme directory [{$theme_name}] does not exist. Skipping.";
-                next;
-            } unless $theme_dir.IO.e;
+                do {
+                    note "Theme directory [{$theme_name}] does not exist. Skipping.";
+                    next;
+                } unless $theme_dir.IO.e;
 
-            my $theme_build_dir = do {
-                if $themes.elems ~~ 1 {
-                    $build_dir;
-                } elsif $theme<build_dir> {
-                    build-dir-exists(@seen_build_dirs, $theme<build_dir>);
-                    push @seen_build_dirs, $theme<build_dir>;
-                    safe-build-dir-check($theme<build_dir>.IO, :$project_root);
-                    $theme<build_dir>.IO;
-                } else {
-                    my $nested_build_dir = $build_dir.IO.child($theme_name); 
-                    build-dir-exists(@seen_build_dirs, $nested_build_dir);
-                    push @seen_build_dirs, $build_dir.IO.child($theme_name);
-                    $build_dir.IO.child($theme_name);
-                }
-            }
-
-            my $theme_port = do {
-                if $themes.elems ~~ 1 {
-                    $theme<port>||$working_port;
-                } else {
-                    if $theme<port> && $theme<port> > $working_port {
-                        $working_port = $theme<port>;
-                        $theme<port>;
-                    } else {
-                        $working_port;
+                my IO::Path $theme_build_dir = do given $themes.elems {
+                    when 1 {
+                        # Single theme defined, use default build dir
+                        $build_dir;
+                    } 
+                    default {
+                        my $theme_build_dir = $theme_config<build_dir> ?? $theme_config<build_dir> !! $build_dir.IO.child($theme_name);
+                        build-dir-exists @seen_build_dirs, $theme_build_dir;
+                        push @seen_build_dirs, $theme_build_dir;
+                        safe-build-dir-check $theme_build_dir.IO, :$project_root;
+                        $theme_build_dir.IO;
                     }
                 }
+
+                my Int $theme_port = do given $themes.elems {
+                    when 1 {
+                        $theme_config<port>||$working_port;
+                    }
+                    default {
+                        $working_port = $theme_config<port> when $theme_config<port> && $theme_config<port> > $working_port;
+                        $theme_config<port>||$working_port;
+                    }
+                }
+
+                ++$working_port;
+
+                $theme_name => %(
+                    theme_dir      => $theme_dir,
+                    build_dir      => $theme_build_dir,
+                    port           => $theme_port,
+                    exclude_pages  => $theme_config<exclude_pages>)
             }
-
-            ++$working_port;
-
-            $theme_name => %(
-                theme_dir      => $theme_dir,
-                build_dir      => $theme_build_dir,
-                port           => $theme_port,
-                exclude_pages => $theme<exclude_pages>)
 
         }
 
@@ -154,7 +165,7 @@ sub themes-config(
 our sub from-file(
     IO::Path :$config_file   = 'config.yml'.IO,
     Str      :$page_filter   = '',
-    Str      :$theme,
+    Str      :$single_theme,
     Bool     :$no_livereload = False
     --> Map
 ) {
@@ -177,11 +188,11 @@ our sub from-file(
     my IO::Path $themes_dir       = $project_root.IO.child('themes');
     my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
-    my          $themes           = themes-config(
-           :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
-           single_theme => $theme,
+    my List $themes               =
+        themes-config(
+           :$single_theme, :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
            theme        => ($config<theme>||''),
-           themes       => ($config<themes> ~~ Array ?? $config<themes> !! [])).Array;
+           themes       => ($config<themes> ~~ Array ?? $config<themes> !! []));
 
     my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
     my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');

@@ -65,7 +65,7 @@ multi MAIN(
     Uzu::Config::from-file(
         config_file   => $config.IO,
         page_filter   => $page-filter,
-        theme         => $theme,
+        singe_theme   => $theme,
         no_livereload => True
     ).&{
         if $clear {
@@ -95,7 +95,7 @@ multi MAIN(
     Uzu::Config::from-file(
         config_file   => $config.IO,
         page_filter   => $page-filter,
-        theme         => $theme,
+        single_theme  => $theme,
         no_livereload => $no-livereload
     ).&Uzu::Watch::start();
 }
