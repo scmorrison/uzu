@@ -126,8 +126,7 @@ sub themes-config(
 
                 my IO::Path $theme_build_dir = do given $themes.elems {
                     when 1 {
-                        # Single theme defined, use default build dir
-                        $build_dir;
+                        $theme_config<build_dir>.IO||$build_dir;
                     } 
                     default {
                         my $theme_build_dir = $theme_config<build_dir> ?? $theme_config<build_dir> !! $build_dir.IO.child($theme_name);
