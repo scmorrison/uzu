@@ -14,6 +14,7 @@ my $output = output-from {
         config_file   => $root.IO.child('t').child('serve').child('config.yml'),
         no_livereload => True).&Uzu::HTTP::web-server()
 }
+say $output if %*ENV<UZUSTDOUT>;
 
 my $host = '127.0.0.1';
 my $port = 3333;
@@ -61,11 +62,12 @@ subtest {
 subtest {
     plan 1;
 
-    my $out = output-from {
+    my $output = output-from {
         Uzu::Config::from-file(
             config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
             no_livereload => True).&Uzu::HTTP::web-server();
     }
+    say $output if %*ENV<UZUSTDOUT>;
 
     # Wait for server to come online
     my $default_server    = Uzu::HTTP::wait-port(3333, times => 600);
