@@ -107,7 +107,7 @@ multi MAIN(
 ) is export {
 
     # config file exists, exit
-    return say "Config [$config] already exists." if $config.IO ~~ :f;
+    return say "Please run uzu init from an empty directory." unless elems(dir '.') eq 0;
 
     my Bool $continue = False;
     my Str  $site_name;
