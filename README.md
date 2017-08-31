@@ -4,6 +4,7 @@ Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=maste
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
 
 - [Features](#features)
+* [Getting started](#getting-started)
 - [Usage](#usage)
 - [Config](#config)
   * [Config variables](#config-variables)
@@ -47,6 +48,17 @@ Features
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
 
 **Note**: Uzu is a work in progress. It is functional and does a bunch of cool stuff, but it isn't perfect. Please post any [issues](https://github.com/scmorrison/uzu/issues) you find.
+
+Getting started
+===============
+
+After [installing](#installation) uzu, run the following command from an empty directory:
+
+```
+uzu init
+```
+
+Enter your site name, default language, and template engine when prompted.
 
 Usage
 =====
