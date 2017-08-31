@@ -38,7 +38,7 @@ sub parse-config(
         my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
 
         # Collect non-core variables into :site
-        my $core_vars = 'host'|'language'|'port'|'project_root'|'site'|'theme'|'url';
+        my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages';
         %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
 
         return %global_config;
@@ -177,9 +177,6 @@ our sub from-file(
     my Str  $host           = $config<host>||'0.0.0.0';
     my Int  $port           = $config<port>||3000;
 
-    # Misc.
-    my List $exclude_pages  = [$config<exclude_pages>];
-
     # Paths
     my IO::Path $project_root     = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
     my IO::Path $build_dir        = $project_root.IO.child('build');
@@ -187,21 +184,23 @@ our sub from-file(
     my IO::Path $themes_dir       = $project_root.IO.child('themes');
     my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
     my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
-    my List $themes               =
-        themes-config(
-           :$single_theme, :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
-           theme        => ($config<theme>||''),
-           themes       => ($config<themes> ~~ Array ?? $config<themes> !! []));
-
     my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
     my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');
     my IO::Path $pages_dir        = $project_root.IO.child('pages');
     my IO::Path $partials_dir     = $project_root.IO.child('partials');
     my IO::Path $public_dir       = $project_root.IO.child('public');
     my List $template_dirs        = [$pages_watch_dir, $partials_dir, $i18n_dir];
+
+    # Misc.
     my List %template_exts        = tt => ['tt'], mustache => ['ms', 'mustache'];
     my Str $template_engine       = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
     my List $extensions           = [ |%template_exts{$template_engine}, 'html', 'yml'];
+    my List $exclude_pages        = [$config<exclude_pages>];
+    my List $themes               =
+        themes-config(
+           :$single_theme, :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
+           theme  => ($config<theme>||''),
+           themes => ($config<themes> ~~ Array ?? $config<themes> !! []));
 
     # Confirm all template directories exist
     # before continuing.
@@ -241,18 +240,18 @@ our sub from-file(
 }
 
 our sub init(
-    IO::Path :$config_file  = 'config.yml'.IO, 
-    Str      :$project_name = 'New Uzu Project',
-    Str      :$url          = 'http://example.com',
-    Str      :$language     = 'en',
-    Str      :$theme        = 'default'
+    IO::Path :$config_file     = 'config.yml'.IO, 
+    Str      :$site_name       = 'New Uzu Project',
+    Str      :$template_engine = 'mustache',
+    Str      :$language        = 'en',
+    Str      :$theme           = 'default'
     --> Bool
 ) {
     my Map $config = (
-        :name($project_name),
-        :url($url),
+        :name($site_name),
         :language($language),
-        :theme($theme)
+        :theme($theme),
+        :template_engine($template_engine)
     ).Map;
 
     my IO::Path $theme_dir     = "themes".IO.child($theme);
@@ -264,16 +263,36 @@ our sub init(
         $theme_dir.IO.child('assets')
     );
 
+    # Copy template files
+    my %templates =
+        pages    => ['index'],
+        partials => ['footer','head'],
+        themes   => ['layout'];
+
     # Create project directories
     $template_dirs.map( -> $dir { mkdir $dir });
 
-    # Create placeholder files
-    spurt $theme_dir.IO.child("layout.tt"), ""; 
-    spurt "pages".IO.child('index.tt'), "";
-    spurt "i18n".IO.child("{$language}.yml"), "---\nproject_name: $project_name\n";
+    %templates.kv.map: -> $root, @files {
+        for @files -> $file {
+            my $target_filename = "{$file}.{$template_engine}";
+            my $target_path     =
+                $root ~~ 'themes'
+                ?? 'default'.IO.child($target_filename)
+                !! $target_filename;
+            my $source_filename =
+                $root ~~ 'themes'
+                ?? "{$template_engine}/{$root}/default/{$file}.{$template_engine}"
+                !! "{$template_engine}/{$root}/{$file}.{$template_engine}";
+
+            spurt $root.IO.child($target_path), slurp(%?RESOURCES{$source_filename}.IO); 
+        }
+    }
+
+    # Save default language yaml
+    spurt "i18n".IO.child("{$language}.yml"), "---\nsite_name: $site_name\n";
 
     # Write config file
-    my Str $config_yaml = S:g /'...'// given save-yaml($config);
-    my IO::Path $config_out  = S:g /'~'/$*HOME/ given $config_file;
+    my Str $config_yaml     = S:g /'...'// given save-yaml($config);
+    my IO::Path $config_out = S:g /'~'/$*HOME/ given $config_file;
     return spurt $config_out, $config_yaml;
 }

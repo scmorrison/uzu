@@ -4,6 +4,7 @@ use Uzu::Config;
 use Uzu::HTTP;
 use Uzu::Render;
 use Uzu::Watch;
+use Terminal::ANSIColor;
 
 sub USAGE is export {
   say q:to/END/;
@@ -65,7 +66,7 @@ multi MAIN(
     Uzu::Config::from-file(
         config_file   => $config.IO,
         page_filter   => $page-filter,
-        singe_theme   => $theme,
+        single_theme  => $theme,
         no_livereload => True
     ).&{
         if $clear {
@@ -107,19 +108,50 @@ multi MAIN(
 
     # config file exists, exit
     return say "Config [$config] already exists." if $config.IO ~~ :f;
+
+    my Bool $continue = False;
+    my Str  $site_name;
+    my Str  $language;
+    my Str  $template_engine = 'mustache';
   
-    say "Uzu project initialization";
-    my $project_name = prompt("Please enter project name: ");
-    my $url          = prompt("Please enter project url (e.g http://example.com): ");
-    my $language     = prompt("Please enter project language (e.g. en, ja): ");
-    my $theme        = prompt("Please enter project theme (e.g. default): ")||"default";
-  
+    until $continue
+          && $site_name !~~ ''
+          && $template_engine ~~ 'mustache'|'tt'
+          && so $language ~~ /^<[a..z]> ** 2..2 $/ {
+
+        if $site_name ~~ '' {
+            say colored "Site name must not be blank.\n", "bold white on_red";
+        }
+
+        if $template_engine && $template_engine !~~ 'mustache'|'tt' {
+            say colored "Template engine must be mustache or tt.\n", "bold white on_red";
+        }
+
+        if $language && so $language !~~ /^<[a..z]> ** 2..2 $/ {
+            say colored "Language must be two character abreviation (e.g. en, ja).\n", "bold white on_red";
+        }
+        
+        say "Uzu project initialization";
+        $site_name       = prompt("Please enter site name: ") ~ '';
+        $template_engine = prompt("Please enter template engine (mustache / tt): ");
+        $language        = prompt("Please enter language (e.g. en, ja): ");
+        my $confirmation = qq:to/EOF/;
+        You have entered following:
+        
+            Site name: {$site_name}
+            Templage engine: {$template_engine}
+            Language: {$language}
+        
+        Enter y to continue
+        EOF
+        $continue        = prompt($confirmation) ~~ 'y'|'Y';
+    }
+
     if Uzu::Config::init
-        config_file  => $config.IO,
-        project_name => $project_name,
-        url          => $url,
-        language     => $language,
-        theme        => $theme {
+        config_file     => $config.IO,
+        site_name       => $site_name,
+        language        => $language||'en',
+        template_engine => $template_engine||'mustache' {
       say "Config [$config] successfully created.";
     }
 }
