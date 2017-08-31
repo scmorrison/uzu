@@ -689,7 +689,7 @@ our sub build(
         my %theme          = $theme_config.values.head;
         my $build_dir      = %theme<build_dir>;
         my $theme_dir      = %theme<theme_dir>;
-        my $exclude_pages  = %theme<exclude_pages>;
+        my $exclude_pages  = %theme<exclude_pages>||[];
 
         my Any %theme_partials =
             $theme_dir.IO.child('partials').IO.d
@@ -702,8 +702,8 @@ our sub build(
         }
 
         logger "Copy public, assets";
-        copy-dir($config<public_dir>, $build_dir) when $config<public_dir>.IO.d;
-        copy-dir($theme_dir.IO.child('assets'), $build_dir) when $theme_dir.IO.child('assets').IO.d;
+        copy-dir($config<public_dir>, $build_dir) when $config<public_dir>.IO.e;
+        copy-dir($theme_dir.IO.child('assets'), $build_dir) when $theme_dir.IO.child('assets').IO.e;
 
         # Append nested pages directories
         my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');

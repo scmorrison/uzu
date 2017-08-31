@@ -2,9 +2,9 @@
     "perl" : "6.c",
     "name" : "Uzu",
     "license" : "Artistic-2.0",
-    "version"  : "0.2.2",
+    "version"  : "0.2.3",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.",
-    "tags"         : [ "web", "static-site-generator" ],
+    "tags" : [ "web", "static-site-generator" ],
     "provides" : {
       "Uzu"             : "lib/Uzu.pm6",
       "Uzu::Config"     : "lib/Uzu/Config.pm6",
@@ -27,5 +27,15 @@
         "YAMLish"
     ],
     "test-depends" : [ "Test::Output" ],
+    "resources" : [
+        "mustache/pages/index.mustache",
+        "mustache/partials/footer.mustache",
+        "mustache/partials/head.mustache",
+        "mustache/themes/default/layout.mustache",
+        "tt/pages/index.tt",
+        "tt/partials/footer.tt",
+        "tt/partials/head.tt",
+        "tt/themes/default/layout.tt"
+    ],
     "source-url" : "https://github.com/scmorrison/uzu.git"
 }
