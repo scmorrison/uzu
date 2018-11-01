@@ -23,6 +23,7 @@
         "Terminal::ANSIColor",
         "Template6",
         "Template::Mustache",
+        "Test::Output",
         "HTTP::Server::Tiny",
         "YAMLish"
     ],
