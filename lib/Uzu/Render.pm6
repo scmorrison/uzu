@@ -489,7 +489,8 @@ multi sub render(
                             site_index       => $r_site_index,
                             default_language => $r_default_language,
                             language         => $r_language,
-                            timestamps       => @modified_timestamps)
+                            timestamps       => @modified_timestamps,
+                            logger           => &logger);
                     }
             );
 
