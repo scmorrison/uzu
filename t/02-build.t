@@ -8,14 +8,10 @@ use Uzu::Render;
 use Uzu::Utilities;
 use File::Temp;
 
-plan 3;
-
 # Source project files
 my $test_root   = $*CWD.IO.child('t');
 
 subtest {
-    plan 15;
-
     my $source_root = $test_root.IO.child('example_project_tt');
 
     # Setup tmp project root
@@ -113,8 +109,6 @@ subtest {
 }, 'Rendering [Defaults]';
 
 subtest {
-    plan 12;
-
     my $source_root = $test_root.IO.child('example_project_mustache');
 
     # Setup tmp project root
@@ -204,8 +198,6 @@ subtest {
 }, 'Rendering [Mustache]';
 
 subtest {
-    plan 3;
-
     my $source_root = $test_root.IO.child('example_project_tt');
 
     # Setup tmp project root
@@ -242,10 +234,12 @@ subtest {
     say $build_out if %*ENV<UZUSTDOUT>;
 
     # Test warnings
-    like $build_out, / "No content found for page" /, 'empty page template warning to stdout';
-    like $build_out, / "Invalid i18n yaml file" /, 'invalid i18n yaml warning to stdout';
-    like $build_out, / "Theme [default] does not contain a layout template" /, 'theme layout template is missing warning to stdout';
+    like $build_out, / 'No content found for page' /, 'empty page template warning to stdout';
+    like $build_out, / 'Invalid i18n yaml file' /, 'invalid i18n yaml warning to stdout';
+    like $build_out, / 'Theme [default] does not contain a layout template' /, 'theme layout template is missing warning to stdout';
 
 }, 'Warnings';
+
+done-testing;
 
 # vim: ft=perl6
