@@ -271,7 +271,7 @@ sub parse-template(
         }
 
         my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
-        my %yaml = $template_yaml ?? load-yaml $template_yaml !! %();
+        my %yaml = $template_yaml ?? load-yaml $template_yaml.subst(/'---'$/, '') !! %();
         return $template_html, %yaml;
     }
 }
@@ -306,7 +306,6 @@ multi sub partial-names(
 ) {
     ~<< ( $template ~~ m:g/ '{{>' \h* <( \N*? )> \h* '}}' / );
 }
-
 multi sub partial-names(
     'tt',
     Str $template
@@ -678,7 +677,6 @@ our sub build(
             target_dir => $target_dir,
             modified   => $path.modified,
             render     => so $path.IO.path ~~ /^ $pages_watch_dir /});
-
     }
 
     # All available partials

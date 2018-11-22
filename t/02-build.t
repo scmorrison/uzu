@@ -229,6 +229,7 @@ subtest {
     site_name: Uzu Test Project
     # Need to quote strings that start with numbers
     copyright: 2016 Sam Morrison
+    @can't start a key with @
     ...
     END
 
@@ -237,7 +238,6 @@ subtest {
 
     # Do not die when theme layout template is missing
     unlink $tmp_root.IO.child('themes').child('default').child('layout.tt');
-
     my $build_out = output-from { Uzu::Render::build $config };
     say $build_out if %*ENV<UZUSTDOUT>;
 
