@@ -1,5 +1,3 @@
-use v6.c;
-
 use Uzu::Config;
 use Uzu::HTTP;
 use Uzu::Render;

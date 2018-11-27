@@ -1,5 +1,3 @@
-use v6.c;
-
 use YAMLish;
 
 unit module Uzu::Config;

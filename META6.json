@@ -2,7 +2,7 @@
     "perl" : "6.c",
     "name" : "Uzu",
     "license" : "Artistic-2.0",
-    "version"  : "0.2.5",
+    "version"  : "0.2.6",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.",
     "tags" : [ "web", "static-site-generator" ],
     "provides" : {

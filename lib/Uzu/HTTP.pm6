@@ -1,5 +1,3 @@
-use v6.c;
-
 unit module Uzu::HTTP;
 
 our sub web-server(

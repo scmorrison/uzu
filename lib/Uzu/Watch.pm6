@@ -1,5 +1,3 @@
-use v6.c;
-
 use Uzu::HTTP;
 use Uzu::LiveReload;
 use Uzu::Logger;

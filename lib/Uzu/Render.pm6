@@ -1,5 +1,3 @@
-use v6;
-
 use Uzu::Logger;
 use Uzu::Utilities;
 use File::Find;

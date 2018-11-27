@@ -1,5 +1,3 @@
-use v6.c;
-
 use Uzu::HTTP;
 
 unit module Uzu::LiveReload;
