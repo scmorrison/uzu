@@ -105,7 +105,13 @@ subtest {
     is $t14_generated_html, $t14_expected_html, '[Template6] multi-theme build with layout specific varibles';
 
     my $t15_excluded_page = $tmp_root.IO.child('build').child('summer2017').child('excludeme.html').IO.e;
-    is $t15_excluded_page, False, '[Template6] multi-theme exclude page for theme via config';
+    nok $t15_excluded_page, '[Template6] multi-theme exclude page for theme via config';
+
+    my $t16_excluded_dir = so $tmp_root.IO.child('build').child('bad_folder').IO.e;
+    nok $t16_excluded_dir, '[Template6] exclude directory from build via config';
+
+    my $t17_excluded_file = so $tmp_root.IO.child('build').child('bad_file.txt').IO.e;
+    nok $t17_excluded_file, '[Template6] exclude file from build via config';
 }, 'Rendering [Defaults]';
 
 subtest {
@@ -194,7 +200,13 @@ subtest {
     is $t11_generated_html, $t11_expected_html, '[Mustache] multi-theme build with layout specific varibles';
 
     my $t12_excluded_page = $tmp_root.IO.child('build').child('summer2017').child('excludeme.html').IO.e;
-    is $t12_excluded_page, False, '[Mustache] multi-theme exclude page for theme via config';
+    nok $t12_excluded_page, '[Mustache] multi-theme exclude page for theme via config';
+
+    my $t13_excluded_dir = so $tmp_root.IO.child('build').child('bad_folder').IO.e;
+    nok $t13_excluded_dir, '[Mustache] exclude directory from build via config';
+
+    my $t14_excluded_file = so $tmp_root.IO.child('build').child('bad_file.txt').IO.e;
+    nok $t14_excluded_file, '[Mustache] exclude file from build via config';
 }, 'Rendering [Mustache]';
 
 subtest {

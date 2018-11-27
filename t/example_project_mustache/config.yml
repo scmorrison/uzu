@@ -12,3 +12,6 @@ themes:
 template_engine: mustache
 url: https://gitlab.com/samcns/uzu
 author: Sam Morrison
+exclude:
+  - bad_folder
+  - bad_file.txt
