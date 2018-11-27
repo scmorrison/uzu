@@ -197,7 +197,7 @@ our sub from-file(
     my List %template_exts        = tt => ['tt'], mustache => ['ms', 'mustache'];
     my Str $template_engine       = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
     my List $extensions           = [ |%template_exts{$template_engine}, 'html', 'yml'];
-    my List $exclude_pages        = $config<exclude_pages>||[]
+    my List $exclude_pages        = $config<exclude_pages>||[];
     my List $exclude              = $config<exclude>||[];
     my List $themes               =
         themes-config(

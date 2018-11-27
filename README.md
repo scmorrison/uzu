@@ -195,12 +195,12 @@ Config variables are defined in `config.yml`:
              - sitemap.xml
      ```
 * `exclude`: List of directories and files to exclude from `build/`
-```yaml
-exclude:
-  - node_modules
-  - packages.json
-  - yarn.lock
-```
+   ```yaml
+   exclude:
+     - node_modules
+     - packages.json
+     - yarn.lock
+   ```
 * `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
 * `port`: Host TCP port for dev server. Defaults to `3000`.
 * `project_root`: Project root folder. Defaults to `.`.
