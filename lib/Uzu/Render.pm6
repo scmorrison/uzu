@@ -701,8 +701,8 @@ our sub build(
         }
 
         logger "Copy public, assets";
-        copy-dir($config<public_dir>, $build_dir) when $config<public_dir>.IO.e;
-        copy-dir($theme_dir.IO.child('assets'), $build_dir) when $theme_dir.IO.child('assets').IO.e;
+        copy-dir($config<public_dir>, $build_dir, exclude => $config<exclude>) when $config<public_dir>.IO.e;
+        copy-dir($theme_dir.IO.child('assets'), $build_dir, exclude => $config<exclude>) when $theme_dir.IO.child('assets').IO.e;
 
         # Append nested pages directories
         my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');

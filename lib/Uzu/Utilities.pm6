@@ -1,20 +1,21 @@
-use v6.c;
+use File::Find;
 
 unit module Uzu::Utilities;
 
 our sub copy-dir(
     IO::Path $source,
-    IO::Path $target
+    IO::Path $target,
+             :@exclude = []
     --> Bool
 ) is export {
-    return unless $source.IO.d && $target.IO.d;
-    given $*SPEC {
-        when 'Win32' {
-            shell "copy $source $target /O /X /E /H /K /Y";
-        }
-        default {
-            shell "cp -rf $source/* $target/" when elems(dir $source) gt 0;
-        }
+    my @files = find(dir => $source, exclude => / <@exclude> /);
+    for @files {
+        next unless so $_.IO.d && $_.path !~~ /@exclude/ ;
+        mkdir $_.path.subst($source.path, $target.path); 
+    }
+    for @files {
+        next unless so $_.IO.f && $_.path !~~ /@exclude/ ;
+        copy $_, $_.path.subst($source.path, $target.path); 
     }
     return True;
 }

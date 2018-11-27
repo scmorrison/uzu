@@ -4,7 +4,7 @@ Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=maste
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, and multi-page support.
 
 - [Features](#features)
-* [Getting started](#getting-started)
+- [Getting started](#getting-started)
 - [Usage](#usage)
 - [Config](#config)
   * [Config variables](#config-variables)
@@ -157,6 +157,12 @@ project_root: path/to/project/folder
 exclude_pages:
   - about
   - blog/fiji-scratch
+
+# List of directories and files to exclude from build/
+exclude:
+  - node_modules
+  - packages.json
+  - yarn.lock
 ```
 
 ### Config variables
@@ -188,6 +194,13 @@ Config variables are defined in `config.yml`:
              - blog/fiji
              - sitemap.xml
      ```
+* `exclude`: List of directories and files to exclude from `build/`
+```yaml
+exclude:
+  - node_modules
+  - packages.json
+  - yarn.lock
+```
 * `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
 * `port`: Host TCP port for dev server. Defaults to `3000`.
 * `project_root`: Project root folder. Defaults to `.`.
