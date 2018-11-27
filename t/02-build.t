@@ -112,6 +112,14 @@ subtest {
 
     my $t17_excluded_file = so $tmp_root.IO.child('build').child('bad_file.txt').IO.e;
     nok $t17_excluded_file, '[Template6] exclude file from build via config';
+
+    if %*ENV<UZUSTDOUT> {
+        my $t18_pre_command = $stdout.contains('pre-command test');
+        ok $t18_pre_command, '[Template6] pre_command via config';
+
+        my $t19_post_command = $stdout.contains('post-command test');
+        ok $t19_post_command, '[Template6] post_command via config';
+    }
 }, 'Rendering [Defaults]';
 
 subtest {
@@ -207,6 +215,14 @@ subtest {
 
     my $t14_excluded_file = so $tmp_root.IO.child('build').child('bad_file.txt').IO.e;
     nok $t14_excluded_file, '[Mustache] exclude file from build via config';
+
+    if %*ENV<UZUSTDOUT> {
+        my $t15_pre_command = so $stdout.contains('pre-command test');
+        ok $t15_pre_command, '[Mustache] pre_command via config';
+
+        my $t16_post_command = so $stdout.contains('post-command test');
+        ok $t16_post_command, '[Mustache] post_command via config';
+    }
 }, 'Rendering [Mustache]';
 
 subtest {

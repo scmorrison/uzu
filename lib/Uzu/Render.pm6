@@ -643,10 +643,14 @@ multi sub render(
 }
 
 our sub build(
-    Map $config,
+        $config,
     ::D :&logger = Uzu::Logger::start()
     --> Promise
 ) {
+    # Pre-build command
+    if $config<pre_command>:exists {
+        logger QX $config<pre_command>;
+    }
     my List $exts = $config<template_extensions>{$config<template_engine>};
 
     # Capture page meta
@@ -760,6 +764,11 @@ our sub build(
     }
 
     logger "Compile complete";
+
+    # Post-build command
+    if $config<post_command>:exists {
+        logger QX $config<post_command>;
+    }
 }
 
 our sub clear(

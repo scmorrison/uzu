@@ -15,3 +15,5 @@ author: Sam Morrison
 exclude:
   - bad_folder
   - bad_file.txt
+pre_command: "echo 'pre-command test'"
+post_command: "echo 'post-command test'"

@@ -38,7 +38,7 @@ sub parse-config(
         my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
 
         # Collect non-core variables into :site
-        my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages'|'exclude';
+        my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages'|'exclude'|'pre_command'|'post_command';
         %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
 
         return %global_config;
@@ -67,7 +67,6 @@ sub themes-config(
     IO::Path :$build_dir,      # default build dir
     Int      :$port,           # default port
     List     :$exclude_pages,  # default exclude pages
-    List     :$exclude,        # default exclude
     IO::Path :$project_root    # project root
     --> List()
 ) {
@@ -76,8 +75,7 @@ sub themes-config(
                 theme_dir      => $themes_dir.IO.child("$theme"||'default'),
                 build_dir      => $build_dir,
                 port           => $port,
-                exclude_pages  => $exclude_pages
-            ),) when $themes ~~ [];
+                exclude_pages  => $exclude_pages),) when $themes ~~ [];
 
     # Keep track of build dirs to avoid
     # reusing the same build dir for
@@ -109,7 +107,7 @@ sub themes-config(
                         theme_dir      => $themes_dir.IO.child($theme||'default'),
                         build_dir      => $build_dir.IO.child($theme||'default'),
                         port           => $theme_port,
-                        exclude_pages  => $exclude_pages);
+                        exclude_pages  => $exclude_pages)
             } 
             
             default {
@@ -155,7 +153,7 @@ sub themes-config(
                     theme_dir      => $theme_dir,
                     build_dir      => $theme_build_dir,
                     port           => $theme_port,
-                    exclude_pages  => $theme_config<exclude_pages>);
+                    exclude_pages  => $theme_config<exclude_pages>)
             }
 
         }
@@ -205,6 +203,10 @@ our sub from-file(
            theme  => ($config<theme>||''),
            themes => ($config<themes> ~~ Array ?? $config<themes> !! []));
 
+    # Pre/post build commands
+    my $pre_command               = $config<pre_command>||'';
+    my $post_command              = $config<post_command>||'';
+
     # Confirm all template directories exist
     # before continuing.
     valid-project-folder-structure($template_dirs);
@@ -226,6 +228,8 @@ our sub from-file(
         :pages_dir($pages_dir),
         :exclude_pages($exclude_pages),
         :exclude($exclude),
+        :pre_command($pre_command),
+        :post_command($post_command),
         :public_dir($public_dir),
         :partials_dir($partials_dir),
         :i18n_dir($i18n_dir),

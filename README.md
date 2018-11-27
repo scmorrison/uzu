@@ -163,6 +163,10 @@ exclude:
   - node_modules
   - packages.json
   - yarn.lock
+
+# Pre / post build commands
+pre_command: "webpack"
+post_command: "echo 'post-build command'"
 ```
 
 ### Config variables
@@ -201,6 +205,8 @@ Config variables are defined in `config.yml`:
      - packages.json
      - yarn.lock
    ```
+* `pre_command`: Run command prior to build step
+* `post_command`: Run command after to build step
 * `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
 * `port`: Host TCP port for dev server. Defaults to `3000`.
 * `project_root`: Project root folder. Defaults to `.`.
