@@ -1,19 +1,19 @@
 unit module Uzu::HTTP;
 
 our sub web-server(
-    Map $config
+    %config
     --> Array
 ) {
     use HTTP::Server::Tiny;
 
     my Promise @servers;
 
-    for $config<themes> -> $theme_config {
+    for %config<themes>.List -> $theme_config {
 
         push @servers, start {
 
-            my $theme_name = $theme_config.keys.head;
-            my %theme      = $theme_config.values.head;
+            my $theme_name = $theme_config.key;
+            my %theme      = $theme_config.value;
             my $build_dir  = %theme<build_dir>;
             my $port       = %theme<port>;
 
@@ -73,7 +73,7 @@ our sub web-server(
                         return 400, ['Content-Type' => 'text/plain'], ['Invalid path'] if $file.match('..');
 
                         # Handle HTML without file extension
-                        my $index = 'index' ~ ($config<no_html_ext> ?? '' !! '.html');
+                        my $index = 'index' ~ (%config<omit_html_ext> ?? '' !! '.html');
 
                         my IO::Path $path = do given $file {
                             when '/' {
@@ -119,7 +119,12 @@ our sub web-server(
     return @servers;
 }
 
-our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) is export {
+our sub wait-port(
+    int $port,
+    Str $host   = '0.0.0.0',
+        :$sleep = 0.1,
+    int :$times = 600
+) is export {
     LOOP: for 1..$times {
         try {
             my $sock = IO::Socket::INET.new(:host($host), :port($port));
@@ -133,7 +138,11 @@ our sub wait-port(int $port, Str $host='0.0.0.0', :$sleep=0.1, int :$times=600) 
     die "$host:$port doesn't open in {$sleep*$times} sec.";
 }
 
-our sub inet-request(Str $req, $port, $host='0.0.0.0') is export {
+our sub inet-request(
+    Str $req,
+    int $port,
+    $host='0.0.0.0'
+) is export {
     my $client = IO::Socket::INET.new(:host($host), :port($port));
     my $data   = '';
     $client.print($req);

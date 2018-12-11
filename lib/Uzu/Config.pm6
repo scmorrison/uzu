@@ -19,7 +19,7 @@ sub parse-config(
     --> Map()
 ) {
     unless $config_file.IO.f {
-        note "Config file [%config_file] not found. Please run uzu init to generate.";
+        note "Config file [{$config_file}] not found. Please run uzu init to generate.";
         exit 1;
     }
 
@@ -27,18 +27,21 @@ sub parse-config(
 
         CATCH {
             default {
-                note "Invalid config yaml file [%config_file]";
+                note "Invalid config yaml file [{$config_file}]";
                 note .Str;
                 exit 1;
             }
         }
 
-        my %global_config = slurp($config_file).&load-yaml when $config_file.IO.f;
+        my %global_config      = slurp($config_file).&load-yaml when $config_file.IO.f;
+        # Normalize themes
+        %global_config<themes> = %global_config<themes>.map(-> $theme {
+            $theme ~~ Iterable ?? $theme.head !! $theme;
+        }).List;
 
         # Collect non-core variables into :site
         my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages'|'exclude'|'pre_command'|'post_command';
         %global_config<site> = %global_config.grep({ $_.key !~~ $core_vars });
-
         return %global_config;
     }
 }
@@ -61,18 +64,20 @@ sub themes-config(
     Str      :$single_theme,   # optional, only config this theme
     IO::Path :$themes_dir,     # project themes dir
     Str      :$theme,          # yaml theme:
-    Array    :$themes,         # yaml themes:
+             :@themes,         # yaml themes:
     IO::Path :$build_dir,      # default build dir
     Int      :$port,           # default port
     List     :$exclude_pages,  # default exclude pages
     IO::Path :$project_root    # project root
 ) {
     # Always use single theme if yaml `theme:` variable set
-    return %{"{$theme||'default'}" => %{
-                theme_dir      => $themes_dir.IO.child("$theme"||'default'),
-                build_dir      => $build_dir,
-                port           => $port,
-                exclude_pages  => $exclude_pages},} when $themes ~~ [];
+    return %{
+        "{$theme||'default'}" => %{
+            theme_dir      => $themes_dir.IO.child("$theme"||'default'),
+            build_dir      => $build_dir,
+            port           => $port,
+            exclude_pages  => $exclude_pages},
+    } when defined $theme and $theme !~~ "";
 
     # Keep track of build dirs to avoid
     # reusing the same build dir for
@@ -85,9 +90,10 @@ sub themes-config(
     # theme or the defined port is 
     # already used.
     my Int $working_port = $port;
+    my %themes;
 
     # ... otherwise use hash
-    return map(-> $theme {
+    for @themes -> $theme {
         
         given $theme {
 
@@ -98,19 +104,21 @@ sub themes-config(
                 next when $single_theme.defined && $single_theme !~~ $theme;
 
                 my Int $theme_port = $working_port;
+                # Increment next port
                 ++$working_port;
 
-                "{$theme||'default'}" => %(
-                        theme_dir      => $themes_dir.IO.child($theme||'default'),
-                        build_dir      => $build_dir.IO.child($theme||'default'),
-                        port           => $theme_port,
-                        exclude_pages  => $exclude_pages)
+                %themes{"{$theme||'default'}"} = %{
+                    theme_dir      => $themes_dir.IO.child($theme||'default'),
+                    build_dir      => $build_dir.IO.child($theme||'default'),
+                    port           => $theme_port,
+                    exclude_pages  => $exclude_pages
+                }
             } 
             
-            default {
+            when Pair {
 
-                my Str  $theme_name    = $theme.keys.head;
-                my Hash $theme_config  = $theme.values.head;
+                my Str  $theme_name    = $theme.key;
+                my Hash $theme_config  = $theme.value;
                 my IO::Path $theme_dir = $themes_dir.IO.child($theme_name);
 
                 # When user passes --theme to cli only configure that theme or skip
@@ -121,32 +129,30 @@ sub themes-config(
                     next;
                 } unless $theme_dir.IO.e;
 
-                my IO::Path $theme_build_dir = do given $themes.elems {
-                    when 1 {
-                        $theme_config<build_dir>.IO||$build_dir;
-                    } 
-                    default {
-                        my $theme_build_dir = $theme_config<build_dir> ?? $theme_config<build_dir> !! $build_dir.IO.child($theme_name);
-                        build-dir-exists @seen_build_dirs, $theme_build_dir;
-                        push @seen_build_dirs, $theme_build_dir;
-                        safe-build-dir-check $theme_build_dir.IO, :$project_root;
-                        $theme_build_dir.IO;
-                    }
+                # Single theme build dir
+                my IO::Path $theme_build_dir = do if @themes.elems eq 1 {
+                    $theme_config<build_dir>:exists ?? $theme_config<build_dir>.IO !! $build_dir;
+                } else { # Mutiple themes build dir
+                    my $theme_build_dir = $theme_config<build_dir> ?? $theme_config<build_dir> !! $build_dir.IO.child($theme_name);
+                    build-dir-exists @seen_build_dirs, $theme_build_dir;
+                    push @seen_build_dirs, $theme_build_dir;
+                    safe-build-dir-check $theme_build_dir.IO, :$project_root;
+                    $theme_build_dir.IO;
                 }
 
-                my Int $theme_port = do given $themes.elems {
-                    when 1 {
-                        $theme_config<port>||$working_port;
-                    }
-                    default {
-                        $working_port = $theme_config<port> when $theme_config<port> && $theme_config<port> > $working_port;
-                        $theme_config<port>||$working_port;
-                    }
+                # Single theme port
+                my Int $theme_port = do if @themes.elems eq 1 {
+                    $theme_config<port>||$working_port;
+                } else {
+                    # Multiple themes port
+                    $working_port = $theme_config<port> when $theme_config<port> && $theme_config<port> > $working_port;
+                    $theme_config<port>||$working_port;
                 }
 
+                # Increment next port
                 ++$working_port;
 
-                $theme_name => %{
+                %themes{"{$theme_name}"} = %{
                     theme_dir      => $theme_dir,
                     build_dir      => $theme_build_dir,
                     port           => $theme_port,
@@ -154,8 +160,8 @@ sub themes-config(
                 }
             }
         }
-
-    }, $themes.values).Hash;
+    }
+    return %themes;
 }
 
 our sub from-file(
@@ -191,7 +197,7 @@ our sub from-file(
         template_extensions => %{ tt => ['tt'], mustache => ['ms', 'mustache'] },
         exclude_pages       => (%_config<exclude_pages>||[]),
         exclude             => (%_config<exclude>||[]),
-        no_html_ext         => (%_config<no_html_ext>||False),
+        omit_html_ext       => (so %_config<ommit_html_ext>:exists||False),
         no_livereload       => $no_livereload,
         config_file         => $config_file,
         single_theme        => $single_theme,
@@ -212,16 +218,20 @@ our sub from-file(
     %config<template_engine> = ( %_config<template_engine> ∈ %config<template_extensions>.keys ?? %_config<template_engine> !! 'tt' );
     %config<extensions>      = [ |%config<template_extensions>{%config<template_engine>}, 'html', 'yml'];
 
-    # Themes
-    %config<themes>        = themes-config(
-           single_theme  => %config<single_theme>,
-           themes_dir    => %config<themes_dir>,
-           build_dir     => %config<build_dir>,
-           port          => %config<port>,
-           exclude_pages => %config<exclude_pages>,
-           project_root  => %config<project_root>,
-           theme         => (%_config<theme>||''),
-           themes        => (%_config<themes> ~~ Array ?? %_config<themes> !! [])
+    # Themes config
+    %config<themes> = themes-config(
+        # Render single theme? ignore multi config
+        single_theme  => %config<single_theme>,
+        themes_dir    => %config<themes_dir>,
+        build_dir     => %config<build_dir>,
+        # Serve port
+        port          => %config<port>,
+        exclude_pages => %config<exclude_pages>,
+        project_root  => %config<project_root>,
+        # Single theme default
+        theme         => %_config<theme>||'',
+        # Mutli themes options
+        themes        => %_config<themes>||[],
     );
 
     # Confirm all template directories exist
@@ -237,7 +247,7 @@ our sub from-file(
 }
 
 our sub init(
-    IO::Path :%config_file     = 'config.yml'.IO, 
+    IO::Path :$config_file     = 'config.yml'.IO, 
     Str      :$site_name       = 'New Uzu Project',
     Str      :$template_engine = 'mustache',
     Str      :$language        = 'en',
@@ -290,6 +300,6 @@ our sub init(
 
     # Write config file
     my Str %config_yaml     = S:g /'...'// given save-yaml(%config);
-    my IO::Path %config_out = S:g /'~'/$*HOME/ given %config_file;
+    my IO::Path %config_out = S:g /'~'/$*HOME/ given $config_file;
     return spurt %config_out, %config_yaml;
 }

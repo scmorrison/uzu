@@ -167,6 +167,9 @@ exclude:
 # Pre / post build commands
 pre_command: "webpack"
 post_command: "echo 'post-build command'"
+
+# Omit .html extension from generated HTML files
+omit_html_ext: true
 ```
 
 ### Config variables
@@ -210,6 +213,7 @@ Config variables are defined in `config.yml`:
 * `host`: Host IP for the dev server. Defaults to `127.0.0.1`.
 * `port`: Host TCP port for dev server. Defaults to `3000`.
 * `project_root`: Project root folder. Defaults to `.`.
+* `omit_html_ext`: Omit `.html` from generated HTML files.
 
 ### Accessing config variables in templates
 

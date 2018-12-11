@@ -41,11 +41,9 @@ proto sub build-category-uri(|) is export {*}
 multi sub build-category-uri(Str $item) {
     return $item;
 }
-
 multi sub build-category-uri(Str $parent, Str $item) {
     return "$parent/$item";
 }
-
 multi sub build-category-uri(Str $parent, Hash $items) {
     map -> $k, $item {
         build-category-uri "$parent/$k", $item;
@@ -56,13 +54,11 @@ multi sub build-category-uri(Hash $items) {
         build-category-uri $parent, $item;
     }, kv $items;
 }
-
 multi sub build-category-uri(Str $parent, Array $items) {
     map -> $item {
         build-category-uri $parent, $item;
     }, $items.List;
 }
-
 multi sub build-category-uri(Array $dict, :$cat_label = 'categories') {
     "/$cat_label/" <<~<< (map -> $item {
         build-category-uri $item;
@@ -82,7 +78,6 @@ multi sub build-category-toc-html(
 ) {
     "<li><a href=\"{$breadcrumb}/{$item}\">{$item}</a></li>";
 }
-
 multi sub build-category-toc-html(
     Pair $item,
     Str  :$breadcrumb
@@ -91,7 +86,6 @@ multi sub build-category-toc-html(
     my $bc = "{$breadcrumb}/{$item.key}";
     ['<li>', "<a href=\"{$bc}\">{$item.key}</a>", build-category-toc-html($item.value, breadcrumb => $bc), '</li>'].join('');
 }
-
 multi sub build-category-toc-html(
     Iterable $items,
     Str      :$breadcrumb
@@ -101,7 +95,6 @@ multi sub build-category-toc-html(
         build-category-toc-html($item, breadcrumb => $breadcrumb) }, $items
     )].join('');
 }
-
 multi sub build-category-toc-html(
     Hash $items,
     Str  :$breadcrumb

@@ -5,7 +5,6 @@ use Test::Output;
 use Uzu::Config;
 use Uzu::HTTP;
 
-
 my $root = $*CWD;
 my $host = '127.0.0.1';
 my $port = 3333;
@@ -57,14 +56,16 @@ subtest {
 
 subtest {
     my $t1_output = output-from {
-        Uzu::Config::from-file(
-            config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
-            no_livereload => True).&Uzu::HTTP::web-server();
+        Uzu::HTTP::web-server(
+            Uzu::Config::from-file(
+                config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
+                no_livereload => True)
+        );
     }
     say $t1_output if %*ENV<UZUSTDOUT>;
 
     # Wait for server to come online
-    my $t1_default_server    = Uzu::HTTP::wait-port(3333, times => 600);
+    my $t1_default_server    = Uzu::HTTP::wait-port(3334, times => 600);
     my $t1_summer2017_server = Uzu::HTTP::wait-port(3335, times => 600);
 
     ok ($t1_default_server && $t1_summer2017_server), 'spawned development web server';
@@ -72,9 +73,11 @@ subtest {
 
 subtest {
     my $t2_output = output-from {
-        Uzu::Config::from-file(
-            config_file   => $root.IO.child('t').child('serve').child('config-multi-port-increment.yml'),
-            no_livereload => True).&Uzu::HTTP::web-server();
+        Uzu::HTTP::web-server(
+            Uzu::Config::from-file(
+                config_file   => $root.IO.child('t').child('serve').child('config-multi-port-increment.yml'),
+                no_livereload => True)
+        );
     }
     say $t2_output if %*ENV<UZUSTDOUT>;
 

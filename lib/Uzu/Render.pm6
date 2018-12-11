@@ -192,7 +192,7 @@ sub extract-file-parts(
 sub write-generated-file(
     Pair      $content,
     IO::Path :$build_dir,
-    Bool     :$no_html_ext = True
+    Bool     :$omit_html_ext = False
     --> Bool()
 ) {
     # IO write to disk
@@ -200,8 +200,7 @@ sub write-generated-file(
     my %meta       = $content.values[0];
     my $html       = %meta<html>;
     my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
-    my $out        = $build_dir.IO.child("{$page_name}{$no_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
-    #my $out        = $build_dir.IO.child("{$page_name}.{%meta<out_ext>}");
+    my $out        = $build_dir.IO.child("{$page_name}{$omit_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
     mkdir $target_dir when !$target_dir.IO.d;
     spurt $out, $html;
 }
@@ -688,17 +687,15 @@ our sub build(
     }
 
     # All available partials
-    my Any %partials       = build-partials-hash source => $config<partials_dir>, :$exts, :&logger;
-
-    for $config<themes> -> $theme_config {
-
-        my $theme_name     = $theme_config.keys.head;
-        my %theme          = $theme_config.values.head;
+    my %partials = build-partials-hash source => $config<partials_dir>, :$exts, :&logger;
+    for $config<themes>.Hash -> $theme_config {
+        my $theme_name     = $theme_config.key;
+        my %theme          = $theme_config.value;
         my $build_dir      = %theme<build_dir>;
         my $theme_dir      = %theme<theme_dir>;
         my $exclude_pages  = %theme<exclude_pages>||[];
 
-        my Any %theme_partials =
+        my %theme_partials =
             $theme_dir.IO.child('partials').IO.d
             ?? build-partials-hash source => $theme_dir.IO.child('partials'), :$exts, :&logger !! %();
 
