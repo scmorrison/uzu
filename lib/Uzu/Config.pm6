@@ -19,7 +19,7 @@ sub parse-config(
     --> Map()
 ) {
     unless $config_file.IO.f {
-        note "Config file [$config_file] not found. Please run uzu init to generate.";
+        note "Config file [%config_file] not found. Please run uzu init to generate.";
         exit 1;
     }
 
@@ -27,7 +27,7 @@ sub parse-config(
 
         CATCH {
             default {
-                note "Invalid config yaml file [$config_file]";
+                note "Invalid config yaml file [%config_file]";
                 note .Str;
                 exit 1;
             }
@@ -66,14 +66,13 @@ sub themes-config(
     Int      :$port,           # default port
     List     :$exclude_pages,  # default exclude pages
     IO::Path :$project_root    # project root
-    --> List()
 ) {
     # Always use single theme if yaml `theme:` variable set
-    return ("{$theme||'default'}" => %(
+    return %{"{$theme||'default'}" => %{
                 theme_dir      => $themes_dir.IO.child("$theme"||'default'),
                 build_dir      => $build_dir,
                 port           => $port,
-                exclude_pages  => $exclude_pages),) when $themes ~~ [];
+                exclude_pages  => $exclude_pages},} when $themes ~~ [];
 
     # Keep track of build dirs to avoid
     # reusing the same build dir for
@@ -88,7 +87,7 @@ sub themes-config(
     my Int $working_port = $port;
 
     # ... otherwise use hash
-    return map -> $theme {
+    return map(-> $theme {
         
         given $theme {
 
@@ -147,16 +146,16 @@ sub themes-config(
 
                 ++$working_port;
 
-                $theme_name => %(
+                $theme_name => %{
                     theme_dir      => $theme_dir,
                     build_dir      => $theme_build_dir,
                     port           => $theme_port,
-                    exclude_pages  => $theme_config<exclude_pages>)
+                    exclude_pages  => $theme_config<exclude_pages>
+                }
             }
-
         }
 
-    }, $themes.values;
+    }, $themes.values).Hash;
 }
 
 our sub from-file(
@@ -164,96 +163,88 @@ our sub from-file(
     Str      :$page_filter   = '',
     Str      :$single_theme,
     Bool     :$no_livereload = False
-    --> Map
 ) {
 
     # Gemeral config
-    my Map  $config         = parse-config(config_file => $config_file);
-    my List $language       = [$config<language>];
+    my %_config       = parse-config(config_file => $config_file);
+    my $project_root  = "{%_config<project_root>||$*CWD}".subst('~', $*HOME).IO;
+    my %config        = %{
+        project_root     => $project_root,
+        language         => [%_config<language>.flat],
 
-    # Network
-    my Str  $host           = $config<host>||'0.0.0.0';
-    my Int  $port           = $config<port>||3000;
+        # Network        
+        host                => %_config<host>||'0.0.0.0',
+        port                => (%_config<port>:exists ?? %_config<port>.Int !! 3000),
 
-    # Paths
-    my IO::Path $project_root     = "{$config<project_root>||$*CWD}".subst('~', $*HOME).IO;
-    my IO::Path $build_dir        = $project_root.IO.child('build');
-    my IO::Path $i18n_dir         = $project_root.IO.child('i18n');
-    my IO::Path $themes_dir       = $project_root.IO.child('themes');
-    my IO::Path $assets_dir       = $project_root.IO.child('themes').child("{$config<theme>||'default'}").child('assets');
-    my IO::Path $theme_dir        = $project_root.IO.child('themes').child("{$config<theme>||'default'}");
-    my IO::Path $layout_dir       = $theme_dir.IO.child('layout');
-    my IO::Path $pages_watch_dir  = $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages');
-    my IO::Path $pages_dir        = $project_root.IO.child('pages');
-    my IO::Path $partials_dir     = $project_root.IO.child('partials');
-    my IO::Path $public_dir       = $project_root.IO.child('public');
-    my List $template_dirs        = [$pages_watch_dir, $partials_dir, $i18n_dir];
+        # Paths
+        build_dir           => $project_root.IO.child('build'),
+        i18n_dir            => $project_root.IO.child('i18n'),
+        themes_dir          => $project_root.IO.child('themes'),
+        assets_dir          => $project_root.IO.child('themes').child("{%_config<theme>||'default'}").child('assets'),
+        theme_dir           => $project_root.IO.child('themes').child("{%_config<theme>||'default'}"),
+        pages_watch_dir     => $project_root.IO.child('pages').child($page_filter)||$project_root.IO.child('pages'),
+        pages_dir           => $project_root.IO.child('pages'),
+        partials_dir        => $project_root.IO.child('partials'),
+        public_dir          => $project_root.IO.child('public'),
 
-    # Misc.
-    my List %template_exts        = tt => ['tt'], mustache => ['ms', 'mustache'];
-    my Str $template_engine       = $config<template_engine> ∈ %template_exts.keys ?? $config<template_engine> !! 'tt',
-    my List $extensions           = [ |%template_exts{$template_engine}, 'html', 'yml'];
-    my List $exclude_pages        = $config<exclude_pages>||[];
-    my List $exclude              = $config<exclude>||[];
-    my List $themes               =
-        themes-config(
-           :$single_theme, :$themes_dir, :$build_dir, :$port, :$exclude_pages, :$project_root,
-           theme  => ($config<theme>||''),
-           themes => ($config<themes> ~~ Array ?? $config<themes> !! []));
+        # Misc.
+        template_extensions => %{ tt => ['tt'], mustache => ['ms', 'mustache'] },
+        exclude_pages       => (%_config<exclude_pages>||[]),
+        exclude             => (%_config<exclude>||[]),
+        no_html_ext         => (%_config<no_html_ext>||False),
+        no_livereload       => $no_livereload,
+        config_file         => $config_file,
+        single_theme        => $single_theme,
 
-    # Pre/post build commands
-    my $pre_command               = $config<pre_command>||'';
-    my $post_command              = $config<post_command>||'';
+        # Pre/post build commands
+        pre_command         => (%_config<pre_command>||''),
+        post_command        => (%_config<post_command>||'')
+
+    }
+
+    # Template / layout
+    %config<layout_dir>      = %config<theme_dir>.IO.child('layout');
+    %config<template_dirs>   = [
+        %config<pages_watch_dir>,
+        %config<partials_dir>,
+        %config<i18n_dir>
+    ];
+    %config<template_engine> = ( %_config<template_engine> ∈ %config<template_extensions>.keys ?? %_config<template_engine> !! 'tt' );
+    %config<extensions>      = [ |%config<template_extensions>{%config<template_engine>}, 'html', 'yml'];
+
+    # Themes
+    %config<themes>        = themes-config(
+           single_theme  => %config<single_theme>,
+           themes_dir    => %config<themes_dir>,
+           build_dir     => %config<build_dir>,
+           port          => %config<port>,
+           exclude_pages => %config<exclude_pages>,
+           project_root  => %config<project_root>,
+           theme         => (%_config<theme>||''),
+           themes        => (%_config<themes> ~~ Array ?? %_config<themes> !! [])
+    );
 
     # Confirm all template directories exist
     # before continuing.
-    valid-project-folder-structure($template_dirs);
-
-    my Map $config_plus = (
-        :host($host),
-        :port($port),
-        :language($language),
-        :no_livereload($no_livereload),
-        :project_root($project_root),
-        :path($config_file),
-        :build_dir($build_dir),
-        :themes($themes),
-        :themes_dir($themes_dir),
-        :assets_dir($assets_dir),
-        :theme_dir($theme_dir),
-        :layout_dir($layout_dir),
-        :pages_watch_dir($pages_watch_dir),
-        :pages_dir($pages_dir),
-        :exclude_pages($exclude_pages),
-        :exclude($exclude),
-        :pre_command($pre_command),
-        :post_command($post_command),
-        :public_dir($public_dir),
-        :partials_dir($partials_dir),
-        :i18n_dir($i18n_dir),
-        :template_dirs($template_dirs),
-        :template_engine($template_engine),
-        :template_extensions(%template_exts),
-        :extensions($extensions)
-    ).Map;
+    valid-project-folder-structure(%config<template_dirs>);
 
     # We want to stop everything if the project root ~~ $*HOME or
     # the build dir ~~ project root. This would have bad side-effects
-    safe-build-dir-check($build_dir.IO, :$project_root);
+    safe-build-dir-check(%config<build_dir>.IO, project_root => %config<project_root>.IO);
 
     # Merged config as output
-    return Map.new($config.pairs, $config_plus.pairs);
+    return %config;
 }
 
 our sub init(
-    IO::Path :$config_file     = 'config.yml'.IO, 
+    IO::Path :%config_file     = 'config.yml'.IO, 
     Str      :$site_name       = 'New Uzu Project',
     Str      :$template_engine = 'mustache',
     Str      :$language        = 'en',
     Str      :$theme           = 'default'
     --> Bool
 ) {
-    my Map $config = (
+    my Map %config = (
         :name($site_name),
         :language($language),
         :theme($theme),
@@ -298,7 +289,7 @@ our sub init(
     spurt "i18n".IO.child("{$language}.yml"), "---\nsite_name: $site_name\n";
 
     # Write config file
-    my Str $config_yaml     = S:g /'...'// given save-yaml($config);
-    my IO::Path $config_out = S:g /'~'/$*HOME/ given $config_file;
-    return spurt $config_out, $config_yaml;
+    my Str %config_yaml     = S:g /'...'// given save-yaml(%config);
+    my IO::Path %config_out = S:g /'~'/$*HOME/ given %config_file;
+    return spurt %config_out, %config_yaml;
 }

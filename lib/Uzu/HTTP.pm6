@@ -72,12 +72,15 @@ our sub web-server(
                         # Trying to access files outside of build path
                         return 400, ['Content-Type' => 'text/plain'], ['Invalid path'] if $file.match('..');
 
+                        # Handle HTML without file extension
+                        my $index = 'index' ~ ($config<no_html_ext> ?? '' !! '.html');
+
                         my IO::Path $path = do given $file {
                             when '/' {
-                                $build_dir.IO.child('index.html')
+                                $build_dir.IO.child($index)
                             }
                             when so * ~~ / '/' $ / {
-                                $build_dir.IO.child($file.split('?')[0].IO.child('index.html'))
+                                $build_dir.IO.child($file.split('?')[0].IO.child($index))
                             }
                             default {
                                 $build_dir.IO.child($file.split('?')[0])
@@ -156,6 +159,7 @@ sub detect-content-type(
         gz       => 'application/x-gzip',
         htm      => 'text/html',
         html     => 'text/html;charset=UTF-8',
+        ''       => 'text/html;charset=UTF-8',
         ico      => 'image/x-icon',
         jpeg     => 'image/jpeg',
         jpg      => 'image/jpeg',

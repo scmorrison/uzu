@@ -87,12 +87,13 @@ multi MAIN(
     Str  :$theme,
     Bool :$no-livereload = False
 ) is export {
-    Uzu::Config::from-file(
-        config_file   => $config.IO,
-        page_filter   => $page-filter,
-        single_theme  => $theme,
-        no_livereload => $no-livereload
-    ).&Uzu::Watch::start();
+    Uzu::Watch::start(
+        Uzu::Config::from-file(
+            config_file   => $config.IO,
+            page_filter   => $page-filter,
+            single_theme  => $theme,
+            no_livereload => $no-livereload
+    ));
 }
 
 multi MAIN(

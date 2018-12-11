@@ -191,7 +191,8 @@ sub extract-file-parts(
 
 sub write-generated-file(
     Pair      $content,
-    IO::Path :$build_dir
+    IO::Path :$build_dir,
+    Bool     :$no_html_ext = True
     --> Bool()
 ) {
     # IO write to disk
@@ -199,8 +200,10 @@ sub write-generated-file(
     my %meta       = $content.values[0];
     my $html       = %meta<html>;
     my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
+    my $out        = $build_dir.IO.child("{$page_name}{$no_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
+    #my $out        = $build_dir.IO.child("{$page_name}.{%meta<out_ext>}");
     mkdir $target_dir when !$target_dir.IO.d;
-    spurt $build_dir.IO.child("{$page_name}.{%meta<out_ext>}"), $html;
+    spurt $out, $html;
 }
 
 our sub process-livereload(
@@ -624,17 +627,19 @@ multi sub render(
                 default { $page_contents }
             }
 
-            prepare-html-output(
-                :$page_name,
-                :$default_language,
-                :$language,
-                :$layout_contents,
-                :$no_livereload,
-                path          => %page<path>,
-                target_dir    => %page<target_dir>,
-                out_ext       => %page<out_ext>)
-            ==> write-generated-file(
-                build_dir     => $build_dir);
+            write-generated-file(
+                prepare-html-output(
+                    :$page_name,
+                    :$default_language,
+                    :$language,
+                    :$layout_contents,
+                    :$no_livereload,
+                    path       => %page<path>,
+                    target_dir => %page<target_dir>,
+                    out_ext    => %page<out_ext>),
+                :$build_dir
+
+            );
 
         } # end page_queue
     };
@@ -645,6 +650,7 @@ our sub build(
     ::D :&logger = Uzu::Logger::start()
     --> Promise
 ) {
+
     # Pre-build command
     if $config<pre_command>:exists {
         logger QX $config<pre_command>;
@@ -710,7 +716,7 @@ our sub build(
         my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
 
         # Append nested i18n directories
-        my IO::Path @i18n_dirs = $config<i18n_dir>, |find(dir => $config<i18n_dir>, type => 'dir');
+        my IO::Path @i18n_dirs = $config<i18n_dir>,  |find(dir => $config<i18n_dir>, type => 'dir');
 
         my IO::Path $layout_path = grep(/ 'layout.' @$exts $ /, templates(:$exts, dir => $theme_dir)).head;
 
@@ -732,29 +738,30 @@ our sub build(
         $page_supply.tap({ .() });
 
         # One per language
-        for $config<language> -> $language { 
+        for $config<language>.flat -> $language { 
 
             logger "Compile templates [$language]";
 
-            i18n-from-yaml(
-                language         => $language,
-                i18n_dir         => $config<i18n_dir>,
-                logger           => &logger)
-            ==> render(
-                page_queue       => $page_queue,
+            render(
+                i18n-from-yaml(
+                    :$language,
+                    i18n_dir => $config<i18n_dir>,
+                    :&logger
+                ),
+                :$page_queue,
+                :$build_dir,
+                :$layout_template,
+                :$layout_vars,
+                :$theme_dir,
+                :$language,
+                :%pages,
+                :@exclude_pages,
+                :%site_index,
                 template_engine  => $config<template_engine>,
-                build_dir        => $build_dir,
                 theme            => $theme_name,
-                layout_template  => $layout_template,
-                layout_vars      => $layout_vars,
                 layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
-                theme_dir        => $theme_dir,
                 default_language => $config<language>[0],
-                language         => $language,
-                pages            => %pages,
-                exclude_pages    => @exclude_pages,
                 partials_all     => %( |%partials, |%theme_partials  ),
-                site_index       => %site_index,
                 no_livereload    => $config<no_livereload>,
                 logger           => &logger);
        }
