@@ -153,7 +153,7 @@ sub linked-pages(
          :&logger
 ) {
     my %linked_pages;
-    @pages>>.map: -> %vars {
+    for @pages -> %vars {
         my $key  = %vars<page>;
         my $url = ($key ~~ / '://' / || !%site_index{$key})
             ?? $key
