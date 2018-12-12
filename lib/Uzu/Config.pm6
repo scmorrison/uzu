@@ -254,12 +254,11 @@ our sub init(
     Str      :$theme           = 'default'
     --> Bool
 ) {
-    my Map %config = (
-        :name($site_name),
-        :language($language),
-        :theme($theme),
-        :template_engine($template_engine)
-    ).Map;
+    my %config =
+        name            => $site_name,
+        language        => $language,
+        theme           => $theme,
+        template_engine => $template_engine;
 
     my IO::Path $theme_dir     = "themes".IO.child($theme);
     my List     $template_dirs = (
@@ -299,7 +298,7 @@ our sub init(
     spurt "i18n".IO.child("{$language}.yml"), "---\nsite_name: $site_name\n";
 
     # Write config file
-    my Str %config_yaml     = S:g /'...'// given save-yaml(%config);
-    my IO::Path %config_out = S:g /'~'/$*HOME/ given $config_file;
-    return spurt %config_out, %config_yaml;
+    my Str $config_yaml     = S:g /'...'// given save-yaml(%config);
+    my IO::Path $config_out = S:g /'~'/$*HOME/ given $config_file;
+    return spurt $config_out, $config_yaml;
 }

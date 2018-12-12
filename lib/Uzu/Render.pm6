@@ -440,6 +440,8 @@ multi sub render(
         "lang_{$language}" => True,
         "theme_{$theme}"   => True,
         layout             => $layout_vars,
+        dt                 => date-hash(),
+        randnum            => (rand * 10**16).Int,
         |%( $context{$language}.defined ?? |$context{$language} !! %() );
 
     my @layout_partials   = partial-names $template_engine, $layout_template;

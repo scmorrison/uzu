@@ -579,6 +579,34 @@ Some variables are generated dynamically and exposed to templates for use:
     {{> enoshima_header }}
     {{/theme_enoshima}}
     ```
+* **randnum**: A dynamically generated 16 digit integer. This value is generated any time a page is generated / regenerated.
+* **dt**: A date hash that includes common date values. This is a dynamic variable that contains `datetime` data for current build.
+    ```html
+    <span>&copy;{{ dt.year }} Uzu, Inc.</span>
+
+    ```
+    Available `dt` values:
+
+    * dt.hour
+    * dt.minute
+    * dt.second
+    * dt.day
+    * dt.month
+    * dt.year
+    * dt.hh-mm-ss
+    * dt.utc
+    * dt.day-of-month
+    * dt.day-of-week
+    * dt.weekday-of-month
+    * dt.is-leap-year
+    * dt.day-of-year
+    * dt.week-year
+    * dt.daycount
+    * dt.week-number
+    * dt.days-in-month
+    * dt.week
+    * dt.yyyy-mm-dd
+    * dt.timezone
 
 ### Template variables
 

@@ -105,3 +105,29 @@ multi sub build-category-toc-html(
         "<li><a href=\"{$bc}\">{$k}</a>", build-category-toc-html($v.flat, breadcrumb => $bc)
     }, kv $items), '</ul>', '</li>'].join('');
 }
+
+sub date-hash(--> Hash) is export {
+    my %date = do with DateTime.new(now) {
+        hh-mm-ss         => .hh-mm-ss,
+        utc              => .utc,
+        day-of-month     => .day-of-month,
+        weekday-of-month => .weekday-of-month,
+        is-leap-year     => .is-leap-year,
+        day-of-year      => .day-of-year,
+        week-year        => .week-year,
+        day-of-week      => .day-of-week,
+        daycount         => .daycount,
+        week-number      => .week-number,
+        days-in-month    => .days-in-month,
+        week             => .week,
+        yyyy-mm-dd       => .yyyy-mm-dd,
+        hour             => .hour,
+        minute           => .minute,
+        second           => .second,
+        year             => .year,
+        month            => .month,
+        day              => .day,
+        timezone         => .timezone
+    }
+    return %date;
+}

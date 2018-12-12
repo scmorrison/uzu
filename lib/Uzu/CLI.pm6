@@ -4,6 +4,8 @@ use Uzu::Render;
 use Uzu::Watch;
 use Terminal::ANSIColor;
 
+my %*SUB-MAIN-OPTS = :named-anywhere;
+
 sub USAGE is export {
   say q:to/END/;
       Usage:
