@@ -174,9 +174,20 @@ our sub from-file(
     # Gemeral config
     my %_config       = parse-config(config_file => $config_file);
     my $project_root  = "{%_config<project_root>||$*CWD}".subst('~', $*HOME).IO;
+    my %extended      = do if %_config<extended>:exists {
+        my $module = %_config<extended>;
+        try require ::($module);
+        if ::($module) !~~ Failure && defined %::($module)::context {
+            %::($module)::context
+        } else {
+            say "Unable to load $module";
+            %{}
+        }
+    } else { %{} }
     my %config        = %{
-        project_root     => $project_root,
-        language         => [%_config<language>.flat],
+        project_root        => $project_root,
+        language            => [%_config<language>.flat],
+        extended            => %extended,
 
         # Network        
         host                => %_config<host>||'0.0.0.0',

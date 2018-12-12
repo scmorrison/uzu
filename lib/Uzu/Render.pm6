@@ -26,7 +26,7 @@ sub i18n-files(
 sub i18n-from-yaml(
     Str      :$language,
     IO::Path :$i18n_dir,
-    ::D :&logger,
+             :&logger,
     --> Hash 
 ) {
     
@@ -67,13 +67,13 @@ sub i18n-valid-hash(
 sub i18n-context-vars(
     Str      :$language, 
     IO::Path :$path,
-    Hash     :$context
+             :%context
 ) {
     my Str $i18n_key = ($path.IO.path ~~ / .* 'pages' (.*) '.' .*  / ).head.Str;
-    return %( |$context,
-              i18n => %( ( $context{$language}<i18n>.defined ?? |$context{$language}<i18n> !! %()), 
+    return %( |%context,
+              i18n => %( ( %context{$language}<i18n>.defined ?? |%context{$language}<i18n> !! %()), 
                          # Page-specific i18n vars?
-                         ( $context{$i18n_key}.defined ?? |$context{$i18n_key}<i18n> !! %())));
+                         ( %context{$i18n_key}.defined ?? |%context{$i18n_key}<i18n> !! %())));
 }
 
 sub html-file-name(
@@ -144,35 +144,35 @@ sub linked-pages(
     Str  :$base_page,
     Str  :$block_key,
          :@pages,
-    Hash :$page_vars,
-    Hash :$site_index,
+         :%page_vars,
+         :%site_index,
     Str  :$default_language,
     Str  :$language,
     Str  :$i18n_format = 'default',
          :@timestamps,
-    ::D  :&logger
+         :&logger
 ) {
     my %linked_pages;
-    map -> %vars {
+    @pages>>.map: -> %vars {
         my $key  = %vars<page>;
-        my $url = ($key ~~ / '://' / || !$site_index{$key})
+        my $url = ($key ~~ / '://' / || !%site_index{$key})
             ?? $key
-            !! page-uri page_name => $key, :$default_language, :$language, out_ext => $site_index{$key}<out_ext>;
+            !! page-uri page_name => $key, :$default_language, :$language, out_ext => %site_index{$key}<out_ext>;
 
-        logger "Broken link in template [$base_page]: page [$key] referenced in [$block_key] not found" when $key !~~ /'://'/ && !$site_index{$key};
+        logger "Broken link in template [$base_page]: page [$key] referenced in [$block_key] not found" when $key !~~ /'://'/ && !%site_index{$key};
 
-        push @timestamps, $site_index{$key}<modified>;
+        push @timestamps, %site_index{$key}<modified>;
         push %linked_pages{$block_key}, grep({ .value }, [
-            |$site_index{$key}.Hash,
+            |%site_index{$key}.Hash,
             # use the variables defined in the _pages block if set
             page     => $key,
             url      => $url,
-            title    => $site_index{$key}<title>    ||%vars<title>,
-            author   => $site_index{$key}<author>   ||%vars<author>||'',
-            date     => $site_index{$key}<date>     ||'',
-            modified => $site_index{$key}<modified>
+            title    => %site_index{$key}<title>    ||%vars<title>,
+            author   => %site_index{$key}<author>   ||%vars<author>||'',
+            date     => %site_index{$key}<date>     ||'',
+            modified => %site_index{$key}<modified>
         ]).Hash;
-    }, @pages;
+    }
 
     return %linked_pages;
 }
@@ -257,7 +257,7 @@ sub prepare-html-output(
 
 sub parse-template(
     IO::Path :$path,
-    ::D      :&logger
+             :&logger
     --> List
 ) {
     # Extract header yaml if available
@@ -279,7 +279,7 @@ sub parse-template(
 sub build-partials-hash(
     IO::Path :$source,
     List     :$exts,
-    ::D      :&logger
+             :&logger
 ) {
     map -> $path { 
         next unless $path.IO.f;
@@ -322,7 +322,7 @@ sub embedded-partials(
     Hash  :$context,
     List  :$modified_timestamps  is copy = [],
     List  :$partial_render_queue is copy = [],
-    :$t6
+          :$t6
     --> List
 ) {
     # Prerender any embedded partials
@@ -376,7 +376,7 @@ multi sub render-template(
     Hash  :$context,
     Str   :$content,
     Array :$from = [],
-    ::D   :&logger
+          :&logger
 ) {
    Template::Mustache.render: $content, $context, from => $from;
 }
@@ -387,7 +387,7 @@ multi sub render-template(
     Str       :$template_name,
     Str       :$content,
     Template6 :$t6,
-    ::D       :&logger
+              :&logger
 ) {
 
     try {
@@ -416,6 +416,7 @@ multi sub render-template(
 
 multi sub render(
     Hash      $context,
+             :%extended,
     Supplier :$page_queue,
     Str      :$template_engine,
     IO::Path :$build_dir,
@@ -432,7 +433,7 @@ multi sub render(
     Hash     :$partials_all,
     Hash     :$site_index,
     Bool     :$no_livereload,
-    ::D      :&logger
+             :&logger
 ) {
 
     my Any %global_vars  = 
@@ -442,6 +443,9 @@ multi sub render(
         layout             => $layout_vars,
         dt                 => date-hash(),
         randnum            => (rand * 10**16).Int,
+        # Extra vars from local app
+        |%extended,
+        # i18n vars
         |%( $context{$language}.defined ?? |$context{$language} !! %() );
 
     my @layout_partials   = partial-names $template_engine, $layout_template;
@@ -647,16 +651,16 @@ multi sub render(
 }
 
 our sub build(
-        $config,
-    ::D :&logger = Uzu::Logger::start()
+     %config,
+    :&logger = Uzu::Logger::start()
     --> Promise
 ) {
 
     # Pre-build command
-    if $config<pre_command>:exists {
-        logger QX $config<pre_command>;
+    if %config<pre_command>:exists {
+        logger QX %config<pre_command>;
     }
-    my List $exts = $config<template_extensions>{$config<template_engine>};
+    my List $exts = %config<template_extensions>{%config<template_engine>};
 
     # Capture page meta
     # data for related,
@@ -664,10 +668,10 @@ our sub build(
     my %site_index;
 
     # All available pages
-    my Any %pages = templates(:$exts, dir => $config<pages_dir>).map: -> $path { 
+    my %pages = templates(:$exts, dir => %config<pages_dir>).map: -> $path { 
 
         next unless $path.IO.f;
-        my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, $config<pages_dir>.IO.path);
+        my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, %config<pages_dir>.IO.path);
 
         # Extract header yaml if available
         my ($page_html, %page_vars)  = parse-template :$path, :&logger;
@@ -676,7 +680,7 @@ our sub build(
         %site_index{$page_name}           = %page_vars;
         %site_index{$page_name}<modified> = $path.modified;
         %site_index{$page_name}<out_ext>  = $out_ext;
-        my $pages_watch_dir = $config<pages_watch_dir>.IO.path;
+        my $pages_watch_dir = %config<pages_watch_dir>.IO.path;
 
         %( $page_name => %{
             path       => $path,
@@ -689,8 +693,8 @@ our sub build(
     }
 
     # All available partials
-    my %partials = build-partials-hash source => $config<partials_dir>, :$exts, :&logger;
-    for $config<themes>.Hash -> $theme_config {
+    my %partials = build-partials-hash source => %config<partials_dir>, :$exts, :&logger;
+    for %config<themes>.Hash -> $theme_config {
         my $theme_name     = $theme_config.key;
         my %theme          = $theme_config.value;
         my $build_dir      = %theme<build_dir>;
@@ -708,15 +712,14 @@ our sub build(
         }
 
         logger "Copy public, assets";
-        copy-dir($config<public_dir>, $build_dir, exclude => $config<exclude>) when $config<public_dir>.IO.e;
-        copy-dir($theme_dir.IO.child('assets'), $build_dir, exclude => $config<exclude>) when $theme_dir.IO.child('assets').IO.e;
+        copy-dir(%config<public_dir>, $build_dir, exclude => %config<exclude>) when %config<public_dir>.IO.e;
+        copy-dir($theme_dir.IO.child('assets'), $build_dir, exclude => %config<exclude>) when $theme_dir.IO.child('assets').IO.e;
 
         # Append nested pages directories
-        my @template_dirs = |$config<template_dirs>, |find(dir => $config<pages_dir>, type => 'dir');
+        my @template_dirs = |%config<template_dirs>, |find(dir => %config<pages_dir>, type => 'dir');
 
         # Append nested i18n directories
-        my IO::Path @i18n_dirs = $config<i18n_dir>,  |find(dir => $config<i18n_dir>, type => 'dir');
-
+        my IO::Path @i18n_dirs   = %config<i18n_dir>,  |find(dir => %config<i18n_dir>, type => 'dir');
         my IO::Path $layout_path = grep(/ 'layout.' @$exts $ /, templates(:$exts, dir => $theme_dir)).head;
 
         # Extract layout header yaml if available
@@ -727,7 +730,7 @@ our sub build(
 
         logger "Theme [{$theme_name}] does not contain a layout template" unless $layout_path.defined;
 
-        my @exclude_pages = [ |$config<exclude_pages>, |$exclude_pages ].grep(*.defined);
+        my @exclude_pages = [ |%config<exclude_pages>, |$exclude_pages ].grep(*.defined);
 
         # Queue for page renders
         my $page_queue     = Supplier.new;
@@ -737,14 +740,14 @@ our sub build(
         $page_supply.tap({ .() });
 
         # One per language
-        for $config<language>.flat -> $language { 
+        for %config<language>.flat -> $language { 
 
             logger "Compile templates [$language]";
 
             render(
                 i18n-from-yaml(
                     :$language,
-                    i18n_dir => $config<i18n_dir>,
+                    i18n_dir => %config<i18n_dir>,
                     :&logger
                 ),
                 :$page_queue,
@@ -756,12 +759,13 @@ our sub build(
                 :%pages,
                 :@exclude_pages,
                 :%site_index,
-                template_engine  => $config<template_engine>,
+                template_engine  => %config<template_engine>,
                 theme            => $theme_name,
                 layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
-                default_language => $config<language>[0],
-                partials_all     => %( |%partials, |%theme_partials  ),
-                no_livereload    => $config<no_livereload>,
+                default_language => %config<language>[0],
+                partials_all     => %( |%partials, |%theme_partials ),
+                no_livereload    => %config<no_livereload>,
+                extended         => %config<extended>,
                 logger           => &logger);
        }
 
@@ -770,17 +774,17 @@ our sub build(
     logger "Compile complete";
 
     # Post-build command
-    if $config<post_command>:exists {
-        logger QX $config<post_command>;
+    if %config<post_command>:exists {
+        logger QX %config<post_command>;
     }
 }
 
 our sub clear(
-    Map $config,
-    ::D :&logger = Uzu::Logger::start()
+    %config,
+    :&logger = Uzu::Logger::start()
 ) {
     # Clear out build
-    for $config<themes> {
+    for %config<themes> {
         logger "Deleting build directory";
         rm-dir .values.head<build_dir>;
     }
