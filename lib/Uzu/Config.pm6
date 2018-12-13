@@ -33,16 +33,16 @@ sub parse-config(
             }
         }
 
-        my %global_config      = load-yaml slurp($config_file) when $config_file.IO.f;
+        my %config      = load-yaml slurp($config_file) when $config_file.IO.f;
         # Normalize themes
-        %global_config<themes> = %global_config<themes>.hyper.map(-> $theme {
+        %config<themes> = %config<themes>.List.hyper.map(-> $theme {
             $theme ~~ Iterable ?? $theme.head !! $theme;
         }).List;
 
         # Collect non-core variables into :site
         my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages'|'exclude'|'pre_command'|'post_command';
-        %global_config<site> = %global_config.grep({ .key !~~ $core_vars });
-        return %global_config;
+        %config<site> = %config.grep({ .key !~~ $core_vars });
+        return %config;
     }
 }
 
