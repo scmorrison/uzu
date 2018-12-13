@@ -581,6 +581,9 @@ Some variables are generated dynamically and exposed to templates for use:
     {{/theme_enoshima}}
     ```
 * **randnum**: A dynamically generated 16 digit integer. This value is generated any time a page is generated / regenerated.
+    ```html
+    <link rel="stylesheet" type="text/css" href="/css/site.css?v={{ randnum }}">
+    ```
 * **dt**: A date hash that includes common date values. This is a dynamic variable that contains `datetime` data for current build.
     ```html
     <span>&copy;{{ dt.year }} Uzu, Inc.</span>

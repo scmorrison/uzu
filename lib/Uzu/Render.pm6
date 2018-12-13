@@ -449,205 +449,220 @@ multi sub render(
         |%( $context{$language}.defined ?? |$context{$language} !! %() );
 
     my @layout_partials   = partial-names $template_engine, $layout_template;
-    for $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
 
-        my Str $page_name = $page.key;
-        my Any %page      = $page.values[0];
-        my @page_partials = partial-names $template_engine, %page<html>;
-        my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
+    # Build / render all pages
+    my Promise @pages_queue = gather {
+        $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }).map: -> $page {
 
-        # Skip rendering when this page hasn't been modified or is 
-        # specifically excluded in config.yml
-        next unless %page<render> && $exclude_pages !(cont) $page_name;
+            take start {
+                my Str $page_name = $page.key;
+                my Any %page      = $page.values[0];
+                my @page_partials = partial-names $template_engine, %page<html>;
+                my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
-        $page_queue.emit: &{
+                # Skip rendering when this page hasn't been modified or is 
+                # specifically excluded in config.yml
+                next unless %page<render> && $exclude_pages !(cont) $page_name;
 
-            # When was this page last rendered?
-            my $last_render_time =
-                $language ~~ $default_language
-                ?? "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0
-                !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, out_ext => %page<out_ext>).IO.modified||0;
+                $page_queue.emit: &{
 
-            # Capture i18n, template, layout, and partial modified timestamps
-            my @modified_timestamps = [$layout_modified, %page<modified>];
-            my @partial_render_queue;
+                    # When was this page last rendered?
+                    my $last_render_time =
+                        $language ~~ $default_language
+                        ?? "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0
+                        !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, out_ext => %page<out_ext>).IO.modified||0;
 
-            # i18n file timestamps
-            push @modified_timestamps, |(map { .values[0]<modified> }, $context);
+                    # Capture i18n, template, layout, and partial modified timestamps
+                    my @modified_timestamps = [$layout_modified, %page<modified>];
+                    my @partial_render_queue;
 
-            # Append page-specific i18n vars if available
-            my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
+                    # i18n file timestamps
+                    push @modified_timestamps, |(map { .values[0]<modified> }, $context);
 
-            # Prepare page links from *_pages yaml blocks
-            my $page_vars = inject-linked-pages(
-                %page<vars>, :$template_engine, expand-linked-pages => ->
-                    :$base_page           = $page_name,
-                    :$block_key,
-                    :$pages,
-                    :$r_site_index        = $site_index,
-                    :$r_default_language  = $default_language,
-                    :$r_language          = $language {
-                        linked-pages(
-                            :$base_page,
+                    # Append page-specific i18n vars if available
+                    my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
+
+                    # Prepare page links from *_pages yaml blocks
+                    my $page_vars = inject-linked-pages(
+                        %page<vars>, :$template_engine, expand-linked-pages => ->
+                            :$base_page           = $page_name,
                             :$block_key,
                             :$pages,
-                            site_index       => $r_site_index,
-                            default_language => $r_default_language,
-                            language         => $r_language,
-                            timestamps       => @modified_timestamps,
-                            logger           => &logger);
-                    }
-            );
+                            :$r_site_index        = $site_index,
+                            :$r_default_language  = $default_language,
+                            :$r_language          = $language {
+                                linked-pages(
+                                    :$base_page,
+                                    :$block_key,
+                                    :$pages,
+                                    site_index       => $r_site_index,
+                                    default_language => $r_default_language,
+                                    language         => $r_language,
+                                    timestamps       => @modified_timestamps,
+                                    logger           => &logger);
+                            }
+                    );
 
-            # Render engine storage
-            my Template6 $t6 .= new when $template_engine ~~ 'tt';
-            my Any %partials  = %() when $template_engine ~~ 'mustache';
+                    # Render engine storage
+                    my Template6 $t6 .= new when $template_engine ~~ 'tt';
+                    my Any %partials  = %() when $template_engine ~~ 'mustache';
 
-            # Prepare base context variables
-            my %base_context = |%global_vars, |%i18n_vars, |$page_vars;
+                    # Prepare base context variables
+                    my %base_context = |%global_vars, |%i18n_vars, |$page_vars;
 
-            my ($modified_timestamps, $partial_render_queue) =
-                 embedded-partials
-                    template_engine      => $template_engine,
-                    partials_all         => $partials_all,
-                    embedded_partials    => %partials,
-                    partial_keys         => [|@layout_partials, |@page_partials],
-                    context              => %base_context,
-                    modified_timestamps  => @modified_timestamps,
-                    partial_render_queue => @partial_render_queue,
-                    t6 => $t6||'';
+                    my ($modified_timestamps, $partial_render_queue) =
+                         embedded-partials
+                            template_engine      => $template_engine,
+                            partials_all         => $partials_all,
+                            embedded_partials    => %partials,
+                            partial_keys         => [|@layout_partials, |@page_partials],
+                            context              => %base_context,
+                            modified_timestamps  => @modified_timestamps,
+                            partial_render_queue => @partial_render_queue,
+                            t6 => $t6||'';
 
-            @modified_timestamps  = @$modified_timestamps;
-            @partial_render_queue = @$partial_render_queue;
-            
-            # Render top-level partials content
-            map -> $partial_name, %partial {
+                    @modified_timestamps  = @$modified_timestamps;
+                    @partial_render_queue = @$partial_render_queue;
+                    
+                    # Render top-level partials content
+                    my Promise @partials_queue = gather {
+                        ($partials_all{|@page_partials, |@layout_partials}:kv).map: -> $partial_name, %partial {
+                            take start {
+                                my %context = |%base_context, |%partial<vars>;
 
-                my %context = |%base_context, |%partial<vars>;
+                                push @modified_timestamps, %partial<modified>;
+                                push @partial_render_queue, &{
+                                    given $template_engine {
+                                        when 'mustache' {
+                                            %partials{$partial_name} =
+                                                render-template
+                                                   'mustache',
+                                                    context  => %context,
+                                                    content  => %partial<html>,
+                                                    from     => [%partials],
+                                                    logger   => &logger;
+                                        }
+                                        when 'tt' {
+                                            render-template
+                                                'tt',
+                                                 context       => %context,
+                                                 template_name => $partial_name,
+                                                 content       => %partial<html>,
+                                                 t6            => $t6,
+                                                 logger        => &logger;
+                                        }
+                                    }
+                                }
+                            } #/start
+                        } #/partials map
+                    } #/gather
 
-                push @modified_timestamps, %partial<modified>;
-                push @partial_render_queue, &{
-                    given $template_engine {
-                        when 'mustache' {
-                            %partials{$partial_name} =
-                                render-template
-                                   'mustache',
-                                    context  => %context,
-                                    content  => %partial<html>,
-                                    from     => [%partials],
-                                    logger   => &logger;
-                        }
-                        when 'tt' {
-                            render-template
-                                'tt',
-                                 context       => %context,
-                                 template_name => $partial_name,
-                                 content       => %partial<html>,
-                                 t6            => $t6,
-                                 logger        => &logger;
-                        }
-                    }
-                }
-            }, $partials_all{|@page_partials, |@layout_partials}:kv;
+                    my $partials_done = Promise.allof: @partials_queue;
+                    await $partials_done;
 
-            # Skip rendering if layout, page, or partial templates
-            # have not been modified
-            next when max(@modified_timestamps) < $last_render_time;
+                    # Skip rendering if layout, page, or partial templates
+                    # have not been modified
+                    next when max(@modified_timestamps) < $last_render_time;
 
-            # Continue... render partials
-            @partial_render_queue>>.();
+                    # Continue... render partials
+                    @partial_render_queue>>.();
 
-            my %context = |%base_context, :$site_index;
+                    my %context = |%base_context, :$site_index;
 
-            # Render the page content
-            my Str $page_contents = do given $template_engine {
-                when 'mustache' {
-                    render-template
-                       'mustache',
-                        context  => %context,
-                        content  => %page<html>,
-                        from     => [%partials],
-                        logger   => &logger;
-                }
-                when 'tt' {
-                    # Cache template
-                    render-template
-                        'tt',
-                         template_name => "{$page_name}_",
-                         content       => %page<html>,
-                         t6            => $t6;
-                    render-template
-                        'tt',
-                         template_name => "{$page_name}_",
-                         context       => %context,
-                         t6            => $t6,
-                         logger        => &logger;
-                }
-            }
-
-            logger "No content found for page [$page_name] " when $page_contents ~~ '';
-
-            # Append page content to $context
-            my Str $layout_contents = do given %page<out_ext> {
-
-                my %context = |%base_context, :$site_index;
-
-                when 'html' { 
-                    $nolayout
-                    ?? $page_contents
-                    !! do given $template_engine {
+                    # Render the page content
+                    my Str $page_contents = do given $template_engine {
                         when 'mustache' {
                             render-template
                                'mustache',
                                 context  => %context,
-                                content  => $layout_template,
-                                from     => [%( |%partials, content => $page_contents )],
+                                content  => %page<html>,
+                                from     => [%partials],
                                 logger   => &logger;
                         }
                         when 'tt' {
-                            # Cache layout template
-                            render-template
-                               'tt',
-                                template_name => 'layout',
-                                content       => $layout_template,
-                                t6            => $t6;
-                            # Cache page template
+                            # Cache template
                             render-template
                                 'tt',
-                                 template_name => 'content',
-                                 content       => $page_contents,
+                                 template_name => "{$page_name}_",
+                                 content       => %page<html>,
                                  t6            => $t6;
-                            # Render layout
                             render-template
                                 'tt',
+                                 template_name => "{$page_name}_",
                                  context       => %context,
-                                 template_name => 'layout',
                                  t6            => $t6,
                                  logger        => &logger;
                         }
                     }
-                }
 
-                # Do not wrap non-html files with layout
-                default { $page_contents }
-            }
+                    logger "No content found for page [$page_name] " when $page_contents ~~ '';
 
-            write-generated-file(
-                prepare-html-output(
-                    :$page_name,
-                    :$default_language,
-                    :$language,
-                    :$layout_contents,
-                    :$no_livereload,
-                    path       => %page<path>,
-                    target_dir => %page<target_dir>,
-                    out_ext    => %page<out_ext>),
-                :$build_dir
+                    # Append page content to $context
+                    my Str $layout_contents = do given %page<out_ext> {
 
-            );
+                        my %context = |%base_context, :$site_index;
 
-        } # end page_queue
-    };
+                        when 'html' { 
+                            $nolayout
+                            ?? $page_contents
+                            !! do given $template_engine {
+                                when 'mustache' {
+                                    render-template
+                                       'mustache',
+                                        context  => %context,
+                                        content  => $layout_template,
+                                        from     => [%( |%partials, content => $page_contents )],
+                                        logger   => &logger;
+                                }
+                                when 'tt' {
+                                    # Cache layout template
+                                    render-template
+                                       'tt',
+                                        template_name => 'layout',
+                                        content       => $layout_template,
+                                        t6            => $t6;
+                                    # Cache page template
+                                    render-template
+                                        'tt',
+                                         template_name => 'content',
+                                         content       => $page_contents,
+                                         t6            => $t6;
+                                    # Render layout
+                                    render-template
+                                        'tt',
+                                         context       => %context,
+                                         template_name => 'layout',
+                                         t6            => $t6,
+                                         logger        => &logger;
+                                }
+                            }
+                        }
+
+                        # Do not wrap non-html files with layout
+                        default { $page_contents }
+                    }
+
+                    write-generated-file(
+                        prepare-html-output(
+                            :$page_name,
+                            :$default_language,
+                            :$language,
+                            :$layout_contents,
+                            :$no_livereload,
+                            path       => %page<path>,
+                            target_dir => %page<target_dir>,
+                            out_ext    => %page<out_ext>),
+                        :$build_dir
+
+                    );
+
+                } # end page_queue
+            } # /start
+        } # /pages map
+    } #/gather
+
+    my $pages_done = Promise.allof: @pages_queue;
+    await $pages_done;
 }
 
 our sub build(
@@ -694,6 +709,7 @@ our sub build(
 
     # All available partials
     my %partials = build-partials-hash source => %config<partials_dir>, :$exts, :&logger;
+
     for %config<themes>.Hash -> $theme_config {
         my $theme_name     = $theme_config.key;
         my %theme          = $theme_config.value;

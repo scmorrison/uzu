@@ -13,12 +13,12 @@ my $test_root   = $*CWD.IO.child('t');
 
 subtest {
     my $source_root = $test_root.IO.child('example_project_tt');
-
     # Setup tmp project root
     my $tmp_root    = tempdir;
 
     # Copy all example project files to tmp project root
     copy-dir $source_root, $tmp_root.IO;
+    rm-dir $tmp_root.IO.child('build');
 
     # Add tmp path to project config
     my $config_path = $tmp_root.IO.child('config.yml');
@@ -124,12 +124,12 @@ subtest {
 
 subtest {
     my $source_root = $test_root.IO.child('example_project_mustache');
-
     # Setup tmp project root
     my $tmp_root    = tempdir;
 
     # Copy all example project files to tmp project root
     copy-dir $source_root, $tmp_root.IO;
+    rm-dir $tmp_root.IO.child('build');
 
     # Add tmp path to project config
     my $config_path = $tmp_root.IO.child('config.yml');
