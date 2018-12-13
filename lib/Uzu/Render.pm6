@@ -86,6 +86,7 @@ sub html-file-name(
     return $page_name;
 }
 
+#| Generate page uri for linked pages
 sub page-uri(
     Str :$page_name,
     Str :$out_ext,
@@ -94,50 +95,54 @@ sub page-uri(
     Str :$i18n_format = 'default'
     --> Str
 ) {
-    return do given $i18n_format {
-        when 'subfolder' {
-            "/{$language}/{$page_name}.{$out_ext}";
-        }
-        default {
-            '/' ~ html-file-name(:$page_name, :$default_language, :$language) ~ ".{$out_ext}";
-        }
-    }
+    $i18n_format ~~ 'subfolder'
+    ?? "/{$language}/{$page_name}.{$out_ext}"
+    !! '/' ~ html-file-name(:$page_name, :$default_language, :$language) ~ ".{$out_ext}";
 }
 
+#| Parse page templates for references to other pages. Build a Hash containing
+#| all a linked pages index for each template. See `Related / linked pages` in
+#| the README for more details.
+
+#| String
 multi sub inject-linked-pages($p, :$template_engine, :&expand-linked-pages) {$p}
+#| Iterable
 multi sub inject-linked-pages(
     Iterable $p,
     :$template_engine,
     :&expand-linked-pages
 ) {
-    my $n = $p.map({
-        .&inject-linked-pages(:$template_engine, :&expand-linked-pages);
-    }).map({
-        .&inject-linked-pages(:$template_engine, :&expand-linked-pages);
+    my $n = $p.hyper.map({
+        inject-linked-pages($_, :$template_engine, :&expand-linked-pages);
     });
+    # Return Hash if all Pairs
     if $n.cache.values.all ~~ Pair { 
         $n.cache.Hash;
+    # Return a List for Mustache and Hash for TT
+    # when $n contains nested Hash
     } elsif $n.cache.values.any ~~ Hash|Pair {
         $template_engine ~~ 'mustache'
         ?? $n.cache.List
         !! $n.cache.Hash;
+    # Default
     } else {
         $n.cache;
     }
 }
+#| Hash
 multi sub inject-linked-pages(
     Hash $p,
     :$template_engine,
     :&expand-linked-pages
     --> Hash()
 ) {
-    map -> $k, $v {
+    kv($p).hyper.map: -> $k, $v {
         if $k ~~ /'_pages'$/ {
            expand-linked-pages(block_key => $k, pages => $v).Hash;
         } else {
             $k => inject-linked-pages($v, :$template_engine, :&expand-linked-pages);
         }
-    }, hyper kv($p);
+    }
 }
 
 sub linked-pages(
