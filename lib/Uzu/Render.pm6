@@ -30,13 +30,21 @@ sub i18n-from-yaml(
     --> Hash 
 ) {
     
-    state %i18n = %();
+    # Cache i18n yaml hash
+    state %i18n;
+    return %i18n unless %i18n ~~ %{};
 
-    map -> $i18n_file {
+    for i18n-files(:$language, dir => $i18n_dir) -> $i18n_file {
 
-        logger "i18n yaml file [$i18n_file] could not be loaded" unless $i18n_file.IO.f;
+        logger "i18n yaml file [$i18n_file] could not be loaded" and next unless so $i18n_file.IO.f;
 
+        sleep 0.5;
         try {
+            my $yaml = slurp($i18n_file, :r);
+            my %yaml = load-yaml $yaml;
+            my $key  = $i18n_file.dirname.split('i18n')[1] || $language;
+            %i18n{$key}<i18n>     = %yaml;
+            %i18n{$key}<modified> = $i18n_file.modified;
 
             CATCH {
                 default {
@@ -45,13 +53,9 @@ sub i18n-from-yaml(
                 }
             }
 
-            my %yaml = load-yaml slurp($i18n_file, :r);
-            my $key  = $i18n_file.dirname.split('i18n')[1] || $language;
-            %i18n{$key}<i18n>     = %yaml;
-            %i18n{$key}<modified> = $i18n_file.modified;
         }
 
-   }, i18n-files(:$language, dir => $i18n_dir);
+   }
 
    return %i18n;
 }
@@ -112,7 +116,7 @@ multi sub inject-linked-pages(
     :$template_engine,
     :&expand-linked-pages
 ) {
-    my $n = $p.hyper.map({
+    my $n = $p.map({
         inject-linked-pages($_, :$template_engine, :&expand-linked-pages);
     });
     # Return Hash if all Pairs
@@ -136,13 +140,13 @@ multi sub inject-linked-pages(
     :&expand-linked-pages
     --> Hash()
 ) {
-    kv($p).hyper.map: -> $k, $v {
+    map -> $k, $v {
         if $k ~~ /'_pages'$/ {
            expand-linked-pages(block_key => $k, pages => $v).Hash;
         } else {
             $k => inject-linked-pages($v, :$template_engine, :&expand-linked-pages);
         }
-    }
+    }, kv $p;
 }
 
 sub linked-pages(
@@ -158,7 +162,7 @@ sub linked-pages(
          :&logger
 ) {
     my %linked_pages;
-    for hyper @pages -> %vars {
+    for @pages -> %vars {
         my $key  = %vars<page>;
         my $url = ($key ~~ / '://' / || !%site_index{$key})
             ?? $key
@@ -287,7 +291,7 @@ sub build-partials-hash(
              :&logger
 ) {
 
-    templates(exts => $exts, dir => $source).hyper.map: -> $path { 
+    templates(:$exts, dir => $source).map: -> $path { 
         next unless $path.IO.f;
         my Str ($partial_name, $out_ext, $target_dir) = extract-file-parts($path, $source.IO.path);
 
@@ -679,7 +683,7 @@ our sub build(
     my %site_index;
 
     # All available pages
-    my %pages = templates(:$exts, dir => %config<pages_dir>).hyper.map: -> $path { 
+    my %pages = templates(:$exts, dir => %config<pages_dir>).map: -> $path { 
 
         next unless $path.IO.f;
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, %config<pages_dir>.IO.path);
@@ -706,7 +710,7 @@ our sub build(
     # All available partials
     my %partials = build-partials-hash source => %config<partials_dir>, :$exts, :&logger;
 
-    for hyper %config<themes>.Hash -> $theme_config {
+    for %config<themes>.Hash -> $theme_config {
         my $theme_name     = $theme_config.key;
         my %theme          = $theme_config.value;
         my $build_dir      = %theme<build_dir>;
@@ -753,6 +757,7 @@ our sub build(
         my Promise @language_queue = %config<language>.flat.map: -> $language { 
 
                 start {
+
                     logger "Compile templates [$language]";
 
                     render(
@@ -778,6 +783,7 @@ our sub build(
                         no_livereload    => %config<no_livereload>,
                         extended         => %config<extended>,
                         logger           => &logger);
+
             } # /start
         } #/language map
 

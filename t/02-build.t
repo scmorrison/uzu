@@ -239,9 +239,6 @@ subtest {
     my $config_file = slurp $config_path;
     spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
 
-    # Set config file path
-    my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
-
     # Expect a warning when i18n yaml is invalid
     my $yaml = q:to/END/;
     ---
@@ -258,7 +255,10 @@ subtest {
 
     # Do not die when theme layout template is missing
     unlink $tmp_root.IO.child('themes').child('default').child('layout.tt');
-    my $build_out = output-from { Uzu::Render::build $config };
+    my $build_out = output-from {
+        Uzu::Render::build
+            Uzu::Config::from-file( config_file   => $config_path,  no_livereload => True )
+    }
     say $build_out if %*ENV<UZUSTDOUT>;
 
     # Test warnings
