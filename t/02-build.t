@@ -81,6 +81,7 @@ subtest {
         }
     }
     say $stdout9 if %*ENV<UZUSTDOUT>;
+
     my $t9_generated_post_modified = $tmp_build_path.IO.child('related.html').modified;
     ok $t9_generated_post_modified > $t9_generated_pre_modified, '[Template6] modifying a related page triggers page rebuild';
 
@@ -142,13 +143,13 @@ subtest {
     # Add tmp path to project config
     my $config_path = $tmp_root.IO.child('config.yml');
     my $config_file = slurp $config_path;
-    spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
+    spurt $config_path, $config_file ~ "\nproject_root: $tmp_root\n";
 
     # Set config file path
-    my $config = Uzu::Config::from-file config_file => $config_path, no_livereload => True;
+    my $config = Uzu::Config::from-file config_file => $config_path, :no_livereload;
 
     # Generate HTML from templates
-    my $stdout = stdout-from {
+    my $stdout = output-from {
         try {
            Uzu::Render::build $config;
         }
@@ -175,7 +176,7 @@ subtest {
     # Use i18n language in uri for non-default languages
     my $t4_expected_html  = slurp $test_root.IO.child('expected_mustache').child('related-ja.html');
     my $t4_generated_html = slurp $tmp_build_path.IO.child('related-ja.html');
-    is $t4_generated_html, $t4_expected_html, '[Mustache] i18n language in uri for non-default languages';
+    is trim($t4_generated_html), trim($t4_expected_html), '[Mustache] i18n language in uri for non-default languages';
 
     # Use theme partial
     my $t5_expected_html  = slurp $test_root.IO.child('expected_mustache').child('themepartial.html');
@@ -267,7 +268,6 @@ subtest {
     # Need to quote strings that start with numbers
     copyright: 2016 Sam Morrison
     @can't start a key with @
-    ...
     END
 
     # Save to tmp_build_path i18n yaml file
@@ -275,10 +275,11 @@ subtest {
 
     # Do not die when theme layout template is missing
     unlink $tmp_root.IO.child('themes').child('default').child('layout.tt');
+
     my $build_out = output-from {
         try {
             Uzu::Render::build
-                Uzu::Config::from-file( config_file => $config_path,  no_livereload => True );
+                Uzu::Config::from-file( config_file => $config_path, :no_livereload );
         }
     }
     say $build_out if %*ENV<UZUSTDOUT>;

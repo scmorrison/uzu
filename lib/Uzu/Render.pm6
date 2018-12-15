@@ -12,36 +12,35 @@ sub templates(
     IO::Path :$dir!
     --> Seq
 ) {
-    find( :$dir, name => /'.' @$exts $/ );
+    await start {
+        find( :$dir, name => /'.' @$exts $/ );
+    }
 }
 
 sub i18n-files(
     Str      :$language,
     IO::Path :$dir!
-    --> Seq
 ) {
-    find :$dir, name => / $language '.yml' $/, type => 'file';
+    await start {
+        find( :$dir, name => / $language '.yml' $/, type => 'file' );
+    }
 }
 
 sub i18n-from-yaml(
     Str      :$language,
     IO::Path :$i18n_dir,
-             :&logger,
+             :&logger
     --> Hash 
 ) {
-    
-    # Cache i18n yaml hash
-    state %i18n;
-    return %i18n unless %i18n ~~ %{};
-
+    my %i18n;
     for i18n-files(:$language, dir => $i18n_dir) -> $i18n_file {
 
         logger "i18n yaml file [$i18n_file] could not be loaded" and next unless so $i18n_file.IO.f;
-
-        sleep 0.5;
+       
         try {
-            my $yaml = slurp($i18n_file, :r);
-            my %yaml = load-yaml $yaml;
+            my %yaml = await start {
+                load-yaml slurp($i18n_file, :r);
+            }
             my $key  = $i18n_file.dirname.split('i18n')[1] || $language;
             %i18n{$key}<i18n>     = %yaml;
             %i18n{$key}<modified> = $i18n_file.modified;
@@ -56,7 +55,6 @@ sub i18n-from-yaml(
         }
 
    }
-
    return %i18n;
 }
 
@@ -204,9 +202,10 @@ sub write-generated-file(
     Bool     :$omit_html_ext = False
     --> Bool()
 ) {
+
     # IO write to disk
     my $page_name  = $content.key;
-    my %meta       = $content.values[0];
+    my %meta       = $content.values;
     my $html       = %meta<html>;
     my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
     my $out        = $build_dir.IO.child("{$page_name}{$omit_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
@@ -335,9 +334,9 @@ sub embedded-partials(
     --> List
 ) {
     # Prerender any embedded partials
-    for hyper $partials_all{|@$partial_keys}:kv -> $partial_name, %partial {
+    for $partials_all{|@$partial_keys}:kv -> $partial_name, %partial {
         my @partial_keys = partial-names($template_engine, %partial<html>);
-        @partial_keys.hyper.map: -> $embedded_partial_name {
+        @partial_keys.map: -> $embedded_partial_name {
 
             my %context = |$context, |%partial<vars>, |$partials_all{$embedded_partial_name}<vars>;
 
@@ -381,18 +380,27 @@ sub embedded-partials(
 
 
 multi sub render-template(
-    'mustache',
-    Hash  :$context,
+          'mustache',
+          :%context,
     Str   :$content,
     Array :$from = [],
           :&logger
 ) {
-   Template::Mustache.render: $content, $context, from => $from;
+    try {
+    
+       CATCH {
+           default {
+               logger "Mustache: {.Str}";
+           }
+       }
+
+       Template::Mustache.render: $content, %context, :$from;
+    }
 }
 
 multi sub render-template(
-    'tt',
-    Hash      :$context,
+              'tt',
+              :%context,
     Str       :$template_name,
     Str       :$content,
     Template6 :$t6,
@@ -408,16 +416,16 @@ multi sub render-template(
            }
        }
 
-       if $content && $context {
+       if $content && %context {
            # Store and Render
            $t6.add-template: "{$template_name}_", $content;
-           $t6.add-template: $template_name, $t6.process("{$template_name}_", |$context);
-       } elsif !$context {
+           $t6.add-template: $template_name, $t6.process("{$template_name}_", |%context);
+       } elsif !%context {
            # Store template
            $t6.add-template: $template_name, $content;
        } else {
            # Render a stored template
-           $t6.add-template: $template_name, $t6.process($template_name, |$context);
+           $t6.add-template: $template_name, $t6.process($template_name, |%context);
        }
 
     }
@@ -437,7 +445,7 @@ multi sub render(
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
-    Hash     :$pages,
+             :@pages,
              :@exclude_pages,
     Hash     :$partials_all,
     Hash     :$site_index,
@@ -445,7 +453,7 @@ multi sub render(
              :&logger
 ) {
 
-    my Any %global_vars  = 
+    my %global_vars  = 
         language           => $language,
         "lang_{$language}" => True,
         "theme_{$theme}"   => True,
@@ -457,13 +465,13 @@ multi sub render(
         # i18n vars
         |%( $context{$language}.defined ?? |$context{$language} !! %() );
 
-    my @layout_partials   = partial-names $template_engine, $layout_template;
+    my @layout_partials = partial-names $template_engine, $layout_template;
 
     # Build / render all pages (sorted by file modified)
-    for hyper $pages.sort({ $^a.values[0]<modified> < $^b.values[0]<modified> }) -> $page {
+    for @pages.sort({ $^a.value<modified>.Int < $^b.value<modified>.Int }) -> Pair $page {
 
-        my Str $page_name = $page.key;
-        my Any %page      = $page.values[0];
+        my $page_name = $page.key;
+        my %page      = $page.value;
         my @page_partials = partial-names $template_engine, %page<html>;
         my Bool $nolayout = %page<vars><nolayout>.defined || $layout_template ~~ '';
 
@@ -487,21 +495,21 @@ multi sub render(
             push @modified_timestamps, |(map { .values[0]<modified> }, $context);
 
             # Append page-specific i18n vars if available
-            my Any %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
+            my %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;
 
             # Prepare page links from *_pages yaml blocks
             my $page_vars = inject-linked-pages(
                 %page<vars>, :$template_engine, expand-linked-pages => ->
                     :$base_page           = $page_name,
                     :$block_key,
-                    :$pages,
+                    :@pages,
                     :$r_site_index        = $site_index,
                     :$r_default_language  = $default_language,
                     :$r_language          = $language {
                         linked-pages(
                             :$base_page,
                             :$block_key,
-                            :$pages,
+                            :@pages,
                             site_index       => $r_site_index,
                             default_language => $r_default_language,
                             language         => $r_language,
@@ -512,7 +520,7 @@ multi sub render(
 
             # Render engine storage
             my Template6 $t6 .= new when $template_engine ~~ 'tt';
-            my Any %partials  = %() when $template_engine ~~ 'mustache';
+            my %partials      = %() when $template_engine ~~ 'mustache';
 
             # Prepare base context variables
             my %base_context = |%global_vars, |%i18n_vars, |$page_vars;
@@ -532,7 +540,7 @@ multi sub render(
             @partial_render_queue = @$partial_render_queue;
             
             # Render top-level partials content
-            my Promise @partials_queue = ($partials_all{|@page_partials, |@layout_partials}:kv).hyper.map: -> $partial_name, %partial {
+            my Promise @partials_queue = ($partials_all{|@page_partials, |@layout_partials}:kv).map: -> $partial_name, %partial {
                 start {
                     my %context = |%base_context, |%partial<vars>;
 
@@ -683,7 +691,7 @@ our sub build(
     my %site_index;
 
     # All available pages
-    my %pages = templates(:$exts, dir => %config<pages_dir>).map: -> $path { 
+    my @pages = templates(:$exts, dir => %config<pages_dir>).map: -> $path { 
 
         next unless $path.IO.f;
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, %config<pages_dir>.IO.path);
@@ -697,20 +705,21 @@ our sub build(
         %site_index{$page_name}<out_ext>  = $out_ext;
         my $pages_watch_dir = %config<pages_watch_dir>.IO.path;
 
-        %( $page_name => %{
+        $page_name => %{
             path       => $path,
             html       => $page_html,
             vars       => %page_vars,
             out_ext    => $out_ext,
             target_dir => $target_dir,
             modified   => $path.modified,
-            render     => so $path.IO.path ~~ /^ $pages_watch_dir /});
+            render     => (so $path.IO.path ~~ /^ $pages_watch_dir /)
+        }
     }
 
     # All available partials
     my %partials = build-partials-hash source => %config<partials_dir>, :$exts, :&logger;
 
-    for %config<themes>.Hash -> $theme_config {
+    for %config<themes>.List -> $theme_config {
         my $theme_name     = $theme_config.key;
         my %theme          = $theme_config.value;
         my $build_dir      = %theme<build_dir>;
@@ -756,7 +765,7 @@ our sub build(
         # One per language
         my Promise @language_queue = %config<language>.flat.map: -> $language { 
 
-                start {
+             start {
 
                     logger "Compile templates [$language]";
 
@@ -772,7 +781,7 @@ our sub build(
                         :$layout_vars,
                         :$theme_dir,
                         :$language,
-                        :%pages,
+                        :@pages,
                         :%site_index,
                         exclude_pages    => [ |%theme<exclude_pages>, |%config<exclude_pages> ].grep(*.defined),
                         template_engine  => %config<template_engine>,

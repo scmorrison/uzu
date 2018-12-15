@@ -63,13 +63,13 @@ multi MAIN(
     Str  :$theme,
     Bool :$clear       = False
 ) is export {
-    my $cfg = Uzu::Config::from-file(
-        config_file   => $config.IO,
-        page_filter   => $page-filter,
-        single_theme  => $theme,
-        no_livereload => True
-    );
-    Uzu::Render::build($cfg);
+    Uzu::Render::build(
+        Uzu::Config::from-file(
+            config_file   => $config.IO,
+            page_filter   => $page-filter,
+            single_theme  => $theme,
+            no_livereload => True
+    ));
 }
 
 multi MAIN(
