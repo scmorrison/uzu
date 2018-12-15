@@ -56,11 +56,13 @@ subtest {
 
 subtest {
     my $t1_output = output-from {
-        Uzu::HTTP::web-server(
-            Uzu::Config::from-file(
-                config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
-                no_livereload => True)
-        );
+        try {
+            Uzu::HTTP::web-server(
+                Uzu::Config::from-file(
+                    config_file   => $root.IO.child('t').child('serve').child('config-multi.yml'),
+                    no_livereload => True)
+            );
+        }
     }
     say $t1_output if %*ENV<UZUSTDOUT>;
 
@@ -73,11 +75,13 @@ subtest {
 
 subtest {
     my $t2_output = output-from {
-        Uzu::HTTP::web-server(
-            Uzu::Config::from-file(
-                config_file   => $root.IO.child('t').child('serve').child('config-multi-port-increment.yml'),
-                no_livereload => True)
-        );
+        try {
+            Uzu::HTTP::web-server(
+                Uzu::Config::from-file(
+                    config_file   => $root.IO.child('t').child('serve').child('config-multi-port-increment.yml'),
+                    no_livereload => True)
+            );
+        }
     }
     say $t2_output if %*ENV<UZUSTDOUT>;
 

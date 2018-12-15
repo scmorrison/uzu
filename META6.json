@@ -18,6 +18,7 @@
     },
     "authors" : [ "Sam Morrison" ],
     "depends" : [
+        "File::Directory::Tree",
         "File::Find",
         "File::Temp",
         "Terminal::ANSIColor",

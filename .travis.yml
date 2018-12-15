@@ -1,7 +1,7 @@
 language: perl6
 sudo: false
 perl6:
-  - latest
+  - 2018.11
 install:
   - rakudobrew build-zef
   - zef --depsonly --/test install . 
