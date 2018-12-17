@@ -4,7 +4,8 @@ our sub web-server(
     %config
     --> Array
 ) {
-    use HTTP::Server::Tiny;
+    use HTTP::Server::Tiny:ver<0.0.2>;
+
 
     my Promise @servers;
 
@@ -21,7 +22,7 @@ our sub web-server(
             my $reload = Channel.new;
 
             HTTP::Server::Tiny.new(:$port).run(sub (%env) {
-
+                
                 given %env<PATH_INFO> {
                     # When accessed, sets $reload to True
                     # Routes
@@ -112,7 +113,8 @@ our sub web-server(
 
                     say "uzu serves [http://localhost:{$port}] for theme [$theme_name]";
                 }
-            });
+
+            }); # /http server
         }
     }
 
