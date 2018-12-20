@@ -90,7 +90,7 @@ sub themes-config(
         "{$theme||'default'}" => %{
             theme_dir      => $themes_dir.IO.child("$theme"||'default'),
             build_dir      => $build_dir,
-            port           => $port,
+            port           => ($port||3000),
             exclude_pages  => $exclude_pages},
     } when defined $theme and $theme !~~ "";
 
@@ -157,11 +157,13 @@ sub themes-config(
 
                 # Single theme port
                 my Int $theme_port = do if @themes.elems eq 1 {
-                    $theme_config<port>||$working_port;
+                    $theme_config<port>:exists ?? $theme_config<port>.Int !! $working_port;
                 } else {
                     # Multiple themes port
-                    $working_port = $theme_config<port> when $theme_config<port> && $theme_config<port> > $working_port;
-                    $theme_config<port>||$working_port;
+                    if $theme_config<port>:exists && $theme_config<port> > $working_port {
+                        $working_port = $theme_config<port>.Int;
+                    }
+                    $theme_config<port>:exists ?? $theme_config<port>.Int !! $working_port;
                 }
 
                 # Increment next port
