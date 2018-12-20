@@ -150,7 +150,7 @@ sub themes-config(
                 } else { # Mutiple themes build dir
                     my $theme_build_dir = $theme_config<build_dir> ?? $theme_config<build_dir> !! $build_dir.IO.child($theme_name);
                     build-dir-exists @seen_build_dirs, $theme_build_dir;
-                    push @seen_build_dirs, $theme_build_dir;
+                    push @seen_build_dirs, $theme_build_dir.IO;
                     safe-build-dir-check $theme_build_dir.IO, :$project_root;
                     $theme_build_dir.IO;
                 }

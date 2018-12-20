@@ -48,7 +48,6 @@ sub i18n-from-yaml(
             CATCH {
                 default {
                     logger "Invalid i18n yaml file [$i18n_file]";
-                    logger .Str;
                 }
             }
 
