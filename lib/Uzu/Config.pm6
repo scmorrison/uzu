@@ -40,8 +40,23 @@ sub parse-config(
         }).List;
 
         # Collect non-core variables into :site
-        my $core_vars = 'host'|'language'|'port'|'project_root'|'theme'|'exclude_pages'|'exclude'|'pre_command'|'post_command';
-        %config<site> = %config.grep({ .key !~~ $core_vars });
+        %config<site> = flat(grep({ 
+            # Exclude core vars
+            # from site hash
+            !['exclude',
+              'exclude_pages',
+              'extended',
+              'host',
+              'language',
+              'port',
+              'project_root',
+              'template_engine',
+              'theme',
+              'themes',
+              'pre_command',
+              'post_command'].contains: .key
+        }, %config)).Hash;
+
         return %config;
     }
 }
@@ -188,6 +203,7 @@ our sub from-file(
         project_root        => $project_root,
         language            => [%_config<language>.flat],
         extended            => %extended,
+        site                => %_config<site>,
 
         # Network        
         host                => %_config<host>||'0.0.0.0',

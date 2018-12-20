@@ -17,11 +17,13 @@ our sub web-server(
             my %theme      = $theme_config.value;
             my $build_dir  = %theme<build_dir>;
             my $port       = %theme<port>;
+            my $ct_json    = 'Content-Type' => 'application/json';
+            my $ct_text    = 'Content-Type' => 'text/plain';
 
             # Use for triggering reload staging when reload is triggered
             my $reload = Channel.new;
 
-            HTTP::Server::Tiny.new(:$port).run(sub (%env) {
+            HTTP::Server::Tiny.new(host => %config<host>, :$port).run(sub (%env) {
                 
                 given %env<PATH_INFO> {
                     # When accessed, sets $reload to True
@@ -29,15 +31,15 @@ our sub web-server(
                     when  '/reload' {
                         $reload.send(True);
                         say "GET /reload [$theme_name]";
-                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "Staged" }'];
+                        return 200, [$ct_json], ['{ "reload": "Staged" }'];
                     }
 
                     # If $reload is True, return a JSON doc
                     # instructing uzu/js/live.js to reload the
                     # browser.
                     when '/live' {
-                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "True" }'] if $reload.poll;
-                        return 200, ['Content-Type' => 'application/json'], ['{ "reload": "False" }'];
+                        return 200, [$ct_json], ['{ "reload": "True" }'] if $reload.poll;
+                        return 200, [$ct_json], ['{ "reload": "False" }'];
                     }
 
                     # Include live.js that starts polling /live
@@ -63,7 +65,7 @@ our sub web-server(
                         setTimeout(live, 1000);
                         END
 
-                        return 200, ['Content-Type' => 'application/json'], [$livejs];
+                        return 200, [$ct_json], [$livejs];
                     }
 
                     default {
@@ -71,7 +73,7 @@ our sub web-server(
                         my $file = $_;
 
                         # Trying to access files outside of build path
-                        return 400, ['Content-Type' => 'text/plain'], ['Invalid path'] if $file.match('..');
+                        return 400, [$ct_text], ['Invalid path'] if $file.match('..');
 
                         # Handle HTML without file extension
                         my $index = 'index' ~ (%config<omit_html_ext> ?? '' !! '.html');
@@ -93,7 +95,7 @@ our sub web-server(
                             when !*.IO.e {
                                 # Invalid path
                                 say "GET $file (not found) [$theme_name]";
-                                return 400, ['Content-Type' => 'text/plain'], ['Invalid path'];
+                                return 400, [$ct_text], ['Invalid path'];
                             }
 
                             default {
@@ -103,10 +105,10 @@ our sub web-server(
                                 say "GET $file [$theme_name]";
 
                                 # UTF-8 text
-                                return 200, ['Content-Type' => $type ], [slurp($path)] unless $type ~~ / image|ttf|woff|octet\-stream /;
+                                return 200, ['Content-Type' => $type ], [slurp($path)] unless $type ~~ / gz|image|ttf|woff|octet\-stream /;
 
                                 # Binary
-                                return 200, ['Content-Type' => $type ], [slurp($path, :bin)];
+                                return 201, ['Content-Type' => $type ], [slurp($path, :bin)];
                             }
                         }    
                     }
@@ -147,13 +149,15 @@ our sub inet-request(
 ) is export {
     my $client = IO::Socket::INET.new(:host($host), :port($port));
     my $data   = '';
-    $client.print($req);
-    sleep .5;
-    while my $d = $client.recv {
-        $data ~= $d;
+    try {
+        $client.print($req);
+        sleep .5;
+        while my $d = $client.recv {
+            $data ~= $d;
+        }
+        $client.close;
+        CATCH { default {} }
     }
-    CATCH { default { "CAUGHT {$_}".say; } }
-    try { $client.close; CATCH { default { } } }
     return $data;
 }
 
