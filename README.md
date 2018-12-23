@@ -817,6 +817,25 @@ Troubleshooting
 
   In some instances it might help to delete your local `~/.perl6/precomp` directory. 
 
+* **Tests failing during install**
+
+Sometimes tests might fail during install. Try re-installing all of the dependencies via `zef`:
+
+```
+zef install --force-install --/test \
+    File::Directory::Tree \
+    File::Find File::Temp \
+    Terminal::ANSIColor \
+    Template6 \
+    Template::Mustache \
+    Test::Output \
+    HTTP::Parser \
+    HTTP::Server::Tiny \
+    YAMLish;
+```
+
+If installing from source, remove the `lib/.precomp` folder inside the `uzu` root folder and attempt the install again.
+
 Authors
 =======
 
