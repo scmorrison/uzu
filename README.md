@@ -834,6 +834,8 @@ zef install --force-install --/test \
     YAMLish;
 ```
 
+In some instances it might help to delete your local `~/.perl6/precomp` directory. 
+
 If installing from source, remove the `lib/.precomp` folder inside the `uzu` root folder and attempt the install again.
 
 Authors

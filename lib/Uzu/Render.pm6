@@ -541,38 +541,34 @@ multi sub render(
             @partial_render_queue = @$partial_render_queue;
             
             # Render top-level partials content
-            my Promise @partials_queue = ($partials_all{|@page_partials, |@layout_partials}:kv).map: -> $partial_name, %partial {
-                start {
-                    my %context = |%base_context, |%partial<vars>;
+            for $partials_all{|@page_partials, |@layout_partials}:kv -> $partial_name, %partial {
 
-                    push @modified_timestamps, %partial<modified>;
-                    push @partial_render_queue, &{
-                        given $template_engine {
-                            when 'mustache' {
-                                %partials{$partial_name} =
-                                    render-template
-                                       'mustache',
-                                        context  => %context,
-                                        content  => %partial<html>,
-                                        from     => [%partials],
-                                        logger   => &logger;
-                            }
-                            when 'tt' {
+                my %context = |%base_context, |%partial<vars>;
+
+                push @modified_timestamps, %partial<modified>;
+                push @partial_render_queue, &{
+                    given $template_engine {
+                        when 'mustache' {
+                            %partials{$partial_name} =
                                 render-template
-                                    'tt',
-                                     context       => %context,
-                                     template_name => $partial_name,
-                                     content       => %partial<html>,
-                                     t6            => $t6,
-                                     logger        => &logger;
-                            }
+                                   'mustache',
+                                    context  => %context,
+                                    content  => %partial<html>,
+                                    from     => [%partials],
+                                    logger   => &logger;
+                        }
+                        when 'tt' {
+                            render-template
+                                'tt',
+                                 context       => %context,
+                                 template_name => $partial_name,
+                                 content       => %partial<html>,
+                                 t6            => $t6,
+                                 logger        => &logger;
                         }
                     }
-                } #/start
+                }
             } #/partials map
-
-            my $partials_done = Promise.allof: @partials_queue;
-            await $partials_done;
 
             # Skip rendering if layout, page, or partial templates
             # have not been modified
@@ -764,42 +760,36 @@ our sub build(
         $page_supply.tap({ .() });
 
         # One per language
-        my Promise @language_queue = %config<language>.flat.map: -> $language { 
+        for %config<language>.flat -> $language { 
 
-             start {
+            logger "Compile templates [$language]";
 
-                    logger "Compile templates [$language]";
+            render(
+                i18n-from-yaml(
+                    :$language,
+                    i18n_dir => %config<i18n_dir>,
+                    :&logger
+                ),
+                :$page_queue,
+                :$build_dir,
+                :$layout_template,
+                site_vars        => %config<site>,
+                :$layout_vars,
+                :$theme_dir,
+                :$language,
+                :@pages,
+                :%site_index,
+                exclude_pages    => [ |%theme<exclude_pages>, |%config<exclude_pages> ].grep(*.defined),
+                template_engine  => %config<template_engine>,
+                theme            => $theme_name,
+                layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
+                default_language => %config<language>[0],
+                partials_all     => %( |%partials, |%theme_partials ),
+                no_livereload    => %config<no_livereload>,
+                extended         => %config<extended>,
+                logger           => &logger);
 
-                    render(
-                        i18n-from-yaml(
-                            :$language,
-                            i18n_dir => %config<i18n_dir>,
-                            :&logger
-                        ),
-                        :$page_queue,
-                        :$build_dir,
-                        :$layout_template,
-                        site_vars        => %config<site>,
-                        :$layout_vars,
-                        :$theme_dir,
-                        :$language,
-                        :@pages,
-                        :%site_index,
-                        exclude_pages    => [ |%theme<exclude_pages>, |%config<exclude_pages> ].grep(*.defined),
-                        template_engine  => %config<template_engine>,
-                        theme            => $theme_name,
-                        layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
-                        default_language => %config<language>[0],
-                        partials_all     => %( |%partials, |%theme_partials ),
-                        no_livereload    => %config<no_livereload>,
-                        extended         => %config<extended>,
-                        logger           => &logger);
-
-            } # /start
-        } #/language map
-
-        my $language_done = Promise.allof: @language_queue;
-        await $language_done;
+        } #/language
 
     }
 
