@@ -6,7 +6,6 @@ our sub web-server(
 ) {
     use HTTP::Server::Tiny:ver<0.0.2>;
 
-
     my Promise @servers;
 
     for %config<themes>.List -> $theme_config {
@@ -104,9 +103,17 @@ our sub web-server(
 
                                 say "GET $file [$theme_name]";
 
-                                # UTF-8 text
-                                return 200, ['Content-Type' => $type ], [slurp($path)] unless $type ~~ / gz|image|ttf|woff|octet\-stream /;
-
+                                # HTML
+                                if $type ~~ 'text/html;charset=UTF-8' {
+                                    return 200, ['Content-Type' => $type ], [
+                                        process-livereload(
+                                            content       => slurp($path),
+                                            no_livereload => %config<no_livereload>)];
+                                }
+                                # UTF8 text
+                                unless $type ~~ / gz|image|ttf|woff|octet\-stream / {
+                                    return 200, ['Content-Type' => $type ], [slurp($path)];
+                                }
                                 # Binary
                                 return 201, ['Content-Type' => $type ], [slurp($path, :bin)];
                             }
@@ -159,6 +166,25 @@ our sub inet-request(
         CATCH { default {} }
     }
     return $data;
+}
+
+#| Inject livereload JS
+our sub process-livereload(
+    Str  :$content,
+    Bool :$no_livereload
+    --> Str
+) {
+    return '' when !$content.defined;
+    unless $no_livereload {
+        # Add livejs if live-reload enabled (default)
+        my Str $livejs = '<script src="/uzu/js/live.js"></script>';
+        if $content ~~ /'</body>'/ {
+            return S/'</body>'/$livejs\n<\/body>/ given $content;
+        } else {
+            return $content ~ "\n$livejs";
+        }
+    }
+    return $content;
 }
 
 # From Bailador

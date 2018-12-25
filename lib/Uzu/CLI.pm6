@@ -51,9 +51,11 @@ multi MAIN(
     'webserver',
     Str :$config = 'config.yml'
 ) is export {
-    Uzu::Config::from-file(
-        config_file => $config.IO
-    ).&Uzu::HTTP::web-server();
+    say "ctrl+c / command+c to stop";
+    await Uzu::HTTP::web-server
+        Uzu::Config::from-file(
+            config_file => $config.IO
+        );
 }
 
 multi MAIN(
@@ -63,23 +65,25 @@ multi MAIN(
     Str  :$theme,
     Bool :$clear       = False
 ) is export {
-    Uzu::Render::build(
-        Uzu::Config::from-file(
-            config_file   => $config.IO,
-            page_filter   => $page-filter,
-            single_theme  => $theme,
-            no_livereload => True
-    ));
+    my %config = Uzu::Config::from-file
+        config_file   => $config.IO,
+        page_filter   => $page-filter,
+        single_theme  => $theme,
+        no_livereload => True;
+    if $clear {
+        Uzu::Render::clear %config;
+    }
+    Uzu::Render::build %config;
 }
 
 multi MAIN(
     'clear',
     Str :$config = 'config.yml'
 ) is export {
-    Uzu::Config::from-file(
-        config_file   => $config.IO,
-        no_livereload => True
-    ).&Uzu::Render::clear();
+    Uzu::Render::clear
+        Uzu::Config::from-file(
+            config_file   => $config.IO,
+            no_livereload => True);
 }
 
 multi MAIN(

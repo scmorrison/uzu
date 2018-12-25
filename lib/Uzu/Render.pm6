@@ -212,30 +212,11 @@ sub write-generated-file(
     spurt $out, $html;
 }
 
-our sub process-livereload(
-    Str  :$content,
-    Bool :$no_livereload
-    --> Str
-) {
-    return '' when !$content.defined;
-    unless $no_livereload {
-        # Add livejs if live-reload enabled (default)
-        my Str $livejs = '<script src="/uzu/js/live.js"></script>';
-        if $content ~~ /'</body>'/ {
-            return S/'</body>'/$livejs\n<\/body>/ given $content;
-        } else {
-            return $content ~ "\n$livejs";
-        }
-    }
-    return $content;
-}
-
 sub prepare-html-output(
     Str      :$page_name,
     Str      :$default_language,
     Str      :$language,
     Str      :$layout_contents,
-    Bool     :$no_livereload,
     IO::Path :$path,
     Str      :$target_dir,
     Str      :$out_ext
@@ -248,15 +229,9 @@ sub prepare-html-output(
             :$default_language, 
             :$language;
 
-    # Return processed HTML
-    my Str $html =
-        process-livereload
-            content          => $layout_contents,
-            no_livereload    => $no_livereload;
-
     return $file_name => %{ 
         :$path,
-        :$html,
+        html => $layout_contents,
         :$target_dir,
         :$out_ext
     }
@@ -449,7 +424,6 @@ multi sub render(
              :@exclude_pages,
     Hash     :$partials_all,
     Hash     :$site_index,
-    Bool     :$no_livereload,
              :&logger
 ) {
 
@@ -658,7 +632,6 @@ multi sub render(
                     :$default_language,
                     :$language,
                     :$layout_contents,
-                    :$no_livereload,
                     path       => %page<path>,
                     target_dir => %page<target_dir>,
                     out_ext    => %page<out_ext>),
@@ -785,7 +758,6 @@ our sub build(
                 layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
                 default_language => %config<language>[0],
                 partials_all     => %( |%partials, |%theme_partials ),
-                no_livereload    => %config<no_livereload>,
                 extended         => %config<extended>,
                 logger           => &logger);
 
