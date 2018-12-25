@@ -466,8 +466,10 @@ multi sub render(
             my @modified_timestamps = [$layout_modified, %page<modified>];
             my @partial_render_queue;
 
-            # i18n file timestamps
-            push @modified_timestamps, |(map { .values[0]<modified> }, $context);
+            # Page specific i18n yaml modified timestamp
+            push @modified_timestamps, $context{'/' ~ $page_name}<modified> if $context{'/' ~ $page_name}:exists;
+            # Langeuage i18n yaml modified timestamp
+            push @modified_timestamps, $context{$language}<modified>        if $context{$language}:exists;
 
             # Append page-specific i18n vars if available
             my %i18n_vars = i18n-context-vars path => %page<path>, :$context, :$language;

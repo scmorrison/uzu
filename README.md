@@ -44,6 +44,8 @@ Features
 * **Templating**: Supports [Template6](#template6) and [Mustache](#mustache) template engines.
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
+* **Extended variables**: Inject dynamically generated data into project via external `Perl 6` module.
+* **Pre/Post commands**: Trigger external commands to execute before or after build. 
 * **YAML variables**: Create page-specific and partial-specific variables as a [YAML block](#page-variables) at the top of any page or partial template.
 * **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.mustache`, or `.yml` files
 * **Actively developed**: More features coming soon (e.g. more tests, AWS, Github Pages, SSH support...)
