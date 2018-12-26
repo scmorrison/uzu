@@ -357,18 +357,12 @@ multi sub render-template(
           'mustache',
           :%context,
     Str   :$content,
+    Str   :$file_name,
     Array :$from = [],
           :&logger
 ) {
-    try {
-    
-       CATCH {
-           default {
-               logger "Mustache: {.Str}";
-           }
-       }
-
-       Template::Mustache.render: $content, %context, :$from;
+    quietly {
+        Template::Mustache.render: $content, %context, :$from;
     }
 }
 
@@ -528,10 +522,10 @@ multi sub render(
                             %partials{$partial_name} =
                                 render-template
                                    'mustache',
-                                    context  => %context,
-                                    content  => %partial<html>,
-                                    from     => [%partials],
-                                    logger   => &logger;
+                                    context    => %context,
+                                    content    => %partial<html>,
+                                    from       => [%partials],
+                                    logger     => &logger;
                         }
                         when 'tt' {
                             render-template
@@ -560,10 +554,10 @@ multi sub render(
                 when 'mustache' {
                     render-template
                        'mustache',
-                        context  => %context,
-                        content  => %page<html>,
-                        from     => [%partials],
-                        logger   => &logger;
+                        context   => %context,
+                        content   => %page<html>,
+                        from      => [%partials],
+                        logger    => &logger;
                 }
                 when 'tt' {
                     # Cache template
@@ -594,19 +588,19 @@ multi sub render(
                     !! do given $template_engine {
                         when 'mustache' {
                             render-template
-                               'mustache',
-                                context  => %context,
-                                content  => $layout_template,
-                                from     => [%( |%partials, content => $page_contents )],
-                                logger   => &logger;
+                                'mustache',
+                                 context       => %context,
+                                 content       => $layout_template,
+                                 from          => [%( |%partials, content => $page_contents )],
+                                 logger        => &logger;
                         }
                         when 'tt' {
                             # Cache layout template
                             render-template
-                               'tt',
-                                template_name => 'layout',
-                                content       => $layout_template,
-                                t6            => $t6;
+                                'tt',
+                                 template_name => 'layout',
+                                 content       => $layout_template,
+                                 t6            => $t6;
                             # Cache page template
                             render-template
                                 'tt',
