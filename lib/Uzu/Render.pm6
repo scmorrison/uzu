@@ -352,20 +352,17 @@ sub embedded-partials(
     return [$modified_timestamps, $partial_render_queue, $embedded_partials];
 }
 
-
 multi sub render-template(
           'mustache',
           :%context,
     Str   :$content,
-    Str   :$file_name,
-    Array :$from = [],
+          :@from = [],
           :&logger
 ) {
     quietly {
-        Template::Mustache.render: $content, %context, :$from;
+        Template::Mustache.render: $content, %context, :@from;
     }
 }
-
 multi sub render-template(
               'tt',
               :%context,

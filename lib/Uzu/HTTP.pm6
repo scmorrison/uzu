@@ -1,11 +1,11 @@
+use HTTP::Server::Tiny:ver<0.0.2>;
+
 unit module Uzu::HTTP;
 
 our sub web-server(
     %config
     --> Array
 ) {
-    use HTTP::Server::Tiny:ver<0.0.2>;
-
     my Promise @servers;
 
     for %config<themes>.List -> $theme_config {
@@ -99,23 +99,21 @@ our sub web-server(
 
                             default {
                                 # Return any valid paths
-                                my Str $type = detect-content-type($path);
+                                my %ct = detect-content-type($path);
 
                                 say "GET $file [$theme_name]";
 
                                 # HTML
-                                if $type ~~ 'text/html;charset=UTF-8' {
-                                    return 200, ['Content-Type' => $type ], [
+                                if %ct<type> ~~ 'text/html;charset=UTF-8' {
+                                    return 200, ['Content-Type' => %ct<type> ], [
                                         process-livereload(
                                             content       => slurp($path),
                                             no_livereload => %config<no_livereload>)];
                                 }
                                 # UTF8 text
-                                unless $type ~~ / gz|image|ttf|woff|octet\-stream / {
-                                    return 200, ['Content-Type' => $type ], [slurp($path)];
-                                }
+                                return 200, ['Content-Type' => %ct<type> ], [slurp($path)] unless %ct<bin>;
                                 # Binary
-                                return 201, ['Content-Type' => $type ], [slurp($path, :bin)];
+                                return 201, ['Content-Type' => %ct<type> ], [slurp($path, :bin)];
                             }
                         }    
                     }
@@ -190,43 +188,48 @@ our sub process-livereload(
 # From Bailador
 sub detect-content-type(
     IO::Path $file
-) returns Str {
-    my Str %mapping = (
-        appcache => 'text/cache-manifest',
-        atom     => 'application/atom+xml',
-        bin      => 'application/octet-stream',
-        css      => 'text/css',
-        gif      => 'image/gif',
-        gz       => 'application/x-gzip',
-        htm      => 'text/html',
-        html     => 'text/html;charset=UTF-8',
-        ''       => 'text/html;charset=UTF-8',
-        ico      => 'image/x-icon',
-        jpeg     => 'image/jpeg',
-        jpg      => 'image/jpeg',
-        js       => 'application/javascript',
-        json     => 'application/json;charset=UTF-8',
-        mp3      => 'audio/mpeg',
-        mp4      => 'video/mp4',
-        ogg      => 'audio/ogg',
-        ogv      => 'video/ogg',
-        pdf      => 'application/pdf',
-        png      => 'image/png',
-        rss      => 'application/rss+xml',
-        svg      => 'image/svg+xml',
-        txt      => 'text/plain;charset=UTF-8',
-        webm     => 'video/webm',
-        woff     => 'application/font-woff',
-        xml      => 'application/xml',
-        zip      => 'application/zip',
-        pm       => 'application/x-perl',
-        pm6      => 'application/x-perl',
-        pl       => 'application/x-perl',
-        pl6      => 'application/x-perl',
-        p6       => 'application/x-perl',
+) {
+    my %mapping = (
+        appcache => %{ bin => False, type => 'text/cache-manifest' },
+        atom     => %{ bin => False, type => 'application/atom+xml' },
+        bin      => %{ bin => True,  type => 'application/octet-stream' },
+        css      => %{ bin => False, type => 'text/css' },
+        eot      => %{ bin => True,  type => 'application/vnd.ms-fontobject' },
+        gif      => %{ bin => True,  type => 'image/gif' },
+        gz       => %{ bin => True,  type => 'application/x-gzip' },
+        htm      => %{ bin => False, type => 'text/html' },
+        html     => %{ bin => False, type => 'text/html;charset=UTF-8' },
+        ''       => %{ bin => False, type => 'text/html;charset=UTF-8' },
+        ico      => %{ bin => True,  type => 'image/x-icon' },
+        jpeg     => %{ bin => True,  type => 'image/jpeg' },
+        jpg      => %{ bin => True,  type => 'image/jpeg' },
+        js       => %{ bin => False, type => 'application/javascript' },
+        json     => %{ bin => False, type => 'application/json;charset=UTF-8' },
+        mp3      => %{ bin => True,  type => 'audio/mpeg' },
+        mp4      => %{ bin => True,  type => 'video/mp4' },
+        ogg      => %{ bin => True,  type => 'audio/ogg' },
+        ogv      => %{ bin => True,  type => 'video/ogg' },
+        otf      => %{ bin => True,  type => 'application/x-font-opentype' },
+        pdf      => %{ bin => True,  type => 'application/pdf' },
+        png      => %{ bin => True,  type => 'image/png' },
+        rss      => %{ bin => False, type => 'application/rss+xml' },
+        sfnt     => %{ bin => True,  type => 'application/font-sfnt' },
+        svg      => %{ bin => True,  type => 'image/svg+xml' },
+        ttf      => %{ bin => True,  type => 'application/x-font-truetype' },
+        txt      => %{ bin => False, type => 'text/plain;charset=UTF-8' },
+        webm     => %{ bin => True,  type => 'video/webm' },
+        woff     => %{ bin => True,  type => 'application/font-woff' },
+        woff2    => %{ bin => True,  type => 'application/font-woff' },
+        xml      => %{ bin => False, type => 'application/xml' },
+        zip      => %{ bin => True,  type => 'application/zip' },
+        pm       => %{ bin => False, type => 'application/x-perl' },
+        pm6      => %{ bin => False, type => 'application/x-perl' },
+        pl       => %{ bin => False, type => 'application/x-perl' },
+        pl6      => %{ bin => False, type => 'application/x-perl' },
+        p6       => %{ bin => False, type => 'application/x-perl' },
     );
 
     my $ext = $file.extension.lc;
     return %mapping{$ext} if %mapping{$ext}:exists;
-    return 'application/octet-stream';
+    return %mapping<bin>;
 }
