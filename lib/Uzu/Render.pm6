@@ -245,16 +245,17 @@ sub parse-template(
     # Extract header yaml if available
     try {
 
+        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
+        my %yaml = $template_yaml ?? load-yaml $template_yaml.subst(/'---'$/, '') !! %();
+        return $template_html, %yaml;
+
         CATCH {
             default {
                 logger "Invalid template yaml [$path]";
                 logger .Str;
+                return $template_html, %{};
             }
         }
-
-        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
-        my %yaml = $template_yaml ?? load-yaml $template_yaml.subst(/'---'$/, '') !! %();
-        return $template_html, %yaml;
     }
 }
 
