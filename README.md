@@ -651,6 +651,12 @@ When `uzu` starts it will attempt to load the local module and inject the `%cont
 
 If `%MyApp::context` is unavailable, `uzu` will print a message indicating that `MyApp` or `%MyApp::context` could not be loaded.
 
+The external module will be executed on every build by default. To disable this behavior while using the local dev server (`uzu watch`) set the config variable `refresh_extended` to `false` in your config.yml:
+
+```yaml
+refresh_extended: false
+```
+
 ### Template variables
 
 You can define variables using a yaml block at the top of any page or partial (`pages/`, `partials/`):

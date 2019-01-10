@@ -181,6 +181,22 @@ sub themes-config(
     return %themes;
 }
 
+sub run-extended($module) {
+    return %{} unless $module;
+    my %extended = %{};
+    try {
+        require ::($module);
+        if ::($module) !~~ Failure && defined %::($module)::context {
+            say "Loading from extended [$module]";
+            %extended = %::($module)::context
+        } else {
+            say "Unable to load $module";
+        }
+        CATCH { default {}}
+    }
+    return %extended;
+}
+
 our sub from-file(
     IO::Path :$config_file   = 'config.yml'.IO,
     Str      :$page_filter   = '',
@@ -192,19 +208,17 @@ our sub from-file(
     my %_config       = parse-config(config_file => $config_file);
     my $project_root  = "{%_config<project_root>||$*CWD}".subst('~', $*HOME).IO;
     my %extended      = do if %_config<extended>:exists {
-        my $module = %_config<extended>;
-        try require ::($module);
-        if ::($module) !~~ Failure && defined %::($module)::context {
-            %::($module)::context
-        } else {
-            say "Unable to load $module";
-            %{}
-        }
-    } else { %{} }
+        run-extended(%_config<extended>);
+    }
+
     my %config        = %{
         project_root        => $project_root,
         language            => [%_config<language>.flat],
         extended            => %extended,
+        _extended           => &{
+            %_config<extended>:exists ?? run-extended(%_config<extended>) !! %{};
+        },
+        refresh_extended    => (%_config<refresh_extended>:exists && %_config<refresh_extended>.starts-with('f'|'F') ?? False  !! True),
         site                => %_config<site>,
 
         # Network        

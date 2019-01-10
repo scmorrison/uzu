@@ -643,9 +643,16 @@ our sub build(
     --> Promise
 ) {
 
+    state $first_run;
+
     # Pre-build command
     if %config<pre_command>:exists {
         logger QX %config<pre_command>;
+    }
+    # Refresh extended data
+    my %extended;
+    if %config<refresh_extended> && $first_run {
+        %extended = %config<_extended>();
     }
     my List $exts = %config<template_extensions>{%config<template_engine>};
 
@@ -752,12 +759,14 @@ our sub build(
                 layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
                 default_language => %config<language>[0],
                 partials_all     => %( |%partials, |%theme_partials ),
-                extended         => %config<extended>,
+                extended         => (%extended||%config<extended>),
                 logger           => &logger);
 
         } #/language
 
     }
+
+    $first_run = True;
 
     logger "Compile complete";
 
@@ -765,6 +774,7 @@ our sub build(
     if %config<post_command>:exists {
         logger QX %config<post_command>;
     }
+
 }
 
 our sub clear(
