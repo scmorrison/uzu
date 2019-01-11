@@ -624,32 +624,34 @@ In order to inject external data into your project you must use the `PERL6LIB` e
 PERL6LIB=lib uzu watch
 ```
 
-Create your module, for example `MyApp`, in your `uzu` project directory under `lib` (e.g. `lib/MyApp.pm6`). The app must export a single hash called `%context`. This is `uzu`'s entry point:
+Create your module, for example `MyApp`, in your `uzu` project directory under `lib` (e.g. `lib/MyApp.pm6`). The app must export a subroutine named `context()`. This is `uzu`'s entry point:
 
 ```perl
 # lib/MyApp.pm6
 
 unit module MyApp;
 
-our %context =
-    number_of_products => get-remote-product-count(),
-    favorite_food      => 'Bean Burrito';
-
+our sub context(--> Hash) {
+    return %{
+        number_of_products => get-remote-product-count(),
+        favorite_food      => 'Bean Burrito',
+    }
+}
 ```
 
-Add the name of your `Perl 6` module to your config as `extended` (do not add the module extension):
+Add the name of your `Perl 6` module to your config as `extended` (do not add the module file extension):
 
 ```yaml
 extended: 'MyApp'
 ```
 
-When `uzu` starts it will attempt to load the local module and inject the `%context` key/value pairs into the global render context hash. The keys defined in the injected `%context` hash will be available from within templates.
+When `uzu` starts it will attempt to load the local module and inject the `Hash` returned by `context()` into the global render context Hash. The keys defined in the injected Hash will be available from within templates.
 
 ```html
 <span>Total Products: {{ number_of_products }}</span>
 ```
 
-If `%MyApp::context` is unavailable, `uzu` will print a message indicating that `MyApp` or `%MyApp::context` could not be loaded.
+If `&MyApp::context()` is unavailable, `uzu` will print a message indicating that `MyApp` or `&MyApp::context()` could not be loaded.
 
 The external module will be executed on every build by default. To disable this behavior while using the local dev server (`uzu watch`) set the config variable `refresh_extended` to `false` in your config.yml:
 

@@ -186,9 +186,14 @@ sub run-extended($module) {
     my %extended = %{};
     try {
         require ::($module);
-        if ::($module) !~~ Failure && defined %::($module)::context {
+        if ::($module) !~~ Failure && defined &::($module)::context {
             say "Loading from extended [$module]";
-            %extended = %::($module)::context
+            my $extended = &::($module)::context();
+            if $extended ~~ Hash {
+                %extended = $extended;
+            } else {
+                say "Routine {$module}::context() does not return Hash";
+            }
         } else {
             say "Unable to load $module";
         }
