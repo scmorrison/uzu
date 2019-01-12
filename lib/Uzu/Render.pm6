@@ -28,8 +28,7 @@ sub i18n-files(
 
 sub i18n-from-yaml(
     Str      :$language,
-    IO::Path :$i18n_dir,
-             :&logger
+    IO::Path :$i18n_dir
     --> Hash 
 ) {
     my %i18n;
@@ -155,8 +154,7 @@ sub linked-pages(
     Str  :$default_language,
     Str  :$language,
     Str  :$i18n_format = 'default',
-         :@timestamps,
-         :&logger
+         :@timestamps
 ) {
     my %linked_pages;
     for @pages -> %vars {
@@ -238,8 +236,7 @@ sub prepare-html-output(
 }
 
 sub parse-template(
-    IO::Path :$path,
-             :&logger
+    IO::Path :$path
     --> List
 ) {
     # Extract header yaml if available
@@ -261,8 +258,7 @@ sub parse-template(
 
 sub build-partials-hash(
     IO::Path :$source,
-    List     :$exts,
-             :&logger
+    List     :$exts
 ) {
 
     templates(:$exts, dir => $source).map: -> $path { 
@@ -270,7 +266,7 @@ sub build-partials-hash(
         my Str ($partial_name, $out_ext, $target_dir) = extract-file-parts($path, $source.IO.path);
 
         # Extract header yaml if available
-        my ($partial_html, %partial_vars) = parse-template :$path, :&logger;
+        my ($partial_html, %partial_vars) = parse-template :$path;
 
         %( $partial_name => %{
             path       => $path,
@@ -282,6 +278,7 @@ sub build-partials-hash(
     }
 }
 
+#| Extract partial names from template
 multi sub partial-names(
     'mustache',
     Str $template
@@ -297,6 +294,39 @@ multi sub partial-names(
     ~<< ( $template ~~ m:g/ '[% INCLUDE' \h* '"' <( \N*? )> '"' \h* '%]' / );
 }
 
+#| Prefix referenced partial names with parent partial / page name
+sub prefix-partial-names(
+    :$engine,
+    :$parent,
+    :$content is copy
+) {
+    my @partials = do given $engine {
+        when 'tt' {
+            ($content ~~ m:g/('[%' \s*? 'INCLUDE' \s*? '"') <( \S* )> ('"' \s*? '%]')/);
+        }
+        when 'mustache' {
+            ($content ~~ m:g/('{{>' \s*?) <( \S* )> (\s*? '}}')/);
+        }
+    }
+
+    my @replacements = @partials.map: {
+        my $partial = $_.Str;
+        next if $partial ~~ 'content';
+        my $pre  = $_[0].Str;
+        my $post = $_[1].Str;
+        "{$pre}{$partial}{$post}" => "{$pre}{$parent}_{$partial}{$post}";
+    };
+
+    @replacements.map: -> %p {
+        $content = $content.subst: %p.key, %p.value;
+    }
+
+    return $content;
+}
+
+#| Prerender embedded partials and cache in template
+#| cache using [parent template name]_[embedded partial name]
+#| as key.
 sub embedded-partials(
     Str   :$template_engine,
     Hash  :$partials_all,
@@ -330,19 +360,27 @@ sub embedded-partials(
             push $partial_render_queue, &{
                 given $template_engine {
                     when 'mustache' {
-                        $embedded_partials{$embedded_partial_name} =
+                        $embedded_partials{"{$partial_name}_{$embedded_partial_name}"} =
                             render-template
                                 'mustache',
                                  context  => %context,
-                                 content  => $partials_all{$embedded_partial_name}<html>,
+                                 content  => prefix-partial-names(
+                                     engine  => 'mustache',
+                                     parent  => $partial_name,
+                                     content => $partials_all{$embedded_partial_name}<html>
+                                 ),
                                  from     => [$embedded_partials];
                     }
                     when 'tt' {
                         render-template
                             'tt',
                              context       => %context,
-                             template_name => $embedded_partial_name,
-                             content       => $partials_all{$embedded_partial_name}<html>,
+                             template_name => "{$partial_name}_{$embedded_partial_name}",
+                             content       => prefix-partial-names(
+                                 engine  => 'tt',
+                                 parent  => $embedded_partial_name,
+                                 content => $partials_all{$embedded_partial_name}<html>
+                             ),
                              t6            => $t6;
                     }
                 }
@@ -357,8 +395,7 @@ multi sub render-template(
           'mustache',
           :%context,
     Str   :$content,
-          :@from = [],
-          :&logger
+          :@from = []
 ) {
     quietly {
         Template::Mustache.render: $content, %context, :@from;
@@ -369,8 +406,7 @@ multi sub render-template(
               :%context,
     Str       :$template_name,
     Str       :$content,
-    Template6 :$t6,
-              :&logger
+    Template6 :$t6
 ) {
 
     try {
@@ -415,8 +451,7 @@ multi sub render(
              :@pages,
              :@exclude_pages,
     Hash     :$partials_all,
-    Hash     :$site_index,
-             :&logger
+    Hash     :$site_index
 ) {
 
     my %global_vars  = 
@@ -482,8 +517,7 @@ multi sub render(
                             site_index       => $r_site_index,
                             default_language => $r_default_language,
                             language         => $r_language,
-                            timestamps       => @modified_timestamps,
-                            logger           => &logger);
+                            timestamps       => @modified_timestamps);
                     }
             );
 
@@ -517,22 +551,28 @@ multi sub render(
                 push @partial_render_queue, &{
                     given $template_engine {
                         when 'mustache' {
-                            %partials{$partial_name} =
+                            %partials{"{$page_name}_{$partial_name}"} =
                                 render-template
-                                   'mustache',
-                                    context    => %context,
-                                    content    => %partial<html>,
-                                    from       => [%partials],
-                                    logger     => &logger;
+                                   $template_engine,
+                                   context    => %context,
+                                   content    => prefix-partial-names(
+                                       engine  => $template_engine,
+                                       parent  => $partial_name,
+                                       content => %partial<html>
+                                   ),
+                                   from       => [%partials];
                         }
                         when 'tt' {
                             render-template
-                                'tt',
-                                 context       => %context,
-                                 template_name => $partial_name,
-                                 content       => %partial<html>,
-                                 t6            => $t6,
-                                 logger        => &logger;
+                                $template_engine,
+                                context       => %context,
+                                template_name => "{$page_name}_{$partial_name}",
+                                content       => prefix-partial-names(
+                                    engine  => $template_engine,
+                                    parent  => $partial_name,
+                                    content => %partial<html>
+                                ),
+                                t6            => $t6;
                         }
                     }
                 }
@@ -551,25 +591,27 @@ multi sub render(
             my Str $page_contents = do given $template_engine {
                 when 'mustache' {
                     render-template
-                       'mustache',
-                        context   => %context,
-                        content   => %page<html>,
-                        from      => [%partials],
-                        logger    => &logger;
+                       $template_engine,
+                       context   => %context,
+                       content   => %page<html>,
+                       from      => [%partials];
                 }
                 when 'tt' {
                     # Cache template
                     render-template
-                        'tt',
-                         template_name => "{$page_name}_",
-                         content       => %page<html>,
-                         t6            => $t6;
+                        $template_engine,
+                        template_name => "{$page_name}_",
+                        content       => prefix-partial-names(
+                            engine  => $template_engine,
+                            parent  => $page_name,
+                            content => %page<html>
+                        ),
+                        t6            => $t6;
                     render-template
-                        'tt',
-                         template_name => "{$page_name}_",
-                         context       => %context,
-                         t6            => $t6,
-                         logger        => &logger;
+                        $template_engine,
+                        template_name => "{$page_name}_",
+                        context       => %context,
+                        t6            => $t6;
                 }
             }
 
@@ -586,32 +628,38 @@ multi sub render(
                     !! do given $template_engine {
                         when 'mustache' {
                             render-template
-                                'mustache',
+                                 $template_engine,
                                  context       => %context,
-                                 content       => $layout_template,
-                                 from          => [%( |%partials, content => $page_contents )],
-                                 logger        => &logger;
+                                 content       => prefix-partial-names(
+                                     engine  => $template_engine,
+                                     parent  => $page_name,
+                                     content => $layout_template
+                                 ),
+                                 from          => [%( |%partials, content => $page_contents )];
                         }
                         when 'tt' {
                             # Cache layout template
                             render-template
-                                'tt',
-                                 template_name => 'layout',
-                                 content       => $layout_template,
-                                 t6            => $t6;
+                                $template_engine,
+                                template_name => 'layout',
+                                content       => prefix-partial-names(
+                                    engine  => $template_engine,
+                                    parent  => $page_name,
+                                    content => $layout_template
+                                ),
+                                t6            => $t6;
                             # Cache page template
                             render-template
-                                'tt',
-                                 template_name => 'content',
-                                 content       => $page_contents,
-                                 t6            => $t6;
+                                $template_engine,
+                                template_name => 'content',
+                                content       => $page_contents,
+                                t6            => $t6;
                             # Render layout
                             render-template
-                                'tt',
-                                 context       => %context,
-                                 template_name => 'layout',
-                                 t6            => $t6,
-                                 logger        => &logger;
+                                $template_engine,
+                                context       => %context,
+                                template_name => 'layout',
+                                t6            => $t6;
                         }
                     }
                 }
@@ -638,8 +686,7 @@ multi sub render(
 }
 
 our sub build(
-     %config,
-    :&logger = Uzu::Logger::start()
+     %config
     --> Promise
 ) {
 
@@ -668,7 +715,7 @@ our sub build(
         my Str ($page_name, $out_ext, $target_dir) = extract-file-parts($path, %config<pages_dir>.IO.path);
 
         # Extract header yaml if available
-        my ($page_html, %page_vars) = parse-template :$path, :&logger;
+        my ($page_html, %page_vars) = parse-template :$path;
 
         # Add to site index
         %site_index{$page_name}           = %page_vars;
@@ -688,7 +735,7 @@ our sub build(
     }
 
     # All available partials
-    my %partials = build-partials-hash source => %config<partials_dir>, :$exts, :&logger;
+    my %partials = build-partials-hash source => %config<partials_dir>, :$exts;
 
     for %config<themes>.List -> $theme_config {
         my $theme_name     = $theme_config.key;
@@ -698,7 +745,7 @@ our sub build(
 
         my %theme_partials =
             $theme_dir.IO.child('partials').IO.d
-            ?? build-partials-hash source => $theme_dir.IO.child('partials'), :$exts, :&logger
+            ?? build-partials-hash source => $theme_dir.IO.child('partials'), :$exts
             !! %();
 
         # Create build dir
@@ -721,7 +768,7 @@ our sub build(
         # Extract layout header yaml if available
         my ($layout_template, $layout_vars) =
             $layout_path.defined
-            ?? parse-template(path => $layout_path, :&logger)
+            ?? parse-template(path => $layout_path)
             !! ["", %{}];
 
         logger "Theme [{$theme_name}] does not contain a layout template" unless $layout_path.defined;
@@ -741,8 +788,7 @@ our sub build(
             render(
                 i18n-from-yaml(
                     :$language,
-                    i18n_dir => %config<i18n_dir>,
-                    :&logger
+                    i18n_dir => %config<i18n_dir>
                 ),
                 :$page_queue,
                 :$build_dir,
@@ -759,8 +805,8 @@ our sub build(
                 layout_modified  => ($layout_path.defined ?? $layout_path.modified !! 0),
                 default_language => %config<language>[0],
                 partials_all     => %( |%partials, |%theme_partials ),
-                extended         => (%extended||%config<extended>),
-                logger           => &logger);
+                extended         => (%extended||%config<extended>)
+            );
 
         } #/language
 
@@ -778,8 +824,7 @@ our sub build(
 }
 
 our sub clear(
-    %config,
-    :&logger = Uzu::Logger::start()
+    %config
 ) {
     # Clear out build
     for %config<themes> {

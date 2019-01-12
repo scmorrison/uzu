@@ -15,3 +15,8 @@ our sub start(
     }
 }
 
+sub logger($message) is export {
+    state $logger;
+    $logger = Uzu::Logger::start() unless $logger;
+    return &$logger($message);
+}

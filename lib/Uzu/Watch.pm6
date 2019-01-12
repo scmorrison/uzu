@@ -34,17 +34,15 @@ sub file-change-monitor(
 
 sub build-and-reload(
     %config,
-    ::D :&logger
     --> Bool
 ) {
-    Uzu::Render::build(%config, logger => &logger);
+    Uzu::Render::build %config;
     Uzu::LiveReload::reload-browser(%config);
 }
 
 sub user-input(
     %config,
     Array :$servers,
-    ::D   :&logger
     --> Bool
 ) {
     loop {
@@ -54,12 +52,12 @@ sub user-input(
         given prompt('') {
             when 'r' {
                 logger colored "Rebuild triggered", "bold green on_blue";
-                build-and-reload(%config, logger => &logger);
+                build-and-reload %config;
             }
             when 'c' {
                 logger colored "Clear build directory and rebuild triggered", "bold green on_blue";
-                Uzu::Render::clear(%config, logger => &logger);
-                build-and-reload(%config, logger => &logger);
+                Uzu::Render::clear %config;
+                build-and-reload %config;
             }
             when 'q'|'quit' {
                 exit 1;
@@ -72,11 +70,9 @@ our sub start(
     %config,
     --> Bool
 ) {
-    my &logger = Uzu::Logger::start();
-    
     # Initialize build
     logger "Initial build";
-    Uzu::Render::build(%config, logger => &logger);
+    Uzu::Render::build %config;
     
     # Track time delta between File events. 
     # Some editors trigger more than one event per
@@ -105,7 +101,7 @@ our sub start(
                 # known extension; don't re-render too fast
                 if so $exts (cont) $e.path.IO.extension and (now - $last_run) > 2 {
                     logger colored "Change detected [{$e.path()}]", "bold green on_blue";
-                    build-and-reload(%config, logger => &logger);
+                    build-and-reload %config;
                     $last_run = now;
                 }
             }
@@ -113,6 +109,6 @@ our sub start(
     }
 
     # Listen for keyboard input
-    user-input(%config, :@servers, logger => &logger);
+    user-input %config, :@servers;
 }
 

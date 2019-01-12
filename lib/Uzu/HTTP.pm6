@@ -1,4 +1,5 @@
 use HTTP::Server::Tiny:ver<0.0.2>;
+use Uzu::Logger;
 
 unit module Uzu::HTTP;
 
@@ -29,7 +30,7 @@ our sub web-server(
                     # Routes
                     when  '/reload' {
                         $reload.send(True);
-                        say "GET /reload [$theme_name]";
+                        logger "GET /reload [$theme_name]";
                         return 200, [$ct_json], ['{ "reload": "Staged" }'];
                     }
 
@@ -44,7 +45,7 @@ our sub web-server(
                     # Include live.js that starts polling /live
                     # for reload instructions
                     when '/uzu/js/live.js' {
-                        say "GET /uzu/js/live.js [$theme_name]";
+                        logger "GET /uzu/js/live.js [$theme_name]";
                         my Str $livejs = q:to|END|; 
                         // Uzu live-reload
                         function live() {
@@ -93,7 +94,7 @@ our sub web-server(
                         
                             when !*.IO.e {
                                 # Invalid path
-                                say "GET $file (not found) [$theme_name]";
+                                logger "GET $file (not found) [$theme_name]";
                                 return 400, [$ct_text], ['Invalid path'];
                             }
 
@@ -101,7 +102,7 @@ our sub web-server(
                                 # Return any valid paths
                                 my %ct = detect-content-type($path);
 
-                                say "GET $file [$theme_name]";
+                                logger "GET $file [$theme_name]";
 
                                 # HTML
                                 if %ct<type> ~~ 'text/html;charset=UTF-8' {
@@ -118,7 +119,7 @@ our sub web-server(
                         }    
                     }
 
-                    say "uzu serves [http://localhost:{$port}] for theme [$theme_name]";
+                    logger "uzu serves [http://localhost:{$port}] for theme [$theme_name]";
                 }
 
             }); # /http server
