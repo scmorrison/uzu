@@ -16,3 +16,4 @@ exclude:
   - bad_file.txt
 pre_command: "echo 'pre-command test'"
 post_command: "echo 'post-command test'"
+extended: 'Local'

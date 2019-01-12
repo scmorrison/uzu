@@ -6,4 +6,4 @@ install:
   - rakudobrew build-zef
   - zef --/test install . 
   - prove --exec perl6 -r -Ilib t/
-  - prove --exec perl6 -r -Ilib xt/
+  - PERL6LIB="./t/lib" prove --exec perl6 -r -Ilib xt/
