@@ -362,26 +362,26 @@ sub embedded-partials(
                     when 'mustache' {
                         $embedded_partials{"{$partial_name}_{$embedded_partial_name}"} =
                             render-template
-                                'mustache',
-                                 context  => %context,
-                                 content  => prefix-partial-names(
-                                     engine  => 'mustache',
-                                     parent  => $partial_name,
-                                     content => $partials_all{$embedded_partial_name}<html>
-                                 ),
-                                 from     => [$embedded_partials];
+                                $template_engine,
+                                context  => %context,
+                                content  => prefix-partial-names(
+                                    engine  => $template_engine,
+                                    parent  => $embedded_partial_name,
+                                    content => $partials_all{$embedded_partial_name}<html>
+                                ),
+                                from     => [$embedded_partials];
                     }
                     when 'tt' {
                         render-template
-                            'tt',
-                             context       => %context,
-                             template_name => "{$partial_name}_{$embedded_partial_name}",
-                             content       => prefix-partial-names(
-                                 engine  => 'tt',
-                                 parent  => $embedded_partial_name,
-                                 content => $partials_all{$embedded_partial_name}<html>
-                             ),
-                             t6            => $t6;
+                            $template_engine,
+                            context       => %context,
+                            template_name => "{$partial_name}_{$embedded_partial_name}",
+                            content       => prefix-partial-names(
+                                engine  => $template_engine,
+                                parent  => $embedded_partial_name,
+                                content => $partials_all{$embedded_partial_name}<html>
+                            ),
+                            t6            => $t6;
                     }
                 }
             }
@@ -593,7 +593,11 @@ multi sub render(
                     render-template
                        $template_engine,
                        context   => %context,
-                       content   => %page<html>,
+                       content       => prefix-partial-names(
+                           engine  => $template_engine,
+                           parent  => $page_name,
+                           content => %page<html>
+                       ),
                        from      => [%partials];
                 }
                 when 'tt' {
