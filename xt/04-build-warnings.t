@@ -49,7 +49,7 @@ subtest {
     say $build_out if %*ENV<UZUSTDOUT>;
 
     # Test warnings
-    like $build_out, / 'No content found for page' /, 'empty page template warning to stdout';
+    like $build_out, / 'Rendered page [empty] is empty' /, 'empty page template warning to stdout';
     like $build_out, / 'Invalid i18n yaml file' /, 'invalid i18n yaml warning to stdout';
     like $build_out, / 'Theme [default] does not contain a layout template' /, 'theme layout template is missing warning to stdout';
     like $build_out, / 'Unable to load Local' /, 'extended library is missing subroutine context()';

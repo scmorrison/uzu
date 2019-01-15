@@ -563,16 +563,47 @@ Some variables are generated dynamically and exposed to templates for use:
 
 * **language**: The current language as a string (e.g. `en`, `ja`, etc.)
 * **lang_**: The `lang_CURRENT_LANG` variable provides the current rendering language. This is useful if you want to display certain content depending on the i18n language.
+    
+    For `Template6`:
+
     ```html
-    {{lang_en}}
+    [% if lang_en %]
     <a href='/index-ja.html'>日本語</a>
-    {{/lang_en}}
-    {{lang_ja}}
+    [% end %]
+    [% if lang_ja %]
     <a href='/'>English</a>
-    {{/lang_ja}}
+    [% end %]
 
     ```
+
+    For `Mustache`:
+
+    ```html
+    {{#lang_en}}
+    <a href='/index-ja.html'>日本語</a>
+    {{/lang_en}}
+    {{#lang_ja}}
+    <a href='/'>English</a>
+    {{/lang_ja}}
+    ```
+
+
 * **theme_**: The current theme is exposed to the templates as `theme_NAME_OF_THEM`. For example, the variable `theme_default` will be available if the `default` theme is being used:
+
+    For `Template6`:
+
+    ```html
+    [% if theme_default %]
+    [% INCLUDE "default_header" %]
+    [% end %]
+
+    [% if theme_enoshima %]
+    [% INCLUDE "enoshima_header" %]
+    [% end %]
+    ```
+
+    For `Mustache`:
+
     ```html
     {{#theme_default}}
     {{> default_header }}
@@ -582,13 +613,15 @@ Some variables are generated dynamically and exposed to templates for use:
     {{> enoshima_header }}
     {{/theme_enoshima}}
     ```
+
+
 * **randnum**: A dynamically generated 16 digit integer. This value is generated any time a page is generated / regenerated.
     ```html
-    <link rel="stylesheet" type="text/css" href="/css/site.css?v={{ randnum }}">
+    <link rel="stylesheet" type="text/css" href="/css/site.css?v=[% randnum %]">
     ```
 * **dt**: A date hash that includes common date values. This is a dynamic variable that contains `datetime` data for current build.
     ```html
-    <span>&copy;{{ dt.year }} Uzu, Inc.</span>
+    <span>&copy;[% dt.year %] Uzu, Inc.</span>
 
     ```
     Available `dt` values:
@@ -648,7 +681,7 @@ extended: 'MyApp'
 When `uzu` starts it will attempt to load the local module and inject the `Hash` returned by `context()` into the global render context Hash. The keys defined in the injected Hash will be available from within templates.
 
 ```html
-<span>Total Products: {{ number_of_products }}</span>
+<span>Total Products: [% number_of_products %]</span>
 ```
 
 If `&MyApp::context()` is unavailable, `uzu` will print a message indicating that `MyApp` or `&MyApp::context()` could not be loaded.
@@ -668,7 +701,7 @@ You can define variables using a yaml block at the top of any page or partial (`
 ```html
 ---
 title: 'Welcome to Uzu'
-date:  '2017/07/16'
+subtitle:  'The best'
 ---
 ```
 
@@ -681,7 +714,7 @@ For `Template6`:
 ```html
 <head>
     <meta charset="utf-8">
-    <title>[% title %] - [% date %]</title>
+    <title>[% title %] - [% subtitle %]</title>
 </head>
 ```
 
@@ -692,7 +725,7 @@ For `Template6`:
 ```html
 <head>
     <meta charset="utf-8">
-    <title>{{ title }} - {{ date }}</title>
+    <title>{{ title }} - {{ subtitle }}</title>
 </head>
 ```
 
@@ -732,6 +765,8 @@ For `Template6`:
 
 Uzu will append any yaml dict ending with `_pages` with additional page-related variables if the variables are defined in the associated page template.
 
+For `Template6`:
+
 ```html
 ---
 related_pages:
@@ -741,6 +776,18 @@ related_pages:
       title: The Perl 6 Programming Language
       author: Perl 6
 ---
+<ul>
+[% for rp in related_pages %]
+    <li>
+        <a href="[% rp.url %]">[% rp.title %]</a> [[% rp.author %]]
+    </li>
+[% end %]
+</ul>
+```
+
+...and for `Mustache`:
+
+```html
 <ul>
 {{#related_pages}}
     <li>

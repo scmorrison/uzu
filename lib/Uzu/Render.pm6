@@ -207,7 +207,8 @@ sub write-generated-file(
     my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
     my $out        = $build_dir.IO.child("{$page_name}{$omit_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
     mkdir $target_dir when !$target_dir.IO.d;
-    spurt $out, $html;
+    logger "Rendered page [$page_name] is empty" unless $html;
+    spurt $out, ($html||'');
 }
 
 sub prepare-html-output(
@@ -301,6 +302,7 @@ sub prefix-partial-names(
     :$content is copy
 ) {
     my @partials = do given $engine {
+       next unless $content;
         when 'tt' {
             ($content ~~ m:g/('[%' \s*? 'INCLUDE' \s*? '"') <( \S* )> ('"' \s*? '%]')/);
         }
@@ -343,7 +345,7 @@ sub embedded-partials(
         my @partial_keys = partial-names($template_engine, %partial<html>);
         @partial_keys.map: -> $embedded_partial_name {
 
-            my %context = |$context, |%partial<vars>, |$partials_all{$embedded_partial_name}<vars>;
+            my %context = |$context, |%partial<vars>, |($partials_all{$embedded_partial_name}<vars>||%{});
 
             ($modified_timestamps, $partial_render_queue, $embedded_partials) =
                 embedded-partials
@@ -618,8 +620,6 @@ multi sub render(
                         t6            => $t6;
                 }
             }
-
-            logger "No content found for page [$page_name] " when $page_contents ~~ '';
 
             # Append page content to $context
             my Str $layout_contents = do given %page<out_ext> {
