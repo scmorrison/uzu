@@ -56,13 +56,13 @@ sub i18n-from-yaml(
    return %i18n;
 }
 
+#| Hash only contains Pairs
 sub i18n-valid-hash(
     %h
     --> Bool
 ) {
     so %h.values.all ~~ Pair;
 }
-
 
 sub i18n-context-vars(
     Str      :$language, 
@@ -76,13 +76,15 @@ sub i18n-context-vars(
                          ( %context{$i18n_key}.defined ?? |%context{$i18n_key}<i18n> !! %())));
 }
 
-sub html-file-name(
+sub out-file-name(
     Str :$page_name,
     Str :$default_language,
-    Str :$language
+    Str :$language,
+    Str :$i18n_scheme = 'suffix'
     --> Str
 ) {
-    return "{$page_name}-{$language}" when $language !~~ $default_language;
+    return $language.IO.child($page_name).path if $language !~~ $default_language && $i18n_scheme ~~ 'directory';
+    return "{$page_name}-{$language}"          if $language !~~ $default_language;
     return $page_name;
 }
 
@@ -92,12 +94,10 @@ sub page-uri(
     Str :$out_ext,
     Str :$default_language,
     Str :$language,
-    Str :$i18n_format = 'default'
+    Str :$i18n_scheme
     --> Str
 ) {
-    $i18n_format ~~ 'subfolder'
-    ?? "/{$language}/{$page_name}.{$out_ext}"
-    !! '/' ~ html-file-name(:$page_name, :$default_language, :$language) ~ ".{$out_ext}";
+    return '/' ~ out-file-name(:$page_name, :$default_language, :$language, :$i18n_scheme) ~ ".{$out_ext}";
 }
 
 #| Parse page templates for references to other pages. Build a Hash containing
@@ -153,7 +153,7 @@ sub linked-pages(
          :%site_index,
     Str  :$default_language,
     Str  :$language,
-    Str  :$i18n_format = 'default',
+    Str  :$i18n_scheme,
          :@timestamps
 ) {
     my %linked_pages;
@@ -161,7 +161,7 @@ sub linked-pages(
         my $key  = %vars<page>;
         my $url = ($key ~~ / '://' / || !%site_index{$key})
             ?? $key
-            !! page-uri page_name => $key, :$default_language, :$language, out_ext => %site_index{$key}<out_ext>;
+            !! page-uri page_name => $key, :$default_language, :$language, :$i18n_scheme, out_ext => %site_index{$key}<out_ext>;
 
         logger "Broken link in template [$base_page]: page [$key] referenced in [$block_key] not found" when $key !~~ /'://'/ && !%site_index{$key};
 
@@ -196,16 +196,17 @@ sub extract-file-parts(
 sub write-generated-file(
     Pair      $content,
     IO::Path :$build_dir,
-    Bool     :$omit_html_ext = False
+    Bool     :$omit_html_ext = False,
+    Str      :$lang_dir      = ''
     --> Bool()
 ) {
-
     # IO write to disk
     my $page_name  = $content.key;
     my %meta       = $content.values;
     my $html       = %meta<html>;
-    my $target_dir = $build_dir.IO.child(%meta<target_dir>.IO);
-    my $out        = $build_dir.IO.child("{$page_name}{$omit_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
+    my $target_dir = $build_dir.IO.child($lang_dir).child(%meta<target_dir>.IO);
+    my $out        = $target_dir.IO.child("{$page_name.IO.basename}{$omit_html_ext ?? '' !! '.' ~ %meta<out_ext>}");
+    
     mkdir $target_dir when !$target_dir.IO.d;
     logger "Rendered page [$page_name] is empty" unless $html;
     spurt $out, ($html||'');
@@ -215,6 +216,7 @@ sub prepare-html-output(
     Str      :$page_name,
     Str      :$default_language,
     Str      :$language,
+    Str      :$i18n_scheme,
     Str      :$layout_contents,
     IO::Path :$path,
     Str      :$target_dir,
@@ -223,10 +225,11 @@ sub prepare-html-output(
 ) {
     # Default file_name without prefix
     my Str $file_name = 
-        html-file-name
+        out-file-name
             :$page_name,
             :$default_language, 
-            :$language;
+            :$language,
+            :$i18n_scheme;
 
     return $file_name => %{ 
         :$path,
@@ -450,6 +453,7 @@ multi sub render(
     IO::Path :$theme_dir,
     Str      :$default_language,
     Str      :$language, 
+    Str      :$i18n_scheme,
              :@pages,
              :@exclude_pages,
     Hash     :$partials_all,
@@ -471,6 +475,9 @@ multi sub render(
 
     my @layout_partials = partial-names $template_engine, $layout_template;
 
+    # Language directory target
+    my $lang_dir = $language !~~ $default_language && $i18n_scheme ~~ 'directory' ?? $language !! '';
+
     # Build / render all pages (sorted by file modified)
     for @pages.sort({ $^a.value<modified>.Int < $^b.value<modified>.Int }) -> Pair $page {
 
@@ -488,8 +495,8 @@ multi sub render(
             # When was this page last rendered?
             my $last_render_time =
                 $language ~~ $default_language
-                ?? "{$build_dir}/{$page_name}.{%page<out_ext>}".IO.modified||0
-                !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, out_ext => %page<out_ext>).IO.modified||0;
+                ?? $build_dir.IO.child("{$page_name}.{%page<out_ext>}").modified||0
+                !! ($build_dir ~ page-uri :$page_name, :$default_language, :$language, :$i18n_scheme, out_ext => %page<out_ext>).IO.modified||0;
 
             # Capture i18n, template, layout, and partial modified timestamps
             my @modified_timestamps = [$layout_modified, %page<modified>];
@@ -678,9 +685,11 @@ multi sub render(
                     :$default_language,
                     :$language,
                     :$layout_contents,
-                    path       => %page<path>,
-                    target_dir => %page<target_dir>,
-                    out_ext    => %page<out_ext>),
+                    :$i18n_scheme,
+                    path        => %page<path>,
+                    target_dir  => %page<target_dir>,
+                    out_ext     => %page<out_ext>),
+                :$lang_dir,
                 :$build_dir
 
             );
@@ -801,6 +810,7 @@ our sub build(
                 :$layout_vars,
                 :$theme_dir,
                 :$language,
+                i18n_scheme      => %config<i18n_scheme>,
                 :@pages,
                 :%site_index,
                 exclude_pages    => [ |%theme<exclude_pages>, |%config<exclude_pages> ].grep(*.defined),

@@ -125,6 +125,36 @@ subtest {
     }
 }, 'Rendering [Mustache]';
 
+subtest {
+    
+    my $source_root = $test_root.IO.child('example_project_mustache');
+    # Setup tmp project root
+    my $tmp_root    = tempdir;
+
+    # Copy all example project files to tmp project root
+    copy-dir $source_root, $tmp_root.IO;
+    rm-dir $tmp_root.IO.child('build');
+
+    # Add tmp path to project config
+    my $config_path = $tmp_root.IO.child('config.yml');
+    my $config_file = slurp $config_path;
+    spurt $config_path, $config_file ~ "project_root: $tmp_root\ni18n_scheme: 'directory'\n";
+
+    # Set config file path
+    my $config = Uzu::Config::from-file config_file => $config_path, :no_livereload;
+
+    # Generate HTML from templates
+    my $stdout = stdout-from {
+        try {
+	        Uzu::Render::build $config;
+        }
+    }
+    say $stdout if %*ENV<UZUSTDOUT>;
+
+    my $tmp_build_path = $tmp_root.IO.child('build').child('default').path;
+    ok $tmp_build_path.IO.child('ja').child('related.html').e, '[Mustache] i18n language for non-default languages (scheme: directory)';
+
+}, 'Rendering i18n scheme directory [Mustache]';
 done-testing;
 
 # vim: ft=perl6

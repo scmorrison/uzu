@@ -48,6 +48,7 @@ sub parse-config(
               'extended',
               'host',
               'language',
+              'i18n_scheme',
               'port',
               'project_root',
               'template_engine',
@@ -219,6 +220,7 @@ our sub from-file(
     my %config        = %{
         project_root        => $project_root,
         language            => [%_config<language>.flat],
+        i18n_scheme         => (%_config<i18n_scheme>||'suffix'),
         extended            => %extended,
         _extended           => &{
             %_config<extended>:exists ?? run-extended(%_config<extended>) !! %{};

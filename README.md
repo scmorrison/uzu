@@ -13,6 +13,7 @@ Uzu is a static site generator with built-in web server, file modification watch
 - [Public and Assets directories](#public-and-assets-directories)
 - [i18n YAML and Templating](#i18n-yaml-and-templating)
   * [Nested i18n variable files](#nested-i18n-variable-files)
+  * [i18n output paths](#i18n-output-paths)
 - [Template Features](#template-features)
   * [Template6](#template6)
     + [Examples](#examples-template6)
@@ -127,6 +128,9 @@ language:
   - ja
   - fr
 
+# i18n scheme (default: suffix)
+i18n_scheme: 'directory' # Render non-default languages to /[lang]/[page name].[extension]
+
 # Template engine
 # - Template6: tt
 # - Mustache: mustache
@@ -181,6 +185,8 @@ Config variables are defined in `config.yml`:
 
 * `name`: Project name
 * `language`: List of languages to render for site. First item is default language. When rendering, the `language` variable is set to the current rendering language and can be referenced in templates. For example, if `uzu` is rendering an `en` version of a page, then the `language` variable will be set to `en`.
+
+* `i18n_scheme`: By default `uzu` will generate files with the language suffix appended for non-default language output. (e.g. `fr`: `index-fr`). This behaviour can be set to 'directory' witch will render non-default languages to `/[lang]/[page name].[extension]` (e.g. `fr`: `/fr/index.html`).
 * `theme`: The theme to apply to the layout (themes/themename). `default` refers to the folder named `default` in the themes folder.
 * `themes`: Alternatively, using the `themes` yaml hash supports multiple themes. Themes will be rendered at the same time into their target build directories. By default the theme build directory is `build/[theme-name]`. This can be overridden with the `build_dir` variable. Relative and absolute paths are supported:
   * `build_dir`: 
@@ -383,6 +389,28 @@ site_name: Uzu Starter Project
 # i18n/blog/vacation/en.yml
 site_name: "Our Vacation 2017"
 ```
+
+## i18n output paths
+
+By default `uzu` generates language specific files with the following pattern:
+
+`[page name]-[language code].html`
+
+For example, if the default language is `en` and secondary language is `ja`, the `index` page template would be rendered to the following files:
+
+* Default language: `build/index.html`
+* Subsequent languages: `build/index-ja.html`
+
+This output behavior can be changed to `directory` in `config.yml` with the `i18n_scheme` variable:
+
+```yaml
+i18n_scheme: 'directory'
+```
+
+With this option set, the output will be rendered to the following files:
+
+* Default language: `build/index.html`
+* Subsequent languages: `build/ja/index.html`
 
 Template Features
 =================
