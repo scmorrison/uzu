@@ -585,7 +585,7 @@ multi sub render(
                         }
                     }
                 }
-            } #/partials map
+            } #/partials loop
 
             # Skip rendering if layout, page, or partial templates
             # have not been modified
