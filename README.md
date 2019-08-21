@@ -5,6 +5,7 @@ Uzu is a static site generator with built-in web server, file modification watch
 
 - [Features](#features)
 - [Getting started](#getting-started)
+  * [Uzu Demo Site](#uzu-demo-site)
 - [Usage](#usage)
 - [Config](#config)
   * [Config variables](#config-variables)
@@ -63,6 +64,10 @@ uzu init
 ```
 
 Enter your site name, default language, and template engine when prompted.
+
+## Uzu Demo Site
+
+@uzluisf has created an excellent [Uzu Demo Site](https://github.com/uzluisf/uzu-demo-site) that shows how a fully working Uzu project is organized / functions.
 
 Usage
 =====
