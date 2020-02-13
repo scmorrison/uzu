@@ -122,10 +122,10 @@ subtest {
     nok $t17_excluded_file, '[Template6] exclude file from build via config';
 
     if %*ENV<UZUSTDOUT> {
-        my $t18_pre_command = $stdout.contains('pre-command test');
+        my $t18_pre_command = 'pre-command test' (elem) $stdout;
         ok $t18_pre_command, '[Template6] pre_command via config';
 
-        my $t19_post_command = $stdout.contains('post-command test');
+        my $t19_post_command = 'post-command test' (elem) $stdout;
         ok $t19_post_command, '[Template6] post_command via config';
     }
 }, 'Rendering [tt]';

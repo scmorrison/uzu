@@ -43,7 +43,7 @@ sub parse-config(
         %config<site> = flat(grep({ 
             # Exclude core vars
             # from site hash
-            !['exclude',
+            .key !(elem) ['exclude',
               'exclude_pages',
               'extended',
               'host',
@@ -55,7 +55,7 @@ sub parse-config(
               'theme',
               'themes',
               'pre_command',
-              'post_command'].contains: .key
+              'post_command']
         }, %config)).Hash;
 
         return %config;
