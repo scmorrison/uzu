@@ -1,0 +1,4 @@
+bash 'uzu version', %(
+  user => config()<user>,
+  #expect_stdout => 'this string should be in a script output'
+);
