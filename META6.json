@@ -1,8 +1,8 @@
 {
-    "perl" : "6.c",
+    "perl" : "6.d",
     "name" : "Uzu",
     "license" : "Artistic-2.0",
-    "version"  : "0.3.4",
+    "version"  : "0.3.5",
     "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Perl 6 module, and external pre/post command execution.",
     "tags" : [ "web", "static-site-generator" ],
     "provides" : {
