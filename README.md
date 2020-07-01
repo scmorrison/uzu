@@ -3,6 +3,8 @@ Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=maste
 
 Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Perl 6 module, and external pre/post command execution.
 
+**Note:** Uzu 0.3.6 and higher requires at least raku 2020.06.
+
 - [Features](#features)
 - [Getting started](#getting-started)
   * [Uzu Demo Site](#uzu-demo-site)
