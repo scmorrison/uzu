@@ -38,7 +38,7 @@ sub i18n-from-yaml(
        
         try {
             my %yaml = await start {
-                load-yaml slurp($i18n_file, :r);
+                load-yaml slurp($i18n_file);
             }
             my $key  = $i18n_file.dirname.split('i18n')[1] || $language;
             %i18n{$key}<i18n>     = %yaml;
@@ -246,7 +246,7 @@ sub parse-template(
     # Extract header yaml if available
     try {
 
-        my ($template_yaml, $template_html) = ~<< ( slurp($path, :r) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
+        my ($template_yaml, $template_html) = ~<< ( slurp($path) ~~ / ( ^^ '---' .* '---' | ^^ ) [\v]? (.*) / );
         my %yaml = $template_yaml ?? load-yaml $template_yaml.subst(/'---'$/, '') !! %();
         return $template_html, %yaml;
 
