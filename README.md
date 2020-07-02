@@ -26,6 +26,7 @@ Uzu is a static site generator with built-in web server, file modification watch
   * [Partials](#partials)
   * [Global variables](#global-variables)
   * [Extended variables](#extended-variables)
+  * [Page variables](#page-variables)
   * [Template variables](#template-variables)
   * [Layout variables](#layout-variables)
   * [Related / linked pages](#related--linked-pages)
@@ -725,6 +726,32 @@ The external module will be executed on every build by default. To disable this 
 
 ```yaml
 refresh_extended: false
+```
+
+### Page variables
+
+The `page` hash, accessible from within templates, includes the following details:
+
+* `page.id`: The internal page ID within the site index (e.g. `/index`, `/path/to/page`)
+* `page.extension`: The file extension used for the render (e.g. `html`, `json`)
+* `page.path`: The full resource path for the page (e.g. `/index.html`, `/path/to/page.html`)
+
+To access these variables inside of a template use the following format:
+
+For `Template6`:
+
+```html
+[% page.id %]
+[% page.extension %]
+[% page.path %]
+```
+
+...and for `Mustache`:
+
+```html
+{{ page.id }}
+{{ page.extension }}
+{{ page.path }}
 ```
 
 ### Template variables

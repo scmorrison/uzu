@@ -178,6 +178,7 @@ sub linked-pages(
         ]).Hash;
     }
 
+
     return %linked_pages;
 }
 
@@ -490,6 +491,13 @@ multi sub render(
         # specifically excluded in config.yml
         next unless %page<render> && @exclude_pages !(cont) $page_name;
 
+        # generate page-specific details 
+        my %page_hash = %{
+            id        => $page_name,
+            extension => %page<out_ext>,
+            path      => "{$page_name}.{%page<out_ext>}"
+        }
+
         $page_queue.emit: &{
 
             # When was this page last rendered?
@@ -535,7 +543,7 @@ multi sub render(
             my %partials      = %() when $template_engine ~~ 'mustache';
 
             # Prepare base context variables
-            my %base_context = |%global_vars, |%i18n_vars, |$page_vars;
+            my %base_context = |%global_vars, |%i18n_vars, |$page_vars, page => %page_hash;
 
             my ($modified_timestamps, $partial_render_queue) =
                  embedded-partials

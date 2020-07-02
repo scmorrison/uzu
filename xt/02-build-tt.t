@@ -22,7 +22,7 @@ subtest {
     # Add tmp path to project config
     my $config_path = $tmp_root.IO.child('config.yml');
     my $config_file = slurp $config_path;
-    spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
+    spurt $config_path, $config_file ~ "project_root: {$tmp_root.path}\n";
 
     # Set config file path
     my $config = Uzu::Config::from-file config_file => $config_path, :no_livereload;

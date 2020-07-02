@@ -7,7 +7,7 @@ sub valid-project-folder-structure(
     --> Bool()
 ) {
     @template_dirs.grep({ !$_.IO.e }).&{
-        unless elems $_ > 0 {
+        if $_ {
             note "Project directory missing: \n * {$_.join: "\n * "}";
             exit 1;
         }
