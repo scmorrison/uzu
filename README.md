@@ -1,7 +1,7 @@
 Uzu (渦) [![build status](https://travis-ci.org/scmorrison/uzu.svg?branch=master)](https://travis-ci.org/scmorrison/uzu)
 ===
 
-Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Perl 6 module, and external pre/post command execution.
+Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Raku module, and external pre/post command execution.
 
 **Note:** Uzu 0.3.6 and higher requires at least raku 2020.06.
 
@@ -48,7 +48,7 @@ Features
 * **Templating**: Supports [Template6](#template6) and [Mustache](#mustache) template engines.
 * **i18n support**: Use YAML to define each language in the `i18n/` folder (e.g. `i18n/en.yml`)
 * **Page / layout support**: Generate individual pages wrapped in the same theme layout
-* **Extended variables**: Inject dynamically generated data into project via external `Perl 6` module.
+* **Extended variables**: Inject dynamically generated data into project via external `Raku` module.
 * **Pre/Post commands**: Trigger external commands to execute before or after build. 
 * **YAML variables**: Create page-specific and partial-specific variables as a [YAML block](#page-variables) at the top of any page or partial template.
 * **Trigger rebuild manually**: Press `r enter` to initiate a full rebuild. This is useful for when you add new files or modify files that are not actively monitored by `uzu`, e.g. images, css, fonts, or any non `.tt`, `.mustache`, or `.yml` files
@@ -684,7 +684,7 @@ Some variables are generated dynamically and exposed to templates for use:
 
 ### Extended variables
 
-Uzu can be extended with external / dynamically generated data provided via a local `Perl 6` module.
+Uzu can be extended with external / dynamically generated data provided via a local `Raku` module.
 
 In order to inject external data into your project you must use the `PERL6LIB` environment variable when running `uzu`:
 
@@ -694,7 +694,7 @@ PERL6LIB=lib uzu watch
 
 Create your module, for example `MyApp`, in your `uzu` project directory under `lib` (e.g. `lib/MyApp.pm6`). The app must export a subroutine named `context()`. This is `uzu`'s entry point:
 
-```perl
+```raku
 # lib/MyApp.pm6
 
 unit module MyApp;
@@ -707,7 +707,7 @@ our sub context(--> Hash) {
 }
 ```
 
-Add the name of your `Perl 6` module to your config as `extended` (do not add the module file extension):
+Add the name of your `Raku` module to your config as `extended` (do not add the module file extension):
 
 ```yaml
 extended: 'MyApp'
@@ -774,7 +774,7 @@ Define yaml definitions in `themes/**/layout.tt` or `themes/**/layout.mustache`:
 
 ```
 ---
-root_url: https://www.perl6.org
+root_url: https://www.raku.org
 name: Dark Theme
 ---
 <!doctype html>
@@ -807,9 +807,9 @@ For `Template6`:
 related_pages:
     - page: about
     - page: blog/fiji
-    - page: https://www.perl6.org
-      title: The Perl 6 Programming Language
-      author: Perl 6
+    - page: https://www.raku.org
+      title: The Raku Programming Language
+      author: Raku
 ---
 <ul>
 [% for rp in related_pages %]
@@ -843,7 +843,7 @@ The above produces the following HTML. Note that the `author` and `title` values
         <a href="/blog/fiji.html">Fiji Vacation</a> [Camelia]
     </li>
     <li>
-        <a href="https://www.perl6.org">The Perl 6 Programming Language</a> [Perl 6]
+        <a href="https://www.raku.org">The Raku Programming Language</a> [Raku]
     </li>
 </ul>
 ```
@@ -892,7 +892,7 @@ Todo
 Requirements
 ============
 
-* [Perl 6](http://perl6.org/)
+* [Raku](http://raku.org/)
 
 Troubleshooting
 ===============
@@ -907,7 +907,7 @@ Troubleshooting
   rm -rf ~/.zef/store/uzu.git ~/.zef/tmp/uzu.git 
   ```
 
-  In some instances it might help to delete your local `~/.perl6/precomp` directory. 
+  In some instances it might help to delete your local `~/.raku/precomp` directory. 
 
 * **Tests failing during install**
 
@@ -926,7 +926,7 @@ zef install --force-install --/test \
     YAMLish;
 ```
 
-In some instances it might help to delete your local `~/.perl6/precomp` directory. 
+In some instances it might help to delete your local `~/.raku/precomp` directory. 
 
 If installing from source, remove the `lib/.precomp` folder inside the `uzu` root folder and attempt the install again.
 

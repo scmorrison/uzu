@@ -3,18 +3,18 @@
     "name" : "Uzu",
     "license" : "Artistic-2.0",
     "version"  : "0.3.6",
-    "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Perl 6 module, and external pre/post command execution.",
+    "description" : "Uzu is a static site generator with built-in web server, file modification watcher, live reload, i18n, themes, multi-page support, inject external data via local Raku module, and external pre/post command execution.",
     "tags" : [ "web", "static-site-generator" ],
     "provides" : {
-      "Uzu"             : "lib/Uzu.pm6",
-      "Uzu::Config"     : "lib/Uzu/Config.pm6",
-      "Uzu::CLI"        : "lib/Uzu/CLI.pm6",
-      "Uzu::HTTP"       : "lib/Uzu/HTTP.pm6",
-      "Uzu::LiveReload" : "lib/Uzu/LiveReload.pm6",
-      "Uzu::Logger"     : "lib/Uzu/Logger.pm6",
-      "Uzu::Render"     : "lib/Uzu/Render.pm6",
-      "Uzu::Utilities"  : "lib/Uzu/Utilities.pm6",
-      "Uzu::Watch"      : "lib/Uzu/Watch.pm6"
+      "Uzu"             : "lib/Uzu.rakumod",
+      "Uzu::Config"     : "lib/Uzu/Config.rakumod",
+      "Uzu::CLI"        : "lib/Uzu/CLI.rakumod",
+      "Uzu::HTTP"       : "lib/Uzu/HTTP.rakumod",
+      "Uzu::LiveReload" : "lib/Uzu/LiveReload.rakumod",
+      "Uzu::Logger"     : "lib/Uzu/Logger.rakumod",
+      "Uzu::Render"     : "lib/Uzu/Render.rakumod",
+      "Uzu::Utilities"  : "lib/Uzu/Utilities.rakumod",
+      "Uzu::Watch"      : "lib/Uzu/Watch.rakumod"
     },
     "authors" : [ "Sam Morrison" ],
     "depends" : [
