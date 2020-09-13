@@ -1,7 +1,7 @@
 language: perl6
 sudo: false
 perl6:
-  - 2020.06
+  - 2020.08
 install:
   - rakudobrew build-zef
   - zef --/test install . 
