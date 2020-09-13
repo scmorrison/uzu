@@ -116,13 +116,12 @@ subtest {
     my $t14_excluded_file = so $tmp_root.IO.child('build').child('bad_file.txt').IO.e;
     nok $t14_excluded_file, '[Mustache] exclude file from build via config';
 
-    if %*ENV<UZUSTDOUT> {
-        my $t15_pre_command = so $stdout.contains('pre-command test');
-        ok $t15_pre_command, '[Mustache] pre_command via config';
+    my $t15_pre_command = so $stdout7.contains('pre-command test');
+    ok $t15_pre_command, '[Mustache] pre_command via config';
 
-        my $t16_post_command = so $stdout.contains('post-command test');
-        ok $t16_post_command, '[Mustache] post_command via config';
-    }
+    my $t16_post_command = so $stdout7.contains('post-command test');
+    ok $t16_post_command, '[Mustache] post_command via config';
+ 
 }, 'Rendering [Mustache]';
 
 subtest {

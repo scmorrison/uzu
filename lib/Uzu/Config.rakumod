@@ -196,9 +196,13 @@ sub run-extended($module) {
                 say "Routine {$module}::context() does not return Hash";
             }
         } else {
-            say "Unable to load $module";
+            say "Extended [$module] is missing context()";
         }
-        CATCH { default {}}
+        CATCH {
+            default {
+                say "Unable to load $module";
+            }
+        }
     }
     return %extended;
 }

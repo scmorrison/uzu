@@ -22,7 +22,9 @@ subtest {
     # Add tmp path to project config
     my $config_path = $tmp_root.IO.child('config.yml');
     my $config_file = slurp $config_path;
-    spurt $config_path, $config_file ~ "project_root: $tmp_root\n";
+
+    # Intejntionally attempt to load nonexisting module, use tmp_root
+    spurt $config_path, $config_file.subst('Local', 'LocalX') ~ "project_root: $tmp_root\n";
 
     # Expect a warning when i18n yaml is invalid
     my $yaml = q:to/END/;
@@ -40,19 +42,19 @@ subtest {
     # Do not die when theme layout template is missing
     unlink $tmp_root.IO.child('themes').child('default').child('layout.tt');
 
-    my $build_out = output-from {
+    my $stdout = output-from {
         try {
             Uzu::Render::build
                 Uzu::Config::from-file( config_file => $config_path, :no_livereload );
         }
     }
-    say $build_out if %*ENV<UZUSTDOUT>;
+    note $stdout if %*ENV<UZUSTDOUT>;
 
     # Test warnings
-    like $build_out, / 'Rendered page [empty] is empty' /, 'empty page template warning to stdout';
-    like $build_out, / 'Invalid i18n yaml file' /, 'invalid i18n yaml warning to stdout';
-    like $build_out, / 'Theme [default] does not contain a layout template' /, 'theme layout template is missing warning to stdout';
-    like $build_out, / 'Unable to load Local' /, 'extended library is missing subroutine context()';
+    like $stdout, / 'Rendered page [empty] is empty' /, 'empty page template warning to stdout';
+    like $stdout, / 'Invalid i18n yaml file' /, 'invalid i18n yaml warning to stdout';
+    like $stdout, / 'Theme [default] does not contain a layout template' /, 'theme layout template is missing warning to stdout';
+    like $stdout, / 'Extended [LocalX] is missing context()' /, 'extended library is missing subroutine context()';
 
 }, 'Warnings';
 
